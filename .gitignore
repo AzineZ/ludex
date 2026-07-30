@@ -1,0 +1,70 @@
+# Project design and checkpoint notes
+DESIGN.md
+CHECKPOINT.md
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# JavaScript / TypeScript
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Frontend build and tooling
+.vite/
+.next/
+out/
+coverage/
+
+# Local databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+
+# IDEs and editors
+.idea/
+.vscode/
+*.code-workspace
+
+# Operating system files
+.DS_Store
+Thumbs.db
+

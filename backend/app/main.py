@@ -1,4 +1,8 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from app.database import get_database_session
 
 app = FastAPI(
     title="Ludex API",
@@ -7,5 +11,12 @@ app = FastAPI(
 
 
 @app.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "healthy"}
+def health_check(
+    database_session: Session = Depends(get_database_session),
+) -> dict[str, str]:
+    database_session.execute(text("SELECT 1"))
+
+    return {
+        "status": "healthy",
+        "database": "connected",
+    }

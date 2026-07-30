@@ -19,7 +19,7 @@ class Base(DeclarativeBase):
     pass
 
 
-def get_database_session() -> Generator(Session, None, None):
+def get_database_session() -> Generator[Session, None, None]:
     session = SessionLocal()
     try:
         yield session
