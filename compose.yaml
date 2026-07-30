@@ -17,5 +17,40 @@ services:
          timeout: 5s
          retries: 5
 
+   backend:
+      build:
+         context: ./backend
+      environment:
+         DATABASE_URL: postgresql+psycopg://ludex:ludex@database:5432/ludex
+         FRONTEND_ORIGIN: http://localhost:5173
+      ports:
+         - "8000:8000"
+      depends_on:
+         database:
+            condition: service_healthy
+      healthcheck:
+         test:
+            [
+               "CMD",
+               "python",
+               "-c",
+               "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+            ]
+         interval: 5s
+         timeout: 5s
+         retries: 5
+         start_period: 5s
+
+   frontend:
+      build:
+         context: ./frontend
+      environment:
+         VITE_API_BASE_URL: http://localhost:8000
+      ports:
+         - "5173:5173"
+      depends_on:
+         backend:
+            condition: service_healthy
+
 volumes:
    postgres_data:
