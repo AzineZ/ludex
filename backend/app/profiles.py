@@ -213,7 +213,7 @@ def _sync_profile_or_raise(
         )
     except InvalidSteamIdentifierError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(error),
         ) from error
     except SteamProfileNotFoundError as error:
@@ -223,7 +223,7 @@ def _sync_profile_or_raise(
         ) from error
     except SteamLibraryUnavailableError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(error),
         ) from error
     except SteamAPIUnavailableError as error:

@@ -1,11 +1,14 @@
+import pytest
 from unittest.mock import MagicMock
-
 from fastapi.testclient import TestClient
-
 from app.steam_client import (
+    SteamAPIError,
+    SteamAPIUnavailableError,
     SteamClient,
+    SteamLibraryUnavailableError,
     SteamOwnedGame,
     SteamProfile,
+    SteamProfileNotFoundError,
 )
 
 STEAM_ID = "76561198000000000"
@@ -209,3 +212,114 @@ def test_refresh_profile_updates_cached_library(
     steam_client.resolve_steam_id.assert_called_once()
     steam_client.get_profile.assert_called_once_with(STEAM_ID)
     steam_client.get_owned_games.assert_called_once_with(STEAM_ID)
+
+
+def test_get_profile_returns_not_found_for_unknown_id(
+    profile_api_client: TestClient,
+) -> None:
+    """Verify that reading an unknown local profile returns HTTP 404."""
+    response = profile_api_client.get("/profiles/999")
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Profile not found.",
+    }
+
+
+def test_refresh_profile_returns_not_found_for_unknown_id(
+    profile_api_client: TestClient,
+    steam_client: MagicMock,
+) -> None:
+    """Verify that refreshing an unknown profile never contacts Steam."""
+    response = profile_api_client.post(
+        "/profiles/999/refresh"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Profile not found.",
+    }
+
+    steam_client.resolve_steam_id.assert_not_called()
+    steam_client.get_profile.assert_not_called()
+    steam_client.get_owned_games.assert_not_called()
+
+
+def test_create_profile_rejects_invalid_identifier(
+    profile_api_client: TestClient,
+    steam_client: MagicMock,
+) -> None:
+    """Verify that invalid identifiers are rejected before contacting Steam."""
+    response = profile_api_client.post(
+        "/profiles",
+        json={"identifier": "https://example.com/id/player"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": (
+            "Enter a 17-digit Steam ID or a Steam Community profile URL."
+        ),
+    }
+
+    steam_client.resolve_steam_id.assert_not_called()
+    steam_client.get_profile.assert_not_called()
+    steam_client.get_owned_games.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    (
+        "error",
+        "expected_status",
+        "expected_detail",
+    ),
+    [
+        (
+            SteamProfileNotFoundError(
+                "The Steam profile could not be found."
+            ),
+            404,
+            "The Steam profile could not be found.",
+        ),
+        (
+            SteamLibraryUnavailableError(
+                "This Steam library is private or unavailable."
+            ),
+            422,
+            "This Steam library is private or unavailable.",
+        ),
+        (
+            SteamAPIUnavailableError(
+                "Steam is currently unavailable."
+            ),
+            503,
+            "Steam is currently unavailable.",
+        ),
+        (
+            SteamAPIError(
+                "Steam returned invalid response data."
+            ),
+            502,
+            "Steam returned invalid response data.",
+        ),
+    ],
+)
+def test_create_profile_maps_steam_errors_to_http_responses(
+    profile_api_client: TestClient,
+    steam_client: MagicMock,
+    error: SteamAPIError,
+    expected_status: int,
+    expected_detail: str,
+) -> None:
+    """Verify that Steam domain errors become stable HTTP responses."""
+    steam_client.resolve_steam_id.side_effect = error
+
+    response = profile_api_client.post(
+        "/profiles",
+        json={"identifier": STEAM_ID},
+    )
+
+    assert response.status_code == expected_status
+    assert response.json() == {
+        "detail": expected_detail,
+    }
