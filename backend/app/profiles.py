@@ -41,6 +41,19 @@ def create_profile(
         get_steam_client
     ),
 ) -> ProfileDetailResponse:
+    """Create or re-import a profile from its Steam identifier.
+
+    Args:
+        request: The submitted Steam ID or Steam Community profile URL.
+        database_session: The request-scoped database session.
+        steam_client: The client used to fetch the current Steam profile.
+
+    Returns:
+        The synchronized profile and its owned-game library.
+
+    Raises:
+        HTTPException: If the identifier or Steam response cannot be processed.
+    """
     profile = _sync_profile_or_raise(
         database_session,
         steam_client,
@@ -59,6 +72,14 @@ def list_profiles(
         get_database_session
     ),
 ) -> list[ProfileSummaryResponse]:
+    """List locally saved profiles in display-name order.
+
+    Args:
+        database_session: The request-scoped database session.
+
+    Returns:
+        Profile summaries without their owned-game libraries.
+    """
     profiles = database_session.scalars(
         select(Profile).order_by(
             Profile.display_name,
@@ -82,6 +103,18 @@ def get_profile(
         get_database_session
     ),
 ) -> ProfileDetailResponse:
+    """Return a saved profile and its cached owned-game library.
+
+    Args:
+        profile_id: The local Ludex profile identifier.
+        database_session: The request-scoped database session.
+
+    Returns:
+        The cached profile and its alphabetically sorted games.
+
+    Raises:
+        HTTPException: If the local profile does not exist.
+    """
     profile = database_session.scalar(
         select(Profile)
         .options(
@@ -114,6 +147,22 @@ def refresh_profile(
         get_steam_client
     ),
 ) -> ProfileDetailResponse:
+    """Refresh a saved profile and library from Steam.
+
+    The initial lookup transaction is ended before the Steam request so slow
+    network work does not keep a database transaction open.
+
+    Args:
+        profile_id: The local Ludex profile identifier.
+        database_session: The request-scoped database session.
+        steam_client: The client used to fetch the current Steam profile.
+
+    Returns:
+        The refreshed profile and its owned-game library.
+
+    Raises:
+        HTTPException: If the profile is missing or Steam cannot be processed.
+    """
     steam_id = database_session.scalar(
         select(Profile.steam_id).where(
             Profile.id == profile_id
@@ -143,6 +192,19 @@ def _sync_profile_or_raise(
     steam_client: SteamClient,
     identifier: str,
 ) -> Profile:
+    """Synchronize a profile and translate domain errors into HTTP errors.
+
+    Args:
+        database_session: The session used to persist synchronized data.
+        steam_client: The client used to fetch Steam data.
+        identifier: A raw or previously normalized Steam identifier.
+
+    Returns:
+        The newly created or refreshed profile.
+
+    Raises:
+        HTTPException: With the API status corresponding to the domain error.
+    """
     try:
         return sync_profile(
             database_session,
@@ -179,6 +241,7 @@ def _sync_profile_or_raise(
 def _profile_summary_response(
     profile: Profile,
 ) -> ProfileSummaryResponse:
+    """Convert a profile model into its summary response."""
     return ProfileSummaryResponse(
         id=profile.id,
         steam_id=profile.steam_id,
@@ -193,6 +256,7 @@ def _profile_summary_response(
 def _profile_detail_response(
     profile: Profile,
 ) -> ProfileDetailResponse:
+    """Convert a profile and its ownerships into a sorted detail response."""
     summary = _profile_summary_response(profile)
 
     sorted_ownerships = sorted(

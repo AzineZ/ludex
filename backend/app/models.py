@@ -6,6 +6,8 @@ from app.database import Base
 
 
 class Profile(Base):
+    """Represent a locally saved Steam user profile."""
+
     __tablename__ = "profiles"
     id: Mapped[int] = mapped_column(primary_key=True)
     steam_id: Mapped[str] = mapped_column(
@@ -38,6 +40,8 @@ class Profile(Base):
 
 
 class Game(Base):
+    """Represent Steam game metadata shared across local profiles."""
+
     __tablename__ = "games"
     steam_app_id: Mapped[int] = mapped_column(
         BigInteger,
@@ -57,6 +61,8 @@ class Game(Base):
 
 
 class ProfileGame(Base):
+    """Represent a profile's ownership and playtime for one game."""
+
     __tablename__ = "profile_games"
 
     profile_id: Mapped[int] = mapped_column(

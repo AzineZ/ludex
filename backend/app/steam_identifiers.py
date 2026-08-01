@@ -12,16 +12,32 @@ SteamIdentifierKind = Literal["steam_id", "vanity"]
 
 
 class InvalidSteamIdentifierError(ValueError):
+    """Indicate that a submitted Steam identifier is unsupported."""
+
     pass
 
 
 @dataclass(frozen=True)
 class SteamIdentifier:
+    """Represent a normalized numeric or vanity Steam identifier."""
+
     kind: SteamIdentifierKind
     value: str
 
 
 def normalize_steam_identifier(raw_identifier: str) -> SteamIdentifier:
+    """Normalize a Steam ID or supported Steam Community profile URL.
+
+    Args:
+        raw_identifier: A raw 17-digit ID, numeric profile URL, or vanity URL.
+
+    Returns:
+        A normalized identifier labeled as numeric or vanity-based.
+
+    Raises:
+        InvalidSteamIdentifierError: If the value is malformed, uses another
+            host, or is not a supported Steam Community profile URL.
+    """
     candidate = raw_identifier.strip()
     if STEAM_ID_PATTERN.fullmatch(candidate):
         return SteamIdentifier(kind="steam_id", value=candidate)

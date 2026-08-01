@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Load Ludex configuration from environment variables and `.env`."""
+
     database_url: str
     frontend_origin: str
     steam_api_key: SecretStr

@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProfileCreateRequest(BaseModel):
+    """Validate the Steam identifier submitted for profile import."""
+
     model_config = ConfigDict(extra="forbid")
 
     identifier: str = Field(
@@ -13,6 +15,8 @@ class ProfileCreateRequest(BaseModel):
 
 
 class OwnedGameResponse(BaseModel):
+    """Describe one owned game and its profile-specific playtime."""
+
     steam_app_id: int
     name: str
     icon_url: str | None
@@ -22,6 +26,8 @@ class OwnedGameResponse(BaseModel):
 
 
 class ProfileSummaryResponse(BaseModel):
+    """Describe a saved profile without its owned-game library."""
+
     id: int
     steam_id: str
     display_name: str
@@ -32,4 +38,6 @@ class ProfileSummaryResponse(BaseModel):
 
 
 class ProfileDetailResponse(ProfileSummaryResponse):
+    """Describe a saved profile together with its owned games."""
+
     games: list[OwnedGameResponse]
