@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_database_session
+from app.profiles import router as profiles_router
 
 app = FastAPI(
     title="Ludex API",
@@ -18,6 +19,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(profiles_router)
 
 
 @app.get("/health")
