@@ -20,6 +20,8 @@ services:
    backend:
       build:
          context: ./backend
+      env_file:
+         - ./backend/.env
       environment:
          DATABASE_URL: postgresql+psycopg://ludex:ludex@database:5432/ludex
          FRONTEND_ORIGIN: http://localhost:5173
