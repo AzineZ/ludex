@@ -1,13 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { waitFor, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import {
    ApiError,
    createProfile,
    getHealth,
+   getProfile,
    listProfiles,
    type HealthResponse,
    type ProfileSummaryResponse,
+   type ProfileDetailResponse,
 } from "./api";
 
 vi.mock("./api", async (importOriginal) => {
@@ -17,12 +19,14 @@ vi.mock("./api", async (importOriginal) => {
       ...actual,
       createProfile: vi.fn(),
       getHealth: vi.fn(),
+      getProfile: vi.fn(),
       listProfiles: vi.fn(),
    };
 });
 
 const mockedCreateProfile = vi.mocked(createProfile);
 const mockedGetHealth = vi.mocked(getHealth);
+const mockedGetProfile = vi.mocked(getProfile);
 const mockedListProfiles = vi.mocked(listProfiles);
 
 const savedProfiles: ProfileSummaryResponse[] = [
@@ -46,6 +50,28 @@ const savedProfiles: ProfileSummaryResponse[] = [
    },
 ];
 
+const profileWithGames: ProfileDetailResponse = {
+   ...savedProfiles[1],
+   games: [
+      {
+         steam_app_id: 10,
+         name: "Alpha Game",
+         icon_url: null,
+         playtime_minutes: 120,
+         recent_playtime_minutes: 30,
+         last_played_at: null,
+      },
+      {
+         steam_app_id: 20,
+         name: "Beta Game",
+         icon_url: null,
+         playtime_minutes: 0,
+         recent_playtime_minutes: null,
+         last_played_at: null,
+      },
+   ],
+};
+
 const importedProfile = {
    ...savedProfiles[0],
    id: 3,
@@ -55,10 +81,13 @@ const importedProfile = {
 
 describe("App", () => {
    beforeEach(() => {
+      window.localStorage.clear();
       mockedCreateProfile.mockReset();
       mockedGetHealth.mockReset();
       mockedListProfiles.mockReset();
       mockedListProfiles.mockImplementation(() => new Promise(() => {}));
+      mockedGetProfile.mockReset();
+      mockedGetProfile.mockImplementation(() => new Promise(() => {}));
    });
 
    it("renders while checking the backend connection", () => {
@@ -265,5 +294,194 @@ describe("App", () => {
       expect(screen.queryByText("First Player")).not.toBeInTheDocument();
       expect(screen.getAllByText("Updated First Player")).toHaveLength(1);
       expect(screen.getByText("Second Player")).toBeInTheDocument();
+   });
+
+   it("selects one saved profile", async () => {
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+
+      render(<App />);
+
+      const firstProfileButton = await screen.findByRole("button", {
+         name: "First Player",
+      });
+      const secondProfileButton = screen.getByRole("button", {
+         name: "Second Player",
+      });
+
+      expect(firstProfileButton).toHaveAttribute("aria-pressed", "false");
+      expect(secondProfileButton).toHaveAttribute("aria-pressed", "false");
+
+      fireEvent.click(secondProfileButton);
+
+      expect(firstProfileButton).toHaveAttribute("aria-pressed", "false");
+      expect(secondProfileButton).toHaveAttribute("aria-pressed", "true");
+      expect(
+         screen.getByText("Second Player", {
+            selector: "strong",
+         })
+      ).toBeInTheDocument();
+   });
+
+   it("stores the selected profile ID in browser storage", async () => {
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+
+      render(<App />);
+
+      const secondProfileButton = await screen.findByRole("button", {
+         name: "Second Player",
+      });
+
+      fireEvent.click(secondProfileButton);
+
+      await waitFor(() => {
+         expect(window.localStorage.getItem("ludex.selectedProfileId")).toBe(
+            "2"
+         );
+      });
+   });
+
+   it("restores a previously selected profile", async () => {
+      window.localStorage.setItem("ludex.selectedProfileId", "2");
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+
+      render(<App />);
+
+      const secondProfileButton = await screen.findByRole("button", {
+         name: "Second Player",
+      });
+
+      expect(secondProfileButton).toHaveAttribute("aria-pressed", "true");
+      expect(
+         screen.getByText("Second Player", {
+            selector: "strong",
+         })
+      ).toBeInTheDocument();
+   });
+
+   it("discards a stored profile ID that no longer exists", async () => {
+      window.localStorage.setItem("ludex.selectedProfileId", "999");
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+
+      render(<App />);
+
+      await screen.findByText("First Player");
+
+      await waitFor(() => {
+         expect(
+            window.localStorage.getItem("ludex.selectedProfileId")
+         ).toBeNull();
+      });
+
+      expect(screen.queryByText(/Selected profile:/)).not.toBeInTheDocument();
+   });
+
+   it("loads and displays the selected profile library", async () => {
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+      mockedGetProfile.mockResolvedValue(profileWithGames);
+
+      render(<App />);
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "Second Player",
+         })
+      );
+
+      expect(mockedGetProfile).toHaveBeenCalledWith(2);
+      expect(
+         await screen.findByRole("heading", {
+            name: "Game library",
+         })
+      ).toBeInTheDocument();
+      expect(screen.getByText("2 games")).toBeInTheDocument();
+      expect(screen.getByText("Alpha Game")).toBeInTheDocument();
+      expect(screen.getByText("Beta Game")).toBeInTheDocument();
+      expect(screen.getByText(/120 minutes played/)).toBeInTheDocument();
+   });
+
+   it("shows loading while retrieving a selected library", async () => {
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+
+      render(<App />);
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "First Player",
+         })
+      );
+
+      expect(screen.getByText("Loading game library...")).toBeInTheDocument();
+   });
+
+   it("shows an error when a selected library cannot load", async () => {
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+      mockedGetProfile.mockRejectedValue(
+         new ApiError(404, "Profile not found.")
+      );
+
+      render(<App />);
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "First Player",
+         })
+      );
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+         "Profile not found."
+      );
+   });
+
+   it("shows an empty selected library", async () => {
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+      mockedGetProfile.mockResolvedValue({
+         ...savedProfiles[0],
+         games: [],
+      });
+
+      render(<App />);
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "First Player",
+         })
+      );
+
+      expect(
+         await screen.findByText("This Steam library is empty.")
+      ).toBeInTheDocument();
+      expect(screen.getByText("0 games")).toBeInTheDocument();
    });
 });

@@ -4,12 +4,32 @@ import {
    ApiError,
    createProfile,
    getHealth,
+   getProfile,
    listProfiles,
    type ProfileSummaryResponse,
+   type ProfileDetailResponse,
 } from "./api";
 
 type ConnectionState = "checking" | "connected" | "unavailable";
 type ProfileListState = "loading" | "ready" | "unavailable";
+type ProfileDetailState = "idle" | "loading" | "ready" | "unavailable";
+
+const SELECTED_PROFILE_STORAGE_KEY = "ludex.selectedProfileId";
+
+/** Reads and validates the previously selected local profile ID. */
+function getStoredProfileId(): number | null {
+   const storedProfileId = window.localStorage.getItem(
+      SELECTED_PROFILE_STORAGE_KEY
+   );
+
+   if (storedProfileId === null) {
+      return null;
+   }
+
+   const profileId = Number(storedProfileId);
+
+   return Number.isSafeInteger(profileId) && profileId > 0 ? profileId : null;
+}
 
 /** Inserts or replaces a profile while preserving display-name order. */
 function upsertProfile(
@@ -33,6 +53,16 @@ function App() {
    const [profileListState, setProfileListState] =
       useState<ProfileListState>("loading");
    const [profiles, setProfiles] = useState<ProfileSummaryResponse[]>([]);
+   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(
+      getStoredProfileId
+   );
+   const [profileDetailState, setProfileDetailState] =
+      useState<ProfileDetailState>("idle");
+   const [selectedProfileDetail, setSelectedProfileDetail] =
+      useState<ProfileDetailResponse | null>(null);
+   const [profileDetailError, setProfileDetailError] = useState<string | null>(
+      null
+   );
    const [identifier, setIdentifier] = useState("");
    const [isAddingProfile, setIsAddingProfile] = useState(false);
    const [addProfileError, setAddProfileError] = useState<string | null>(null);
@@ -47,12 +77,76 @@ function App() {
       listProfiles()
          .then((savedProfiles) => {
             setProfiles(savedProfiles);
+            setSelectedProfileId((currentProfileId) => {
+               if (currentProfileId === null) {
+                  return null;
+               }
+
+               const profileStillExists = savedProfiles.some(
+                  (profile) => profile.id === currentProfileId
+               );
+
+               return profileStillExists ? currentProfileId : null;
+            });
             setProfileListState("ready");
          })
          .catch(() => {
             setProfileListState("unavailable");
          });
    }, []);
+
+   useEffect(() => {
+      if (selectedProfileId === null) {
+         window.localStorage.removeItem(SELECTED_PROFILE_STORAGE_KEY);
+         return;
+      }
+
+      window.localStorage.setItem(
+         SELECTED_PROFILE_STORAGE_KEY,
+         String(selectedProfileId)
+      );
+   }, [selectedProfileId]);
+
+   useEffect(() => {
+      if (profileListState !== "ready" || selectedProfileId === null) {
+         setSelectedProfileDetail(null);
+         setProfileDetailError(null);
+         setProfileDetailState("idle");
+         return;
+      }
+
+      let requestIsCurrent = true;
+
+      setSelectedProfileDetail(null);
+      setProfileDetailError(null);
+      setProfileDetailState("loading");
+
+      getProfile(selectedProfileId)
+         .then((profile) => {
+            if (!requestIsCurrent) {
+               return;
+            }
+
+            setSelectedProfileDetail(profile);
+            setProfileDetailState("ready");
+         })
+         .catch((error) => {
+            if (!requestIsCurrent) {
+               return;
+            }
+
+            setProfileDetailError(
+               error instanceof ApiError
+                  ? error.message
+                  : "The game library could not be loaded."
+            );
+            setProfileDetailState("unavailable");
+         });
+
+      return () => {
+         requestIsCurrent = false;
+      };
+   }, [profileListState, selectedProfileId]);
 
    /** Imports a Steam profile submitted through the form. */
    async function handleAddProfile(
@@ -87,6 +181,9 @@ function App() {
          setIsAddingProfile(false);
       }
    }
+
+   const selectedProfileSummary =
+      profiles.find((profile) => profile.id === selectedProfileId) ?? null;
 
    return (
       <main className="app">
@@ -143,10 +240,69 @@ function App() {
                {profileListState === "ready" && profiles.length > 0 && (
                   <ul>
                      {profiles.map((profile) => (
-                        <li key={profile.id}>{profile.display_name}</li>
+                        <li key={profile.id}>
+                           <button
+                              type="button"
+                              aria-pressed={selectedProfileId === profile.id}
+                              onClick={() => setSelectedProfileId(profile.id)}
+                           >
+                              {profile.display_name}
+                           </button>
+                        </li>
                      ))}
                   </ul>
                )}
+               {selectedProfileSummary !== null && (
+                  <p>
+                     Selected profile:{" "}
+                     <strong>{selectedProfileSummary.display_name}</strong>
+                  </p>
+               )}
+               {profileDetailState === "loading" && (
+                  <p>Loading game library...</p>
+               )}
+
+               {profileDetailState === "unavailable" && (
+                  <p role="alert">
+                     {profileDetailError ??
+                        "The game library could not be loaded."}
+                  </p>
+               )}
+
+               {profileDetailState === "ready" &&
+                  selectedProfileDetail !== null && (
+                     <section
+                        className="app__library"
+                        aria-labelledby="library-heading"
+                     >
+                        <h3 id="library-heading">Game library</h3>
+
+                        <p>
+                           {selectedProfileDetail.games.length}{" "}
+                           {selectedProfileDetail.games.length === 1
+                              ? "game"
+                              : "games"}
+                        </p>
+
+                        {selectedProfileDetail.games.length === 0 && (
+                           <p>This Steam library is empty.</p>
+                        )}
+
+                        {selectedProfileDetail.games.length > 0 && (
+                           <ul>
+                              {selectedProfileDetail.games.map((game) => (
+                                 <li key={game.steam_app_id}>
+                                    <span>{game.name}</span>
+                                    <span>
+                                       {" "}
+                                       — {game.playtime_minutes} minutes played
+                                    </span>
+                                 </li>
+                              ))}
+                           </ul>
+                        )}
+                     </section>
+                  )}
             </div>
          </section>
       </main>
