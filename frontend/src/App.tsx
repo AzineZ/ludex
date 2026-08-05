@@ -10,6 +10,7 @@ import {
    type ProfileSummaryResponse,
    type ProfileDetailResponse,
 } from "./api";
+import ludexLogo from "./assets/ludex_logo.png";
 
 type ConnectionState = "checking" | "connected" | "unavailable";
 type ProfileListState = "loading" | "ready" | "unavailable";
@@ -235,19 +236,39 @@ function App() {
 
    return (
       <main className="app">
+         <div className="app__signal-field" aria-hidden="true">
+            <span className="app__signal-ring app__signal-ring--one" />
+            <span className="app__signal-ring app__signal-ring--two" />
+            <span className="app__signal-ring app__signal-ring--three" />
+            <span className="app__signal-ring app__signal-ring--four" />
+            <span className="app__hazard app__hazard--one">!</span>
+            <span className="app__hazard app__hazard--two">+</span>
+            <span className="app__hazard app__hazard--three">×</span>
+            <span className="app__hazard app__hazard--four">◆</span>
+         </div>
          <section className="app__content">
-            <p className="app__name">Ludex</p>
-            <h1>Find your next game.</h1>
-            <p>
-               Ludex helps you choose what to play from your existing Steam
-               library.
-            </p>
+            <header className="app__hero">
+               <h1 className="app__logo-heading">
+                  <img
+                     className="app__logo"
+                     src={ludexLogo}
+                     alt="Ludex — Your next game awaits"
+                  />
+               </h1>
+               <p className="app__intro">
+                  Ludex helps you choose what to play from your existing Steam
+                  library.
+               </p>
 
-            <p className={`app__status app__status--${connectionState}`}>
-               Backend: {connectionState}
-            </p>
+               <p className={`app__status app__status--${connectionState}`}>
+                  Backend: {connectionState}
+               </p>
+            </header>
 
-            <div className="app__profiles" aria-labelledby="profiles-heading">
+            <section
+               className="app__profiles"
+               aria-labelledby="profiles-heading"
+            >
                <h2 id="profiles-heading">Steam profiles</h2>
 
                <form className="app__profile-form" onSubmit={handleAddProfile}>
@@ -379,7 +400,7 @@ function App() {
                         )}
                      </section>
                   )}
-            </div>
+            </section>
          </section>
       </main>
    );

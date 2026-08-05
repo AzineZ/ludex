@@ -102,7 +102,9 @@ describe("App", () => {
       render(<App />);
 
       expect(
-         screen.getByRole("heading", { name: "Find your next game." })
+         screen.getByRole("heading", {
+            name: "Ludex — Your next game awaits",
+         })
       ).toBeInTheDocument();
       expect(screen.getByText("Backend: checking")).toBeInTheDocument();
       expect(screen.getByText("Loading profiles...")).toBeInTheDocument();

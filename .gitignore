@@ -1,6 +1,7 @@
 # Project design and checkpoint notes
 DESIGN.md
 CHECKPOINT.md
+UI_DESIGN.md
 
 # Environment variables and local secrets
 .env
