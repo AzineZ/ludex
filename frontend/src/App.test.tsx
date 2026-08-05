@@ -7,6 +7,7 @@ import {
    getHealth,
    getProfile,
    listProfiles,
+   refreshProfile,
    type HealthResponse,
    type ProfileSummaryResponse,
    type ProfileDetailResponse,
@@ -21,6 +22,7 @@ vi.mock("./api", async (importOriginal) => {
       getHealth: vi.fn(),
       getProfile: vi.fn(),
       listProfiles: vi.fn(),
+      refreshProfile: vi.fn(),
    };
 });
 
@@ -28,6 +30,7 @@ const mockedCreateProfile = vi.mocked(createProfile);
 const mockedGetHealth = vi.mocked(getHealth);
 const mockedGetProfile = vi.mocked(getProfile);
 const mockedListProfiles = vi.mocked(listProfiles);
+const mockedRefreshProfile = vi.mocked(refreshProfile);
 
 const savedProfiles: ProfileSummaryResponse[] = [
    {
@@ -88,6 +91,7 @@ describe("App", () => {
       mockedListProfiles.mockImplementation(() => new Promise(() => {}));
       mockedGetProfile.mockReset();
       mockedGetProfile.mockImplementation(() => new Promise(() => {}));
+      mockedRefreshProfile.mockReset();
    });
 
    it("renders while checking the backend connection", () => {
@@ -483,5 +487,132 @@ describe("App", () => {
          await screen.findByText("This Steam library is empty.")
       ).toBeInTheDocument();
       expect(screen.getByText("0 games")).toBeInTheDocument();
+   });
+
+   it("disables the refresh action while the library is refreshing", async () => {
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+      mockedGetProfile.mockResolvedValue(profileWithGames);
+      mockedRefreshProfile.mockImplementation(() => new Promise(() => {}));
+
+      render(<App />);
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "Second Player",
+         })
+      );
+
+      const refreshButton = await screen.findByRole("button", {
+         name: "Refresh library",
+      });
+
+      fireEvent.click(refreshButton);
+
+      expect(mockedRefreshProfile).toHaveBeenCalledWith(2);
+      expect(
+         screen.getByRole("button", {
+            name: "Refreshing library...",
+         })
+      ).toBeDisabled();
+      expect(screen.getByText("Alpha Game")).toBeInTheDocument();
+   });
+
+   it("updates the selected profile after a successful refresh", async () => {
+      const refreshedProfile: ProfileDetailResponse = {
+         ...profileWithGames,
+         display_name: "Refreshed Second Player",
+         last_synced_at: "2026-08-04T12:00:00Z",
+         games: [
+            ...profileWithGames.games,
+            {
+               steam_app_id: 30,
+               name: "Gamma Game",
+               icon_url: null,
+               playtime_minutes: 45,
+               recent_playtime_minutes: null,
+               last_played_at: null,
+            },
+         ],
+      };
+
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+      mockedGetProfile.mockResolvedValue(profileWithGames);
+      mockedRefreshProfile.mockResolvedValue(refreshedProfile);
+
+      render(<App />);
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "Second Player",
+         })
+      );
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "Refresh library",
+         })
+      );
+
+      expect(await screen.findByRole("status")).toHaveTextContent(
+         "Steam library refreshed."
+      );
+      expect(screen.getByText("3 games")).toBeInTheDocument();
+      expect(screen.getByText("Gamma Game")).toBeInTheDocument();
+      expect(
+         screen.getByRole("button", {
+            name: "Refreshed Second Player",
+         })
+      ).toBeInTheDocument();
+      expect(
+         screen.getByText("Refreshed Second Player", {
+            selector: "strong",
+         })
+      ).toBeInTheDocument();
+   });
+
+   it("preserves the cached library when a refresh fails", async () => {
+      mockedGetHealth.mockResolvedValue({
+         status: "healthy",
+         database: "connected",
+      });
+      mockedListProfiles.mockResolvedValue(savedProfiles);
+      mockedGetProfile.mockResolvedValue(profileWithGames);
+      mockedRefreshProfile.mockRejectedValue(
+         new ApiError(503, "Steam is currently unavailable.")
+      );
+
+      render(<App />);
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "Second Player",
+         })
+      );
+
+      fireEvent.click(
+         await screen.findByRole("button", {
+            name: "Refresh library",
+         })
+      );
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+         "Steam is currently unavailable."
+      );
+      expect(screen.getByText("2 games")).toBeInTheDocument();
+      expect(screen.getByText("Alpha Game")).toBeInTheDocument();
+      expect(screen.getByText("Beta Game")).toBeInTheDocument();
+      expect(
+         screen.getByRole("button", {
+            name: "Refresh library",
+         })
+      ).not.toBeDisabled();
    });
 });

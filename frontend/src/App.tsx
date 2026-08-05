@@ -1,11 +1,12 @@
 import "./App.css";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
    ApiError,
    createProfile,
    getHealth,
    getProfile,
    listProfiles,
+   refreshProfile,
    type ProfileSummaryResponse,
    type ProfileDetailResponse,
 } from "./api";
@@ -13,6 +14,7 @@ import {
 type ConnectionState = "checking" | "connected" | "unavailable";
 type ProfileListState = "loading" | "ready" | "unavailable";
 type ProfileDetailState = "idle" | "loading" | "ready" | "unavailable";
+type RefreshState = "idle" | "refreshing" | "succeeded" | "failed";
 
 const SELECTED_PROFILE_STORAGE_KEY = "ludex.selectedProfileId";
 
@@ -56,6 +58,8 @@ function App() {
    const [selectedProfileId, setSelectedProfileId] = useState<number | null>(
       getStoredProfileId
    );
+   const selectedProfileIdRef = useRef(selectedProfileId);
+   selectedProfileIdRef.current = selectedProfileId;
    const [profileDetailState, setProfileDetailState] =
       useState<ProfileDetailState>("idle");
    const [selectedProfileDetail, setSelectedProfileDetail] =
@@ -66,6 +70,8 @@ function App() {
    const [identifier, setIdentifier] = useState("");
    const [isAddingProfile, setIsAddingProfile] = useState(false);
    const [addProfileError, setAddProfileError] = useState<string | null>(null);
+   const [refreshState, setRefreshState] = useState<RefreshState>("idle");
+   const [refreshError, setRefreshError] = useState<string | null>(null);
 
    useEffect(() => {
       getHealth()
@@ -117,6 +123,8 @@ function App() {
 
       let requestIsCurrent = true;
 
+      setRefreshState("idle");
+      setRefreshError(null);
       setSelectedProfileDetail(null);
       setProfileDetailError(null);
       setProfileDetailState("loading");
@@ -179,6 +187,46 @@ function App() {
          );
       } finally {
          setIsAddingProfile(false);
+      }
+   }
+
+   /** Refreshes the selected profile and its Steam library. */
+   async function handleRefreshProfile(): Promise<void> {
+      if (selectedProfileId === null || refreshState === "refreshing") {
+         return;
+      }
+
+      const refreshingProfileId = selectedProfileId;
+
+      setRefreshState("refreshing");
+      setRefreshError(null);
+
+      try {
+         const refreshedProfile = await refreshProfile(refreshingProfileId);
+
+         setProfiles((currentProfiles) =>
+            upsertProfile(currentProfiles, refreshedProfile)
+         );
+
+         if (selectedProfileIdRef.current !== refreshingProfileId) {
+            return;
+         }
+
+         setSelectedProfileDetail(refreshedProfile);
+         setProfileDetailState("ready");
+         setProfileDetailError(null);
+         setRefreshState("succeeded");
+      } catch (error) {
+         if (selectedProfileIdRef.current !== refreshingProfileId) {
+            return;
+         }
+
+         setRefreshError(
+            error instanceof ApiError
+               ? error.message
+               : "The Steam library could not be refreshed."
+         );
+         setRefreshState("failed");
       }
    }
 
@@ -276,6 +324,26 @@ function App() {
                         aria-labelledby="library-heading"
                      >
                         <h3 id="library-heading">Game library</h3>
+                        <button
+                           type="button"
+                           onClick={handleRefreshProfile}
+                           disabled={refreshState === "refreshing"}
+                        >
+                           {refreshState === "refreshing"
+                              ? "Refreshing library..."
+                              : "Refresh library"}
+                        </button>
+
+                        {refreshState === "succeeded" && (
+                           <p role="status">Steam library refreshed.</p>
+                        )}
+
+                        {refreshState === "failed" && (
+                           <p role="alert">
+                              {refreshError ??
+                                 "The Steam library could not be refreshed."}
+                           </p>
+                        )}
 
                         <p>
                            {selectedProfileDetail.games.length}{" "}
