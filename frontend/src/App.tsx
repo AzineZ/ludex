@@ -235,7 +235,7 @@ function App() {
 
    return (
       <main className="app">
-         <section>
+         <section className="app__content">
             <p className="app__name">Ludex</p>
             <h1>Find your next game.</h1>
             <p>
@@ -250,11 +250,12 @@ function App() {
             <div className="app__profiles" aria-labelledby="profiles-heading">
                <h2 id="profiles-heading">Steam profiles</h2>
 
-               <form onSubmit={handleAddProfile}>
+               <form className="app__profile-form" onSubmit={handleAddProfile}>
                   <label htmlFor="steam-identifier">
                      Steam ID or profile URL
                   </label>
                   <input
+                     className="app__input"
                      id="steam-identifier"
                      name="identifier"
                      value={identifier}
@@ -262,6 +263,7 @@ function App() {
                      disabled={isAddingProfile}
                   />
                   <button
+                     className="app__primary-button"
                      type="submit"
                      disabled={
                         isAddingProfile || identifier.trim().length === 0
@@ -286,10 +288,11 @@ function App() {
                )}
 
                {profileListState === "ready" && profiles.length > 0 && (
-                  <ul>
+                  <ul className="app__profile-list">
                      {profiles.map((profile) => (
                         <li key={profile.id}>
                            <button
+                              className="app__profile-button"
                               type="button"
                               aria-pressed={selectedProfileId === profile.id}
                               onClick={() => setSelectedProfileId(profile.id)}
@@ -301,7 +304,7 @@ function App() {
                   </ul>
                )}
                {selectedProfileSummary !== null && (
-                  <p>
+                  <p className="app__selection">
                      Selected profile:{" "}
                      <strong>{selectedProfileSummary.display_name}</strong>
                   </p>
@@ -325,6 +328,7 @@ function App() {
                      >
                         <h3 id="library-heading">Game library</h3>
                         <button
+                           className="app__secondary-button"
                            type="button"
                            onClick={handleRefreshProfile}
                            disabled={refreshState === "refreshing"}
@@ -345,7 +349,7 @@ function App() {
                            </p>
                         )}
 
-                        <p>
+                        <p className="app__game-count">
                            {selectedProfileDetail.games.length}{" "}
                            {selectedProfileDetail.games.length === 1
                               ? "game"
@@ -357,13 +361,17 @@ function App() {
                         )}
 
                         {selectedProfileDetail.games.length > 0 && (
-                           <ul>
+                           <ul className="app__game-list">
                               {selectedProfileDetail.games.map((game) => (
-                                 <li key={game.steam_app_id}>
-                                    <span>{game.name}</span>
-                                    <span>
-                                       {" "}
-                                       — {game.playtime_minutes} minutes played
+                                 <li
+                                    className="app__game"
+                                    key={game.steam_app_id}
+                                 >
+                                    <span className="app__game-name">
+                                       {game.name}
+                                    </span>
+                                    <span className="app__playtime">
+                                       {game.playtime_minutes} minutes played
                                     </span>
                                  </li>
                               ))}

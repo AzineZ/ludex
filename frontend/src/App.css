@@ -1,39 +1,261 @@
 .app {
    min-height: 100vh;
-   display: grid;
-   place-items: center;
-   padding: 2rem;
+   padding: clamp(1.5rem, 4vw, 3rem);
+   color: #e5e7eb;
+   background: radial-gradient(circle at top, #1d2940 0, transparent 36rem),
+      #0b1018;
+}
+
+.app__content {
+   width: min(100%, 64rem);
+   margin: 0 auto;
+}
+
+.app__content > p {
+   max-width: 42rem;
+   margin-right: auto;
+   margin-left: auto;
+   color: #aeb8c8;
    text-align: center;
 }
 
-.app section {
-   max-width: 40rem;
-}
-
 .app__name {
+   margin-bottom: 0.5rem;
+   color: #7dd3fc !important;
    font-weight: 700;
-   letter-spacing: 0.08rem;
+   letter-spacing: 0.12rem;
    text-transform: uppercase;
 }
 
 .app h1 {
-   margin: 0.5rem 0 1rem;
-   font-size: clamp(2.5rem, 8vw, 5rem);
+   margin: 0;
+   font-size: clamp(2.5rem, 7vw, 4.75rem);
+   line-height: 1;
+   text-align: center;
 }
 
 .app__status {
-   margin-top: 2rem;
+   width: fit-content;
+   margin-top: 1.5rem;
+   padding: 0.45rem 0.8rem;
+   border: 1px solid currentColor;
+   border-radius: 999px;
+   font-size: 0.875rem;
    font-weight: 600;
 }
 
 .app__status--checking {
-   color: #facc15;
+   color: #facc15 !important;
 }
 
 .app__status--connected {
-   color: #4ade80;
+   color: #4ade80 !important;
 }
 
 .app__status--unavailable {
-   color: #f87171;
+   color: #f87171 !important;
+}
+
+.app__profiles {
+   margin-top: 2.5rem;
+   padding: clamp(1.25rem, 4vw, 2rem);
+   border: 1px solid #263244;
+   border-radius: 1rem;
+   background: rgb(16 23 34 / 92%);
+   box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 25%);
+}
+
+.app__profiles h2,
+.app__profiles h3 {
+   margin-top: 0;
+   color: #f8fafc;
+}
+
+.app__profile-form {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   gap: 0.75rem;
+   margin-bottom: 1.5rem;
+}
+
+.app__profile-form label {
+   grid-column: 1 / -1;
+   color: #cbd5e1;
+   font-size: 0.9rem;
+   font-weight: 600;
+}
+
+.app__input {
+   min-width: 0;
+   padding: 0.75rem 0.9rem;
+   border: 1px solid #3a4658;
+   border-radius: 0.55rem;
+   color: #f8fafc;
+   background: #0b1018;
+   font: inherit;
+}
+
+.app__input:focus {
+   border-color: #38bdf8;
+   outline: 3px solid rgb(56 189 248 / 20%);
+}
+
+.app__primary-button,
+.app__secondary-button,
+.app__profile-button {
+   border: 1px solid transparent;
+   border-radius: 0.55rem;
+   font: inherit;
+   font-weight: 650;
+   cursor: pointer;
+}
+
+.app__primary-button {
+   padding: 0.75rem 1rem;
+   color: #082f49;
+   background: #7dd3fc;
+}
+
+.app__secondary-button {
+   padding: 0.65rem 0.9rem;
+   color: #e0f2fe;
+   border-color: #3b82a0;
+   background: #122533;
+}
+
+.app__primary-button:hover:not(:disabled),
+.app__secondary-button:hover:not(:disabled) {
+   filter: brightness(1.1);
+}
+
+.app button:focus-visible {
+   outline: 3px solid rgb(56 189 248 / 35%);
+   outline-offset: 2px;
+}
+
+.app button:disabled,
+.app input:disabled {
+   cursor: not-allowed;
+   opacity: 0.55;
+}
+
+.app__profile-list {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0.65rem;
+   margin: 0;
+   padding: 0;
+   list-style: none;
+}
+
+.app__profile-button {
+   padding: 0.6rem 0.85rem;
+   color: #cbd5e1;
+   border-color: #344256;
+   background: #172131;
+}
+
+.app__profile-button:hover {
+   border-color: #64748b;
+}
+
+.app__profile-button[aria-pressed="true"] {
+   color: #082f49;
+   border-color: #7dd3fc;
+   background: #7dd3fc;
+}
+
+.app__selection {
+   margin: 1.25rem 0;
+   color: #cbd5e1;
+}
+
+.app [role="alert"] {
+   color: #fca5a5;
+}
+
+.app [role="status"] {
+   color: #86efac;
+}
+
+@media (max-width: 36rem) {
+   .app {
+      padding: 1rem;
+   }
+
+   .app__profile-form {
+      grid-template-columns: 1fr;
+   }
+
+   .app__profile-form label {
+      grid-column: auto;
+   }
+}
+
+.app__library {
+   margin-top: 1.75rem;
+   padding-top: 1.75rem;
+   border-top: 1px solid #2b3748;
+}
+
+.app__library h3 {
+   margin-bottom: 0.75rem;
+   font-size: 1.4rem;
+}
+
+.app__game-count {
+   margin: 1rem 0 0.75rem;
+   color: #94a3b8;
+   font-size: 0.9rem;
+   font-weight: 600;
+}
+
+.app__game-list {
+   display: grid;
+   gap: 0.5rem;
+   max-height: 32rem;
+   margin: 0;
+   padding: 0 0.5rem 0 0;
+   overflow-y: auto;
+   list-style: none;
+   scrollbar-color: #475569 #111827;
+}
+
+.app__game {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   align-items: center;
+   gap: 1rem;
+   padding: 0.75rem 0.9rem;
+   border: 1px solid #273447;
+   border-radius: 0.55rem;
+   background: #111a27;
+}
+
+.app__game:hover {
+   border-color: #40516a;
+   background: #152031;
+}
+
+.app__game-name {
+   min-width: 0;
+   color: #f1f5f9;
+   font-weight: 600;
+}
+
+.app__playtime {
+   color: #94a3b8;
+   font-size: 0.85rem;
+   white-space: nowrap;
+}
+
+@media (max-width: 36rem) {
+   .app__game {
+      grid-template-columns: 1fr;
+      gap: 0.25rem;
+   }
+
+   .app__playtime {
+      white-space: normal;
+   }
 }
