@@ -17,6 +17,22 @@
    font-family: var(--font-body);
 }
 
+.app::before {
+   position: absolute;
+   top: 0;
+   right: 0;
+   left: 0;
+   z-index: 0;
+   height: min(55rem, 100vh);
+   background-image: url("./assets/ben-neale-zpxKdH_xNSI-unsplash.jpg");
+   background-position: center;
+   background-repeat: no-repeat;
+   background-size: cover;
+   content: "";
+   opacity: 0.6;
+   pointer-events: none;
+}
+
 .app::after {
    position: absolute;
    right: -2rem;
@@ -125,288 +141,12 @@
    text-decoration-thickness: 1px;
 }
 
-.app__signal-field {
-   position: absolute;
-   top: clamp(2rem, 5vw, 5rem);
-   left: 50%;
-   width: min(92vw, 56rem);
-   aspect-ratio: 1;
-   transform: translateX(-50%);
-   pointer-events: none;
-}
-
-.app__signal-ring {
-   position: absolute;
-   top: 50%;
-   left: 50%;
-   border: 1px solid rgb(255 64 52 / 72%);
-   border-radius: 50%;
-   transform: translate(-50%, -50%);
-}
-
-.app__signal-ring--one {
-   width: 28%;
-   height: 28%;
-   border-width: 2px;
-}
-
-.app__signal-ring--two {
-   width: 48%;
-   height: 48%;
-   border-style: dashed;
-}
-
-.app__signal-ring--three {
-   width: 70%;
-   height: 70%;
-   opacity: 0.7;
-}
-
-.app__signal-ring--four {
-   width: 94%;
-   height: 94%;
-   border-style: dashed;
-   opacity: 0.45;
-}
-
-.app__hazard {
-   position: absolute;
-   display: grid;
-   width: 1.5rem;
-   height: 1.5rem;
-   place-items: center;
-   color: var(--color-bone-cream);
-   background: var(--color-alarm-red);
-   font-size: 1rem;
-   font-weight: 800;
-   line-height: 1;
-}
-
-.app__hazard--one {
-   top: 17%;
-   left: 26%;
-}
-
-.app__hazard--two {
-   top: 31%;
-   right: 7%;
-}
-
-.app__hazard--three {
-   right: 25%;
-   bottom: 17%;
-}
-
-.app__hazard--four {
-   bottom: 27%;
-   left: 4%;
-}
-
-.app__profiles {
-   margin-top: 5rem;
-   padding: clamp(3rem, 8vw, 5rem) 0 5rem;
-   border-top: 2px solid var(--color-alarm-red);
-}
-
-.app__profiles h2,
-.app__profiles h3 {
-   margin: 0;
-   color: var(--color-bone-cream);
-   font-family: var(--font-display);
-   font-weight: 900;
-   line-height: 0.88;
-   letter-spacing: 0.015em;
-   text-align: center;
-   text-transform: uppercase;
-}
-
-.app__profiles h2 {
-   margin-bottom: 2.5rem;
-   font-size: clamp(3.5rem, 12vw, 6.25rem);
-}
-
-.app__profiles h3 {
-   font-size: clamp(2.5rem, 9vw, 4.5rem);
-}
-
-.app__profile-form {
-   display: grid;
-   grid-template-columns: minmax(0, 1fr) auto;
-   gap: 0.9rem;
-   margin-bottom: 2rem;
-}
-
-.app__profile-form label {
-   grid-column: 1 / -1;
-   color: var(--color-bone-cream);
-   font-size: 0.875rem;
-   font-weight: 800;
-}
-
-.app__input {
-   min-width: 0;
-   padding: 1rem 1.2rem;
-   border: 1px solid var(--color-bone-cream);
-   border-radius: 10px;
-   color: var(--color-bone-cream);
-   background: var(--color-void-black);
-   font: inherit;
-}
-
-.app__input:focus {
-   border-width: 2px;
-   outline: 2px solid var(--color-alarm-red);
-   outline-offset: 3px;
-}
-
-.app__primary-button,
-.app__secondary-button,
-.app__profile-button {
-   border: 1px solid var(--color-bone-cream);
-   border-radius: 999px;
-   font: inherit;
-   font-size: 0.9rem;
-   font-weight: 800;
-   cursor: pointer;
-}
-
-.app__primary-button,
-.app__secondary-button {
-   padding: 0.95rem 1.35rem;
-   color: var(--color-void-black);
-   background: var(--color-bone-cream);
-   box-shadow: 0 4px 0 var(--color-ash-taupe);
-}
-
-.app__primary-button:hover:not(:disabled),
-.app__secondary-button:hover:not(:disabled) {
-   transform: translateY(2px);
-   box-shadow: 0 2px 0 var(--color-ash-taupe);
-}
-
-.app button:focus-visible {
-   outline: 2px solid var(--color-alarm-red);
-   outline-offset: 4px;
-}
-
-.app button:disabled,
-.app input:disabled {
-   cursor: not-allowed;
-   opacity: 0.5;
-}
-
-.app__profile-list {
-   display: flex;
-   flex-wrap: wrap;
-   justify-content: center;
-   gap: 0.75rem;
-   margin: 0;
-   padding: 0;
-   list-style: none;
-}
-
-.app__profile-button {
-   padding: 0.7rem 1rem;
-   color: var(--color-bone-cream);
-   background: var(--color-void-black);
-}
-
-.app__profile-button:hover {
-   color: var(--color-alarm-red);
-   border-color: var(--color-alarm-red);
-}
-
-.app__profile-button[aria-pressed="true"] {
-   color: var(--color-void-black);
-   border-color: var(--color-bone-cream);
-   background: var(--color-bone-cream);
-   box-shadow: 0 4px 0 var(--color-ash-taupe);
-}
-
-.app__selection,
-.app__profiles > p {
-   color: var(--color-bone-cream);
-   text-align: center;
-}
-
-.app__selection {
-   margin: 2rem 0;
-}
-
-.app__selection strong {
-   color: var(--color-alarm-red);
-}
-
-.app [role="alert"] {
-   color: var(--color-alarm-red);
-}
-
-.app [role="status"] {
-   color: var(--color-bone-cream);
-   text-decoration: underline;
-   text-decoration-color: var(--color-alarm-red);
-   text-decoration-thickness: 2px;
-   text-underline-offset: 0.25em;
-}
-
-.app__library {
-   margin-top: 3rem;
-   padding-top: 3rem;
-   border-top: 1px dashed var(--color-alarm-red);
-   text-align: center;
-}
-
-.app__secondary-button {
-   margin-top: 2rem;
-}
-
-.app__game-count {
-   margin: 2rem 0 1rem;
-   color: var(--color-bone-cream);
-   font-size: 0.8rem;
-   font-weight: 800;
-   letter-spacing: 0.12em;
-   text-align: left;
-   text-transform: uppercase;
-}
-
-.app__game-list {
-   display: grid;
-   max-height: 32rem;
-   margin: 0;
-   padding: 0 0.75rem 0 0;
-   overflow-y: auto;
-   list-style: none;
-   scrollbar-color: var(--color-alarm-red) var(--color-void-black);
-}
-
-.app__game {
-   display: grid;
-   grid-template-columns: minmax(0, 1fr) auto;
-   align-items: center;
-   gap: 1rem;
-   padding: 1rem 0;
-   border-bottom: 1px solid var(--color-bone-cream);
-   text-align: left;
-}
-
-.app__game:first-child {
-   border-top: 1px solid var(--color-bone-cream);
-}
-
-.app__game-name {
-   min-width: 0;
-   color: var(--color-bone-cream);
-   font-weight: 800;
-}
-
-.app__playtime {
-   color: var(--color-bone-cream);
-   font-size: 0.8rem;
-   white-space: nowrap;
-}
-
 @media (max-width: 36rem) {
+   .app::before {
+      height: 42rem;
+      background-position: 58% center;
+   }
+
    .app {
       padding-right: 1rem;
       padding-left: 1rem;
@@ -424,33 +164,5 @@
    .app__hazard--one,
    .app__hazard--three {
       display: none;
-   }
-
-   .app__profile-form {
-      grid-template-columns: 1fr;
-   }
-
-   .app__profile-form label {
-      grid-column: auto;
-   }
-
-   .app__primary-button {
-      justify-self: start;
-   }
-
-   .app__game {
-      grid-template-columns: 1fr;
-      gap: 0.35rem;
-   }
-
-   .app__playtime {
-      white-space: normal;
-   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-   .app__primary-button,
-   .app__secondary-button {
-      transition: none;
    }
 }
