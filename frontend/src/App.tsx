@@ -15,6 +15,11 @@ import ludexLogo from "./assets/ludex_logo.png";
 type ConnectionState = "checking" | "connected" | "unavailable";
 type ProfileListState = "loading" | "ready" | "unavailable";
 type ProfileDetailState = "idle" | "loading" | "ready" | "unavailable";
+type ProfileDetailResult = {
+   profileId: number;
+   profile: ProfileDetailResponse | null;
+   error: string | null;
+};
 type RefreshState = "idle" | "refreshing" | "succeeded" | "failed";
 
 const SELECTED_PROFILE_STORAGE_KEY = "ludex.selectedProfileId";
@@ -60,14 +65,8 @@ function App() {
       getStoredProfileId
    );
    const selectedProfileIdRef = useRef(selectedProfileId);
-   selectedProfileIdRef.current = selectedProfileId;
-   const [profileDetailState, setProfileDetailState] =
-      useState<ProfileDetailState>("idle");
-   const [selectedProfileDetail, setSelectedProfileDetail] =
-      useState<ProfileDetailResponse | null>(null);
-   const [profileDetailError, setProfileDetailError] = useState<string | null>(
-      null
-   );
+   const [profileDetailResult, setProfileDetailResult] =
+      useState<ProfileDetailResult | null>(null);
    const [identifier, setIdentifier] = useState("");
    const [isAddingProfile, setIsAddingProfile] = useState(false);
    const [addProfileError, setAddProfileError] = useState<string | null>(null);
@@ -103,6 +102,8 @@ function App() {
    }, []);
 
    useEffect(() => {
+      selectedProfileIdRef.current = selectedProfileId;
+
       if (selectedProfileId === null) {
          window.localStorage.removeItem(SELECTED_PROFILE_STORAGE_KEY);
          return;
@@ -116,19 +117,10 @@ function App() {
 
    useEffect(() => {
       if (profileListState !== "ready" || selectedProfileId === null) {
-         setSelectedProfileDetail(null);
-         setProfileDetailError(null);
-         setProfileDetailState("idle");
          return;
       }
 
       let requestIsCurrent = true;
-
-      setRefreshState("idle");
-      setRefreshError(null);
-      setSelectedProfileDetail(null);
-      setProfileDetailError(null);
-      setProfileDetailState("loading");
 
       getProfile(selectedProfileId)
          .then((profile) => {
@@ -136,26 +128,52 @@ function App() {
                return;
             }
 
-            setSelectedProfileDetail(profile);
-            setProfileDetailState("ready");
+            setProfileDetailResult({
+               profileId: selectedProfileId,
+               profile,
+               error: null,
+            });
          })
          .catch((error) => {
             if (!requestIsCurrent) {
                return;
             }
 
-            setProfileDetailError(
-               error instanceof ApiError
-                  ? error.message
-                  : "The game library could not be loaded."
-            );
-            setProfileDetailState("unavailable");
+            setProfileDetailResult({
+               profileId: selectedProfileId,
+               profile: null,
+               error:
+                  error instanceof ApiError
+                     ? error.message
+                     : "The game library could not be loaded.",
+            });
          });
 
       return () => {
          requestIsCurrent = false;
       };
    }, [profileListState, selectedProfileId]);
+
+   const currentProfileDetailResult =
+      profileDetailResult?.profileId === selectedProfileId
+         ? profileDetailResult
+         : null;
+
+   const selectedProfileDetail = currentProfileDetailResult?.profile ?? null;
+
+   const profileDetailError = currentProfileDetailResult?.error ?? null;
+
+   let profileDetailState: ProfileDetailState = "idle";
+
+   if (profileListState === "ready" && selectedProfileId !== null) {
+      if (selectedProfileDetail !== null) {
+         profileDetailState = "ready";
+      } else if (profileDetailError !== null) {
+         profileDetailState = "unavailable";
+      } else {
+         profileDetailState = "loading";
+      }
+   }
 
    /** Imports a Steam profile submitted through the form. */
    async function handleAddProfile(
@@ -213,9 +231,11 @@ function App() {
             return;
          }
 
-         setSelectedProfileDetail(refreshedProfile);
-         setProfileDetailState("ready");
-         setProfileDetailError(null);
+         setProfileDetailResult({
+            profileId: refreshingProfileId,
+            profile: refreshedProfile,
+            error: null,
+         });
          setRefreshState("succeeded");
       } catch (error) {
          if (selectedProfileIdRef.current !== refreshingProfileId) {
@@ -233,6 +253,13 @@ function App() {
 
    const selectedProfileSummary =
       profiles.find((profile) => profile.id === selectedProfileId) ?? null;
+
+   function handleSelectProfile(profileId: number): void {
+      selectedProfileIdRef.current = profileId;
+      setSelectedProfileId(profileId);
+      setRefreshState("idle");
+      setRefreshError(null);
+   }
 
    return (
       <main className="app">
@@ -316,7 +343,7 @@ function App() {
                               className="app__profile-button"
                               type="button"
                               aria-pressed={selectedProfileId === profile.id}
-                              onClick={() => setSelectedProfileId(profile.id)}
+                              onClick={() => handleSelectProfile(profile.id)}
                            >
                               {profile.display_name}
                            </button>
