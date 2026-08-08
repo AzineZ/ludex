@@ -5,7 +5,7 @@ from app.igdb_matching import (
     IGDBMatchResult,
     IGDBMatchStatus,
     normalize_external_game_matches,
-    match_steam_app_ids
+    match_steam_app_ids,
 )
 
 
@@ -127,3 +127,48 @@ def test_returns_one_result_for_duplicate_requested_ids() -> None:
             igdb_game_id=891,
         )
     ]
+
+
+def test_returns_immediately_for_an_empty_request() -> None:
+    client = Mock(spec=IGDBClient)
+
+    assert match_steam_app_ids(client, []) == []
+    client.query.assert_not_called()
+
+
+def test_splits_requests_at_the_batch_boundary() -> None:
+    client = Mock(spec=IGDBClient)
+    client.query.side_effect = [[], []]
+    steam_app_ids = list(range(1, 102))
+
+    results = match_steam_app_ids(client, steam_app_ids)
+
+    assert len(results) == 101
+    assert all(
+        result.status is IGDBMatchStatus.MISSING
+        for result in results
+    )
+    assert client.query.call_count == 2
+
+    first_query = client.query.call_args_list[0].args[1]
+    second_query = client.query.call_args_list[1].args[1]
+
+    first_uid_list = ",".join(
+        f'"{steam_app_id}"' for steam_app_id in range(1, 101)
+    )
+
+    assert f"uid = ({first_uid_list})" in first_query
+    assert 'uid = ("101")' in second_query
+
+
+def test_rejects_a_potentially_truncated_batch() -> None:
+    client = Mock(spec=IGDBClient)
+    client.query.return_value = [
+        {"uid": "440", "game": 891}
+    ] * 500
+
+    with pytest.raises(
+        IGDBResponseError,
+        match="potentially truncated match batch",
+    ):
+        match_steam_app_ids(client, [440])

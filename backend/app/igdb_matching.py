@@ -53,14 +53,6 @@ def normalize_external_game_matches(
     requested_ids = _unique_steam_app_ids(steam_app_ids)
     candidates = {steam_app_id: set() for steam_app_id in requested_ids}
 
-    for steam_app_id in requested_ids:
-        if (
-            not isinstance(steam_app_id, int)
-            or isinstance(steam_app_id, bool)
-            or steam_app_id <= 0
-        ):
-            raise ValueError("Steam App IDs must be positive integers.")
-
     for external_game in external_games:
         uid = external_game.get("uid")
         igdb_game_id = external_game.get("game")
