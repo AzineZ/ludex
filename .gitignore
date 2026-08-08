@@ -2,6 +2,7 @@
 DESIGN.md
 CHECKPOINT.md
 UI_DESIGN.md
+docs/
 
 # Environment variables and local secrets
 .env
