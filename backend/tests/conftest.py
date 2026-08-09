@@ -1,3 +1,7 @@
+from app.database import Base, get_database_session
+from app.dependencies import get_steam_client
+from app.main import app
+from app.steam_client import SteamClient
 import os
 from collections.abc import Generator
 from unittest.mock import MagicMock
@@ -15,11 +19,8 @@ os.environ.setdefault(
 )
 os.environ.setdefault("FRONTEND_ORIGIN", "http://localhost:5173")
 os.environ.setdefault("STEAM_API_KEY", "test-steam-api-key")
-
-from app.steam_client import SteamClient
-from app.main import app
-from app.dependencies import get_steam_client
-from app.database import Base, get_database_session
+os.environ.setdefault("IGDB_CLIENT_ID", "test-igdb-client-id")
+os.environ.setdefault("IGDB_CLIENT_SECRET", "test-igdb-client-secret")
 
 
 @pytest.fixture
