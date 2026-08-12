@@ -1,5 +1,7 @@
 from decimal import Decimal
 from typing import Annotated, Literal, Self
+from hashlib import sha256
+from json import dumps
 
 from pydantic import (
     BaseModel,
@@ -150,6 +152,85 @@ class GameTraitFacts(BaseModel):
     time_to_beat: tuple[FactText, ...]
     release_information: tuple[FactText, ...]
 
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        """Normalize the factual game name.
+
+        Args:
+            value: Game name loaded from trusted metadata.
+
+        Returns:
+            The name without surrounding whitespace.
+
+        Raises:
+            ValueError: If normalization leaves an empty name.
+        """
+        normalized = value.strip()
+
+        if not normalized:
+            raise ValueError("Game names must not be blank.")
+
+        return normalized
+
+    @field_validator("summary")
+    @classmethod
+    def normalize_summary(cls, value: str | None) -> str | None:
+        """Normalize an optional factual summary.
+
+        Args:
+            value: Summary loaded from trusted metadata, when available.
+
+        Returns:
+            A trimmed summary, or None when the summary is absent or blank.
+        """
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator(
+        "genres",
+        "themes",
+        "keywords",
+        "game_modes",
+        "time_to_beat",
+        "release_information",
+    )
+    @classmethod
+    def normalize_fact_collection(
+        cls,
+        values: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        """Normalize one repeatable factual metadata collection.
+
+        Args:
+            values: Metadata values belonging to one factual field.
+
+        Returns:
+            Unique trimmed values in deterministic alphabetical order.
+
+        Raises:
+            ValueError: If any supplied value becomes blank after trimming.
+        """
+        normalized_values: set[str] = set()
+
+        for value in values:
+            normalized = value.strip()
+
+            if not normalized:
+                raise ValueError("Factual metadata values must not be blank.")
+
+            normalized_values.add(normalized)
+
+        return tuple(
+            sorted(
+                normalized_values,
+                key=lambda item: (item.casefold(), item),
+            )
+        )
+
     def supports_evidence(self, citation: EvidenceCitation) -> bool:
         """Check whether one citation appears in the factual payload.
 
@@ -176,6 +257,25 @@ class GameTraitFacts(BaseModel):
         }
 
         return citation.value in source_values[citation.field]
+
+
+def calculate_facts_fingerprint(facts: GameTraitFacts) -> str:
+    """Calculate a deterministic fingerprint for factual Gemini input.
+
+    Args:
+        facts: Canonical game facts that will be supplied to Gemini.
+
+    Returns:
+        A lowercase SHA-256 hexadecimal digest of the canonical JSON payload.
+    """
+    canonical_json = dumps(
+        facts.model_dump(mode="json"),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+    return sha256(canonical_json.encode("utf-8")).hexdigest()
 
 
 class DerivedNumericTrait(BaseModel):

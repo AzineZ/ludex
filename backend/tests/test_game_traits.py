@@ -9,6 +9,7 @@ from app.game_traits import (
     GameTraitResponse,
     TraitEvidenceError,
     validate_response_evidence,
+    calculate_facts_fingerprint,
 )
 
 
@@ -407,3 +408,80 @@ def test_validates_mood_evidence() -> None:
 
     with pytest.raises(TraitEvidenceError):
         validate_response_evidence(response, _valid_facts())
+
+
+def test_normalizes_canonical_game_trait_facts() -> None:
+    facts = GameTraitFacts(
+        name="  Example Game  ",
+        summary="  A factual summary.  ",
+        genres=("Role-playing", "Adventure", "Adventure"),
+        themes=("Fantasy",),
+        keywords=(),
+        game_modes=("Single player",),
+        time_to_beat=(),
+        release_information=(),
+    )
+
+    assert facts.name == "Example Game"
+    assert facts.summary == "A factual summary."
+    assert facts.genres == ("Adventure", "Role-playing")
+
+
+def test_normalizes_blank_summary_to_unknown() -> None:
+    facts = _valid_facts().model_copy(
+        update={"summary": "   "}
+    )
+
+    normalized = GameTraitFacts.model_validate(facts.model_dump())
+
+    assert normalized.summary is None
+
+
+def test_fact_fingerprint_is_stable_across_collection_order() -> None:
+    first = GameTraitFacts(
+        name="Example Game",
+        summary="A factual summary.",
+        genres=("Adventure", "Role-playing"),
+        themes=("Fantasy", "Survival"),
+        keywords=(),
+        game_modes=("Single player",),
+        time_to_beat=(),
+        release_information=(),
+    )
+    second = GameTraitFacts(
+        name="Example Game",
+        summary="A factual summary.",
+        genres=("Role-playing", "Adventure", "Adventure"),
+        themes=("Survival", "Fantasy"),
+        keywords=(),
+        game_modes=("Single player",),
+        time_to_beat=(),
+        release_information=(),
+    )
+
+    assert (
+        calculate_facts_fingerprint(first)
+        == calculate_facts_fingerprint(second)
+    )
+
+
+def test_fact_fingerprint_changes_with_relevant_facts() -> None:
+    original = _valid_facts()
+    changed = GameTraitFacts.model_validate(
+        {
+            **original.model_dump(),
+            "themes": ("Exploration",),
+        }
+    )
+
+    assert (
+        calculate_facts_fingerprint(original)
+        != calculate_facts_fingerprint(changed)
+    )
+
+
+def test_fact_fingerprint_is_lowercase_sha256() -> None:
+    fingerprint = calculate_facts_fingerprint(_valid_facts())
+
+    assert len(fingerprint) == 64
+    assert set(fingerprint) <= set("0123456789abcdef")
