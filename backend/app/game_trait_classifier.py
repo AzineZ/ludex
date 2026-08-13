@@ -22,12 +22,16 @@ class GameTraitInvalidResponseError(ValueError):
 def classify_game_traits(
     client: GeminiClient,
     facts: GameTraitFacts,
+    *,
+    corrective_retry: bool = False,
 ) -> GameTraitResponse:
     """Classify one game's canonical facts into grounded Ludex traits.
 
     Args:
         client: Gemini transport used to request structured output.
         facts: Exact canonical factual metadata supplied for classification.
+        corrective_retry: Whether to request a fresh correction after an
+            invalid prior response.
 
     Returns:
         A structurally and factually validated game-trait response.
@@ -40,7 +44,10 @@ def classify_game_traits(
     raw_response = client.generate_structured_content(
         model_id=GAME_TRAIT_MODEL_ID,
         system_instruction=GAME_TRAIT_SYSTEM_INSTRUCTION,
-        user_prompt=build_game_trait_user_prompt(facts),
+        user_prompt=build_game_trait_user_prompt(
+            facts,
+            corrective_retry=corrective_retry,
+        ),
         response_schema=build_game_trait_response_schema(),
     )
 

@@ -82,3 +82,22 @@ def test_user_prompt_serializes_only_canonical_facts() -> None:
         f"{canonical_json}\n"
         "</game_facts>"
     )
+
+
+def test_corrective_prompt_uses_static_instruction_only() -> None:
+    """Request a fresh correction without echoing invalid model output."""
+    facts = _facts()
+
+    prompt = build_game_trait_user_prompt(
+        facts,
+        corrective_retry=True,
+    )
+
+    assert prompt.startswith(
+        "The previous model response was invalid.\n"
+        "Return a completely new response that follows every schema, "
+        "grounding, confidence, and evidence rule.\n"
+        "Do not repeat or discuss the previous response.\n\n"
+    )
+    assert "<game_facts>" in prompt
+    assert "</game_facts>" in prompt

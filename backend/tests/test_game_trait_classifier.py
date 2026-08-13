@@ -147,3 +147,27 @@ def test_preserves_transport_failure_category() -> None:
         classify_game_traits(client, _facts())
 
     assert caught.value is upstream_error
+
+
+def test_classifies_corrective_retry_with_fresh_prompt() -> None:
+    """Request a corrected response without changing model or schema."""
+    client = Mock(spec=GeminiClient)
+    client.generate_structured_content.return_value = _valid_response()
+    facts = _facts()
+
+    response = classify_game_traits(
+        client,
+        facts,
+        corrective_retry=True,
+    )
+
+    assert response.story_focus.value == 4
+    client.generate_structured_content.assert_called_once_with(
+        model_id=GAME_TRAIT_MODEL_ID,
+        system_instruction=GAME_TRAIT_SYSTEM_INSTRUCTION,
+        user_prompt=build_game_trait_user_prompt(
+            facts,
+            corrective_retry=True,
+        ),
+        response_schema=build_game_trait_response_schema(),
+    )
