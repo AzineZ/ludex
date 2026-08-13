@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.game_traits import NUMERIC_TRAIT_FIELDS
+from app.gemini.traits.contracts import NUMERIC_TRAIT_FIELDS
 
 
 MOOD_LABELS = (

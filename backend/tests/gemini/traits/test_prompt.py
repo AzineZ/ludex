@@ -1,6 +1,6 @@
 from json import dumps
 
-from app.game_trait_prompt import (
+from app.gemini.traits.prompt import (
     GAME_TRAIT_DERIVATION_VERSION,
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SCHEMA_VERSION,
@@ -8,7 +8,7 @@ from app.game_trait_prompt import (
     GAME_TRAIT_DERIVATION_VERSION,
     build_game_trait_user_prompt,
 )
-from app.game_traits import GameTraitFacts, NUMERIC_TRAIT_FIELDS
+from app.gemini.traits.contracts import GameTraitFacts, NUMERIC_TRAIT_FIELDS
 
 
 def _facts() -> GameTraitFacts:
@@ -29,7 +29,7 @@ def test_classifier_uses_confirmed_stable_versions() -> None:
     """Keep trusted classifier provenance explicit and immutable."""
     assert GAME_TRAIT_SCHEMA_VERSION == "1"
     assert GAME_TRAIT_DERIVATION_VERSION == "2"
-    assert GAME_TRAIT_MODEL_ID == "gemini-3.6-flash"
+    assert GAME_TRAIT_MODEL_ID == "gemini-3.5-flash-lite"
 
 
 def test_system_instruction_contains_required_safety_rules() -> None:

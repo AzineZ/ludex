@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 from sqlalchemy.orm import Session
 
-import app.game_trait_batch as batch
-from app.game_traits import GameTraitResponse
-from app.gemini_client import (
+import app.gemini.traits.batch as batch
+from app.gemini.traits.contracts import GameTraitResponse
+from app.gemini.client import (
     GeminiClient,
     GeminiUnavailableError,
 )

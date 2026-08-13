@@ -4,12 +4,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-import app.game_trait_service as service
+import app.gemini.traits.service as service
 from app.database import Base
-from app.game_traits import GameTraitResponse
-from app.gemini_client import GeminiClient
-from app.game_trait_planning import GameTraitGenerationPlan
-from app.game_traits import GameTraitFacts
+from app.gemini.traits.contracts import GameTraitResponse
+from app.gemini.client import GeminiClient
+from app.gemini.traits.planning import GameTraitGenerationPlan
+from app.gemini.traits.contracts import GameTraitFacts
 from app.models import (
     Game,
     GameIGDBMetadataTerm,

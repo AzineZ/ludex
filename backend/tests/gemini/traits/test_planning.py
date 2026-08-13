@@ -5,15 +5,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.database import Base
-from app.game_trait_planning import (
+from app.gemini.traits.planning import (
     load_game_trait_generation_plan,
 )
-from app.game_trait_prompt import (
+from app.gemini.traits.prompt import (
     GAME_TRAIT_DERIVATION_VERSION,
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SCHEMA_VERSION,
 )
-from app.game_traits import calculate_facts_fingerprint
+from app.gemini.traits.contracts import calculate_facts_fingerprint
 from app.models import (
     Game,
     GameCurrentTraitDerivation,

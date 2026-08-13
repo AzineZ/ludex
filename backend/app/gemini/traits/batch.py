@@ -10,9 +10,9 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.game_trait_service import generate_saved_game_traits
-from app.game_traits import GameTraitResponse
-from app.gemini_client import GeminiClient
+from app.gemini.traits.service import generate_saved_game_traits
+from app.gemini.traits.contracts import GameTraitResponse
+from app.gemini.client import GeminiClient
 
 
 GAME_TRAIT_WORKER_LIMIT = 2

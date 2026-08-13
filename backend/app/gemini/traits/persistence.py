@@ -2,7 +2,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.game_traits import (
+from app.gemini.traits.contracts import (
     NUMERIC_TRAIT_FIELDS,
     GameTraitFacts,
     GameTraitResponse,

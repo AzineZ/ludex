@@ -1,12 +1,12 @@
 from json import dumps
 from textwrap import dedent
 
-from app.game_traits import GameTraitFacts
+from app.gemini.traits.contracts import GameTraitFacts
 
 
 GAME_TRAIT_SCHEMA_VERSION = "1"
 GAME_TRAIT_DERIVATION_VERSION = "2"
-GAME_TRAIT_MODEL_ID = "gemini-3.6-flash"
+GAME_TRAIT_MODEL_ID = "gemini-3.5-flash-lite"
 
 
 GAME_TRAIT_SYSTEM_INSTRUCTION = dedent(

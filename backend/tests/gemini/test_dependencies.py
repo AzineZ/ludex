@@ -3,8 +3,8 @@ from typing import Self
 
 import pytest
 
-import app.dependencies as dependencies
-from app.dependencies import get_gemini_client
+import app.gemini.dependencies as dependencies
+from app.gemini.dependencies import get_gemini_client
 
 
 class FakeGeminiClient:

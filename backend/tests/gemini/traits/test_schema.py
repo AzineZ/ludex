@@ -1,8 +1,8 @@
 from json import dumps
 from typing import Any
 
-from app.game_trait_schema import build_game_trait_response_schema
-from app.game_traits import NUMERIC_TRAIT_FIELDS
+from app.gemini.traits.schema import build_game_trait_response_schema
+from app.gemini.traits.contracts import NUMERIC_TRAIT_FIELDS
 
 
 MOOD_LABELS = {

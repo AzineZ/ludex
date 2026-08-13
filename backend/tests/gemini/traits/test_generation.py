@@ -4,18 +4,18 @@ from unittest.mock import MagicMock, call
 
 from sqlalchemy.orm import Session
 
-from app.game_trait_classifier import (
+from app.gemini.traits.classifier import (
     GameTraitInvalidResponseError,
 )
-import app.game_trait_generation as generation
-from app.game_trait_prompt import (
+import app.gemini.traits.generation as generation
+from app.gemini.traits.prompt import (
     GAME_TRAIT_DERIVATION_VERSION,
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SCHEMA_VERSION,
     build_game_trait_user_prompt,
 )
-from app.game_traits import GameTraitFacts, GameTraitResponse
-from app.gemini_client import (
+from app.gemini.traits.contracts import GameTraitFacts, GameTraitResponse
+from app.gemini.client import (
     GeminiAPIError,
     GeminiAuthenticationError,
     GeminiClient,

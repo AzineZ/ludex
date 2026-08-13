@@ -1,9 +1,9 @@
-from app.game_trait_prompt import (
+from app.gemini.traits.prompt import (
     GAME_TRAIT_DERIVATION_VERSION,
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SCHEMA_VERSION,
 )
-from app.game_traits import (
+from app.gemini.traits.contracts import (
     GameTraitFacts,
     calculate_facts_fingerprint,
 )

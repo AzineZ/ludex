@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from app.game_trait_facts import build_game_trait_facts
+from app.gemini.traits.facts import build_game_trait_facts
 from app.models import (
     Game,
     GameIGDBMetadataTerm,

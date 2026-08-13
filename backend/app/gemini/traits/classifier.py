@@ -1,18 +1,18 @@
 from pydantic import ValidationError
 
-from app.game_trait_prompt import (
+from app.gemini.traits.prompt import (
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SYSTEM_INSTRUCTION,
     build_game_trait_user_prompt,
 )
-from app.game_trait_schema import build_game_trait_response_schema
-from app.game_traits import (
+from app.gemini.traits.schema import build_game_trait_response_schema
+from app.gemini.traits.contracts import (
     GameTraitFacts,
     GameTraitResponse,
     TraitEvidenceError,
     validate_response_evidence,
 )
-from app.gemini_client import GeminiClient
+from app.gemini.client import GeminiClient
 
 
 class GameTraitInvalidResponseError(ValueError):

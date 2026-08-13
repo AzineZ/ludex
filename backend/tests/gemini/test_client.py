@@ -3,7 +3,7 @@ from json import loads
 import httpx
 import pytest
 
-from app.gemini_client import (
+from app.gemini.client import (
     GeminiAPIError,
     GeminiAuthenticationError,
     GeminiClient,

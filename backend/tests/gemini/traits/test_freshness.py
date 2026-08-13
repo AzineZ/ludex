@@ -2,15 +2,15 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.game_trait_freshness import (
+from app.gemini.traits.freshness import (
     is_game_trait_derivation_current,
 )
-from app.game_trait_prompt import (
+from app.gemini.traits.prompt import (
     GAME_TRAIT_DERIVATION_VERSION,
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SCHEMA_VERSION,
 )
-from app.game_traits import (
+from app.gemini.traits.contracts import (
     GameTraitFacts,
     calculate_facts_fingerprint,
 )

@@ -7,11 +7,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.database import Base
-from app.game_trait_persistence import (
+from app.gemini.traits.persistence import (
     persist_successful_trait_derivation,
     record_failed_trait_attempt,
 )
-from app.game_traits import (
+from app.gemini.traits.contracts import (
     GameTraitFacts,
     GameTraitResponse,
     calculate_facts_fingerprint,

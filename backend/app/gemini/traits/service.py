@@ -1,11 +1,11 @@
 from sqlalchemy.orm import Session
 
-from app.game_trait_generation import generate_game_traits
-from app.game_trait_planning import (
+from app.gemini.traits.generation import generate_game_traits
+from app.gemini.traits.planning import (
     load_game_trait_generation_plan,
 )
-from app.game_traits import GameTraitResponse
-from app.gemini_client import GeminiClient
+from app.gemini.traits.contracts import GameTraitResponse
+from app.gemini.client import GeminiClient
 
 
 def generate_saved_game_traits(

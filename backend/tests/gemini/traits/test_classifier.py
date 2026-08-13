@@ -2,18 +2,18 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.game_trait_classifier import (
+from app.gemini.traits.classifier import (
     GameTraitInvalidResponseError,
     classify_game_traits,
 )
-from app.game_trait_prompt import (
+from app.gemini.traits.prompt import (
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SYSTEM_INSTRUCTION,
     build_game_trait_user_prompt,
 )
-from app.game_trait_schema import build_game_trait_response_schema
-from app.game_traits import GameTraitFacts
-from app.gemini_client import (
+from app.gemini.traits.schema import build_game_trait_response_schema
+from app.gemini.traits.contracts import GameTraitFacts
+from app.gemini.client import (
     GeminiClient,
     GeminiUnavailableError,
 )

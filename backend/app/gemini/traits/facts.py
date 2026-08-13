@@ -1,4 +1,4 @@
-from app.game_traits import GameTraitFacts
+from app.gemini.traits.contracts import GameTraitFacts
 from app.models import Game
 
 

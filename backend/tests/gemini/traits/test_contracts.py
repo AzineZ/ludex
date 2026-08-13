@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 from decimal import Decimal
 
-from app.game_traits import (
+from app.gemini.traits.contracts import (
     GameTraitFacts,
     GameTraitResponse,
     TraitEvidenceError,

@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.game_trait_facts import build_game_trait_facts
-from app.game_trait_freshness import (
+from app.gemini.traits.facts import build_game_trait_facts
+from app.gemini.traits.freshness import (
     is_game_trait_derivation_current,
 )
-from app.game_traits import GameTraitFacts
+from app.gemini.traits.contracts import GameTraitFacts
 from app.models import (
     Game,
     GameCurrentTraitDerivation,
