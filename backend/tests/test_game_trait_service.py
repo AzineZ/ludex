@@ -8,6 +8,8 @@ import app.game_trait_service as service
 from app.database import Base
 from app.game_traits import GameTraitResponse
 from app.gemini_client import GeminiClient
+from app.game_trait_planning import GameTraitGenerationPlan
+from app.game_traits import GameTraitFacts
 from app.models import (
     Game,
     GameIGDBMetadataTerm,
@@ -126,3 +128,52 @@ def test_missing_saved_game_never_calls_generation(
         generation_mock.assert_not_called()
 
     engine.dispose()
+
+
+def test_skips_generation_when_current_derivation_is_reusable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Avoid a Gemini call when the current derivation is still valid."""
+    session = MagicMock(spec=Session)
+    client = MagicMock(spec=GeminiClient)
+    facts = GameTraitFacts(
+        name="Example Adventure",
+        summary="A story-driven adventure.",
+        genres=("Adventure",),
+        themes=(),
+        keywords=(),
+        game_modes=("Single player",),
+        time_to_beat=(),
+        release_information=(),
+    )
+    plan = GameTraitGenerationPlan(
+        steam_app_id=440,
+        facts=facts,
+        current_derivation_id=12,
+        needs_generation=False,
+    )
+    plan_loader = MagicMock(return_value=plan)
+    generation_mock = MagicMock()
+
+    monkeypatch.setattr(
+        service,
+        "load_game_trait_generation_plan",
+        plan_loader,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        service,
+        "generate_game_traits",
+        generation_mock,
+    )
+
+    result = service.generate_saved_game_traits(
+        session,
+        client,
+        steam_app_id=440,
+        operation_id="11111111-1111-1111-1111-111111111111",
+    )
+
+    assert result is None
+    plan_loader.assert_called_once_with(session, 440)
+    generation_mock.assert_not_called()
