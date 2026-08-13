@@ -229,6 +229,39 @@ def test_requires_one_sentence_evidence_reason(
 
 
 @pytest.mark.parametrize(
+    "absence_reason",
+    [
+        "The summary has no mention of combat.",
+        "Combat is not mentioned in the summary.",
+        "The supplied facts do not mention combat.",
+        "Combat information is absent from the metadata.",
+    ],
+)
+def test_rejects_absence_based_evidence_reason(
+    absence_reason: str,
+) -> None:
+    """Reject interpretations that treat missing facts as evidence."""
+    response = _valid_response()
+    response["combat_intensity"] = {
+        "value": 0,
+        "confidence": 0.80,
+        "evidence": [
+            {
+                "field": "summary",
+                "value": "A story-driven adventure.",
+                "reason": absence_reason,
+            }
+        ],
+    }
+
+    with pytest.raises(
+        ValidationError,
+        match="Absence of information cannot support evidence",
+    ):
+        GameTraitResponse.model_validate(response)
+
+
+@pytest.mark.parametrize(
     "invalid_label",
     ["cozy", "scary", "RELAXING"],
 )

@@ -52,7 +52,7 @@ def test_generates_structured_content_with_exact_request() -> None:
             "generationConfig": {
                 "responseFormat": {
                     "text": {
-                        "mimeType": "application/json",
+                        "mimeType": "APPLICATION_JSON",
                         "schema": TEST_SCHEMA,
                     }
                 }

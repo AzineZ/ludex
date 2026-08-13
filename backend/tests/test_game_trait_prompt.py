@@ -5,6 +5,7 @@ from app.game_trait_prompt import (
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SCHEMA_VERSION,
     GAME_TRAIT_SYSTEM_INSTRUCTION,
+    GAME_TRAIT_DERIVATION_VERSION,
     build_game_trait_user_prompt,
 )
 from app.game_traits import GameTraitFacts, NUMERIC_TRAIT_FIELDS
@@ -27,7 +28,7 @@ def _facts() -> GameTraitFacts:
 def test_classifier_uses_confirmed_stable_versions() -> None:
     """Keep trusted classifier provenance explicit and immutable."""
     assert GAME_TRAIT_SCHEMA_VERSION == "1"
-    assert GAME_TRAIT_DERIVATION_VERSION == "1"
+    assert GAME_TRAIT_DERIVATION_VERSION == "2"
     assert GAME_TRAIT_MODEL_ID == "gemini-3.5-flash-lite"
 
 
@@ -57,6 +58,8 @@ def test_system_instruction_contains_required_safety_rules() -> None:
         "evidence must be empty",
         "one to three evidence items",
         "Do not infer unknown metadata",
+        "Absence of a fact is not evidence",
+        "Do not assign combat_intensity 0 merely because combat is not mentioned",
     )
 
     for rule in required_rules:

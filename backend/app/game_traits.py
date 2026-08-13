@@ -1,7 +1,8 @@
 from decimal import Decimal
-from typing import Annotated, Literal, Self
 from hashlib import sha256
 from json import dumps
+import re
+from typing import Annotated, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -13,6 +14,27 @@ from pydantic import (
 
 
 MIN_KNOWN_CONFIDENCE = Decimal("0.30")
+
+_ABSENCE_BASED_EVIDENCE_PATTERNS = (
+    re.compile(r"\bno (?:explicit )?mention of\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:is|are|was|were) not mentioned\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:do|does|did) not mention\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:don't|doesn't|didn't) mention\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:information|details?|facts?|metadata) "
+        r"(?:is|are|was|were) absent\b",
+        re.IGNORECASE,
+    ),
+)
 
 TraitScore = Annotated[
     int,
@@ -133,6 +155,31 @@ class EvidenceCitation(BaseModel):
         if any(mark in value[:-1] for mark in sentence_marks):
             raise ValueError(
                 "Evidence reasons must contain exactly one sentence."
+            )
+
+        return value
+
+    @field_validator("reason")
+    @classmethod
+    def reject_absence_based_reason(cls, value: str) -> str:
+        """Reject evidence reasoning based only on missing information.
+
+        Args:
+            value: The structurally valid evidence reason.
+
+        Returns:
+            The reason when it makes a positive evidence claim.
+
+        Raises:
+            ValueError: If the reason treats an unmentioned or absent fact as
+                support for a derived interpretation.
+        """
+        if any(
+            pattern.search(value)
+            for pattern in _ABSENCE_BASED_EVIDENCE_PATTERNS
+        ):
+            raise ValueError(
+                "Absence of information cannot support evidence."
             )
 
         return value
