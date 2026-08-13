@@ -235,6 +235,9 @@ def test_requires_one_sentence_evidence_reason(
         "Combat is not mentioned in the summary.",
         "The supplied facts do not mention combat.",
         "Combat information is absent from the metadata.",
+        "The summary describes puzzles without any mention of combat.",
+        "The summary contains no reference to combat.",
+        "The supplied metadata lacks any mention of combat.",
     ],
 )
 def test_rejects_absence_based_evidence_reason(
@@ -441,6 +444,70 @@ def test_validates_mood_evidence() -> None:
 
     with pytest.raises(TraitEvidenceError):
         validate_response_evidence(response, _valid_facts())
+
+
+def test_combat_zero_requires_explicit_noncombat_fact() -> None:
+    """Reject a zero combat score inferred only from unrelated facts."""
+    response_data = _valid_response()
+    response_data["combat_intensity"] = {
+        "value": 0,
+        "confidence": 0.80,
+        "evidence": [
+            {
+                "field": "summary",
+                "value": "A story-driven adventure.",
+                "reason": "Puzzles are the sole described activity.",
+            }
+        ],
+    }
+    response = GameTraitResponse.model_validate(response_data)
+
+    with pytest.raises(
+        TraitEvidenceError,
+        match="Combat intensity zero requires explicit non-combat evidence",
+    ):
+        validate_response_evidence(response, _valid_facts())
+
+
+@pytest.mark.parametrize(
+    "explicit_description",
+    [
+        "A non-combat puzzle adventure.",
+        "A combat-free puzzle adventure.",
+        "An adventure with no combat.",
+        "An adventure without combat.",
+        "The game does not feature combat.",
+    ],
+)
+def test_combat_zero_accepts_explicit_noncombat_fact(
+    explicit_description: str,
+) -> None:
+    """Accept zero combat only when supplied facts explicitly support it."""
+    response_data = _valid_response()
+    response_data["combat_intensity"] = {
+        "value": 0,
+        "confidence": 0.80,
+        "evidence": [
+            {
+                "field": "summary",
+                "value": explicit_description,
+                "reason": "The supplied description explicitly rules out combat.",
+            }
+        ],
+    }
+    response = GameTraitResponse.model_validate(response_data)
+    original_facts = _valid_facts()
+    facts = original_facts.model_copy(
+        update={
+            "summary": (
+                f"{original_facts.summary} {explicit_description}"
+            )
+        }
+    )
+
+    result = validate_response_evidence(response, facts)
+
+    assert result is response
 
 
 def test_normalizes_canonical_game_trait_facts() -> None:

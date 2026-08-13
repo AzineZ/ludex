@@ -29,7 +29,7 @@ def test_classifier_uses_confirmed_stable_versions() -> None:
     """Keep trusted classifier provenance explicit and immutable."""
     assert GAME_TRAIT_SCHEMA_VERSION == "1"
     assert GAME_TRAIT_DERIVATION_VERSION == "2"
-    assert GAME_TRAIT_MODEL_ID == "gemini-3.5-flash-lite"
+    assert GAME_TRAIT_MODEL_ID == "gemini-3.6-flash"
 
 
 def test_system_instruction_contains_required_safety_rules() -> None:

@@ -16,22 +16,48 @@ from pydantic import (
 MIN_KNOWN_CONFIDENCE = Decimal("0.30")
 
 _ABSENCE_BASED_EVIDENCE_PATTERNS = (
-    re.compile(r"\bno (?:explicit )?mention of\b", re.IGNORECASE),
     re.compile(
-        r"\b(?:is|are|was|were) not mentioned\b",
+        r"\bno (?:explicit )?(?:mention|reference) (?:of|to)\b",
         re.IGNORECASE,
     ),
     re.compile(
-        r"\b(?:do|does|did) not mention\b",
+        r"\bwithout (?:any |a )?(?:mention|reference) (?:of|to)\b",
         re.IGNORECASE,
     ),
     re.compile(
-        r"\b(?:don't|doesn't|didn't) mention\b",
+        r"\blacks? (?:any |a )?(?:mention|reference) (?:of|to)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:is|are|was|were) not (?:mentioned|referenced)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:do|does|did) not (?:mention|reference)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:don't|doesn't|didn't) (?:mention|reference)\b",
         re.IGNORECASE,
     ),
     re.compile(
         r"\b(?:information|details?|facts?|metadata) "
         r"(?:is|are|was|were) absent\b",
+        re.IGNORECASE,
+    ),
+)
+
+_EXPLICIT_NONCOMBAT_EVIDENCE_PATTERNS = (
+    re.compile(r"\bnon[- ]?combat\b", re.IGNORECASE),
+    re.compile(r"\bcombat[- ]free\b", re.IGNORECASE),
+    re.compile(r"\bno (?:meaningful )?combat\b", re.IGNORECASE),
+    re.compile(
+        r"\bwithout (?:any |meaningful )?combat\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bdoes not (?:feature|include|contain|have) "
+        r"(?:any |meaningful )?combat\b",
         re.IGNORECASE,
     ),
 )
@@ -408,6 +434,24 @@ class GameTraitResponse(BaseModel):
         return self
 
 
+def _explicitly_supports_no_combat(
+    citation: EvidenceCitation,
+) -> bool:
+    """Check whether a cited fact explicitly describes absent combat.
+
+    Args:
+        citation: Exact factual citation returned for combat intensity.
+
+    Returns:
+        True when the cited value contains a conservative explicit
+        non-combat description; otherwise, False.
+    """
+    return any(
+        pattern.search(citation.value)
+        for pattern in _EXPLICIT_NONCOMBAT_EVIDENCE_PATTERNS
+    )
+
+
 def validate_response_evidence(
     response: GameTraitResponse,
     facts: GameTraitFacts,
@@ -422,8 +466,8 @@ def validate_response_evidence(
         The original response after all citations have been verified.
 
     Raises:
-        TraitEvidenceError: If any trait or mood citation is absent from the
-            supplied facts.
+        TraitEvidenceError: If any citation is absent from the supplied facts
+            or a zero combat score lacks explicit non-combat evidence.
     """
     for trait_field in NUMERIC_TRAIT_FIELDS:
         trait = getattr(response, trait_field)
@@ -433,6 +477,17 @@ def validate_response_evidence(
                 raise TraitEvidenceError(
                     "Trait evidence was absent from the supplied facts."
                 )
+
+    if (
+        response.combat_intensity.value == 0
+        and not any(
+            _explicitly_supports_no_combat(citation)
+            for citation in response.combat_intensity.evidence
+        )
+    ):
+        raise TraitEvidenceError(
+            "Combat intensity zero requires explicit non-combat evidence."
+        )
 
     for mood in response.moods:
         for citation in mood.evidence:
