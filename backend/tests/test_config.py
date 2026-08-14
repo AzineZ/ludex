@@ -1,5 +1,5 @@
 import pytest
-from pydantic import SecretStr, ValidationError
+from pydantic import SecretStr
 
 from app.config import Settings
 
@@ -31,16 +31,17 @@ def test_loads_gemini_api_key_as_secret() -> None:
     assert "test-gemini-secret" not in repr(settings)
 
 
-def test_requires_gemini_api_key(
-        monkeypatch: pytest.MonkeyPatch,
+def test_allows_missing_gemini_api_key(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Reject backend configuration without a Gemini credential."""
+    """Allow the active MVP to start without a Gemini credential."""
     values = _valid_settings()
     del values["gemini_api_key"]
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
 
-    with pytest.raises(ValidationError):
-        Settings(
-            _env_file=None,
-            **values,
-        )
+    settings = Settings(
+        _env_file=None,
+        **values,
+    )
+
+    assert settings.gemini_api_key is None

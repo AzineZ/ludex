@@ -4,7 +4,10 @@ from typing import Self
 import pytest
 
 import app.gemini.dependencies as dependencies
-from app.gemini.dependencies import get_gemini_client
+from app.gemini.dependencies import (
+    GeminiConfigurationError,
+    get_gemini_client,
+)
 
 
 class FakeGeminiClient:
@@ -38,6 +41,26 @@ class FakeGeminiClient:
         """Record cleanup and any propagated consumer exception."""
         self.exited = True
         self.exit_exception_type = exception_type
+
+
+def test_gemini_dependency_rejects_missing_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fail clearly when the deferred integration is manually invoked."""
+    FakeGeminiClient.instances.clear()
+    monkeypatch.setattr(
+        dependencies.settings,
+        "gemini_api_key",
+        None,
+    )
+
+    with pytest.raises(
+        GeminiConfigurationError,
+        match="Gemini API key is not configured.",
+    ):
+        next(get_gemini_client())
+
+    assert FakeGeminiClient.instances == []
 
 
 def test_gemini_dependency_yields_configured_client_and_closes(

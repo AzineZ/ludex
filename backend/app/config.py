@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     steam_api_key: SecretStr
     igdb_client_id: str
     igdb_client_secret: SecretStr
-    gemini_api_key: SecretStr
+    gemini_api_key: SecretStr | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
