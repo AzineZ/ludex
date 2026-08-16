@@ -7,6 +7,10 @@ from app.config import settings
 from app.database import get_database_session
 from app.profiles import router as profiles_router
 
+from app.recommendations.routes import (
+    router as recommendations_router,
+)
+
 app = FastAPI(
     title="Ludex API",
     version="0.1.0",
@@ -21,6 +25,7 @@ app.add_middleware(
 )
 
 app.include_router(profiles_router)
+app.include_router(recommendations_router)
 
 
 @app.get("/health")

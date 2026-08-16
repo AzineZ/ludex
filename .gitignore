@@ -1,5 +1,7 @@
 # Project design and checkpoint notes
 DESIGN.md
+PROJECT_DESIGN.md
+TECHNICAL_DESIGN.md
 CHECKPOINT.md
 UI_DESIGN.md
 docs/
@@ -69,4 +71,3 @@ temp/
 # Operating system files
 .DS_Store
 Thumbs.db
-
