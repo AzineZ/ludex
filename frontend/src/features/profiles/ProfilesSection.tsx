@@ -1,4 +1,5 @@
 import "./profiles.css";
+import ReferenceSelectionSection from "../recommendations/ReferenceSelectionSection";
 import GameLibrary from "./GameLibrary";
 import ProfileForm from "./ProfileForm";
 import ProfileSelector from "./ProfileSelector";
@@ -33,6 +34,10 @@ function ProfilesSection() {
             refreshError={profiles.refreshError}
             refreshState={profiles.refreshState}
             onRefresh={profiles.refreshSelectedProfile}
+         />
+
+         <ReferenceSelectionSection
+            profileId={profiles.selectedProfileId}
          />
       </section>
    );
