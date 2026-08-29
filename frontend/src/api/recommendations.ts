@@ -76,6 +76,92 @@ export type RecommendationPreference = {
    constraints: PreferenceConstraints;
 };
 
+export type FacetKind = "genre" | "theme" | "keyword" | "game_mode";
+
+export type FacetMatchState = "matched" | "not_matched" | "unknown";
+
+export type RecommendationOutcome = "complete" | "sparse" | "empty";
+
+export type FactualContributionResponse = {
+   reference_steam_app_id: number;
+   facet_kind: FacetKind;
+   facet_igdb_id: number;
+   match_state: FacetMatchState;
+   points_numerator: number;
+   points_denominator: number;
+};
+
+export type FactualScoreEvidenceResponse = {
+   version: string;
+   score_basis_points: number;
+   active_budget: number;
+   contributions: FactualContributionResponse[];
+};
+
+export type FacetLabelResponse = {
+   facet_kind: FacetKind;
+   facet_igdb_id: number;
+   name: string;
+};
+
+export type MatchReasonResponse = FacetLabelResponse & {
+   reference_steam_app_ids: number[];
+   points_numerator: number;
+   points_denominator: number;
+};
+
+export type MatchSummaryResponse = {
+   reasons: MatchReasonResponse[];
+   additional_match_count: number;
+   text: string;
+};
+
+export type UnmatchedPreferenceReasonResponse = FacetLabelResponse & {
+   reference_steam_app_ids: number[];
+};
+
+export type UnknownPreferenceMetadataTradeoffResponse = {
+   type: "unknown_preference_metadata";
+   facet_kinds: FacetKind[];
+   text: string;
+};
+
+export type UnmatchedPreferenceTradeoffResponse = {
+   type: "unmatched_preference";
+   reason: UnmatchedPreferenceReasonResponse;
+   text: string;
+};
+
+export type UnknownCompletionTimeTradeoffResponse = {
+   type: "unknown_completion_time";
+   text: string;
+};
+
+export type RecommendationTradeoffResponse =
+   | UnknownPreferenceMetadataTradeoffResponse
+   | UnmatchedPreferenceTradeoffResponse
+   | UnknownCompletionTimeTradeoffResponse;
+
+export type FinalRecommendationItemResponse = {
+   rank: number;
+   steam_app_id: number;
+   title: string;
+   cover_url: string | null;
+   profile_playtime_minutes: number;
+   normal_completion_seconds: number | null;
+   factual_evidence: FactualScoreEvidenceResponse;
+   facet_labels: FacetLabelResponse[];
+   match_summary: MatchSummaryResponse;
+   tradeoff: RecommendationTradeoffResponse | null;
+};
+
+export type FinalRecommendationResponse = {
+   outcome: RecommendationOutcome;
+   eligible_count: number;
+   returned_count: number;
+   items: FinalRecommendationItemResponse[];
+};
+
 function recommendationPath(profileId: number): string {
    return `/profiles/${profileId}/recommendations`;
 }
@@ -119,6 +205,22 @@ export function validateRecommendationPreference(
 ): Promise<RecommendationPreference> {
    return requestJson<RecommendationPreference>(
       `${recommendationPath(profileId)}/preferences/validate`,
+      {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         body: JSON.stringify(preference),
+      }
+   );
+}
+
+export function getFinalRecommendations(
+   profileId: number,
+   preference: RecommendationPreference
+): Promise<FinalRecommendationResponse> {
+   return requestJson<FinalRecommendationResponse>(
+      recommendationPath(profileId),
       {
          method: "POST",
          headers: {

@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
    ApiError,
+   getFinalRecommendations,
    getReferenceDetails,
    listProfiles,
    searchReferenceGames,
    searchReferenceKeywords,
    validateRecommendationPreference,
+   type FinalRecommendationResponse,
    type OwnedGameSearchResponse,
    type RecommendationPreference,
    type ReferenceDetailsResponse,
@@ -61,6 +63,81 @@ const preference: RecommendationPreference = {
       maximum_completion_minutes: 1800,
       play_status: "either",
    },
+};
+
+const finalRecommendations: FinalRecommendationResponse = {
+   outcome: "sparse",
+   eligible_count: 1,
+   returned_count: 1,
+   items: [
+      {
+         rank: 1,
+         steam_app_id: 620,
+         title: "Portal 2",
+         cover_url: null,
+         profile_playtime_minutes: 42,
+         normal_completion_seconds: null,
+         factual_evidence: {
+            version: "factual-overlap-v1",
+            score_basis_points: 8000,
+            active_budget: 100,
+            contributions: [
+               {
+                  reference_steam_app_id: 400,
+                  facet_kind: "genre",
+                  facet_igdb_id: 9,
+                  match_state: "matched",
+                  points_numerator: 3000,
+                  points_denominator: 1,
+               },
+               {
+                  reference_steam_app_id: 400,
+                  facet_kind: "keyword",
+                  facet_igdb_id: 4928,
+                  match_state: "not_matched",
+                  points_numerator: 0,
+                  points_denominator: 1,
+               },
+            ],
+         },
+         facet_labels: [
+            {
+               facet_kind: "genre",
+               facet_igdb_id: 9,
+               name: "Puzzle",
+            },
+            {
+               facet_kind: "keyword",
+               facet_igdb_id: 4928,
+               name: "Environmental puzzles",
+            },
+         ],
+         match_summary: {
+            reasons: [
+               {
+                  facet_kind: "genre",
+                  facet_igdb_id: 9,
+                  name: "Puzzle",
+                  reference_steam_app_ids: [400],
+                  points_numerator: 3000,
+                  points_denominator: 1,
+               },
+            ],
+            additional_match_count: 0,
+            text: "Matches your Puzzle preference.",
+         },
+         tradeoff: {
+            type: "unmatched_preference",
+            reason: {
+               facet_kind: "keyword",
+               facet_igdb_id: 4928,
+               name: "Environmental puzzles",
+               reference_steam_app_ids: [400],
+            },
+            text: "Does not match your Environmental puzzles preference.",
+         },
+      },
+   ],
 };
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -158,6 +235,55 @@ describe("recommendation API", () => {
             body: JSON.stringify(preference),
          }
       );
+   });
+
+   it("posts the canonical preference directly for final recommendations", async () => {
+      fetchMock.mockResolvedValue(jsonResponse(finalRecommendations));
+
+      await expect(
+         getFinalRecommendations(1, preference)
+      ).resolves.toEqual(finalRecommendations);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+         "http://localhost:8000/profiles/1/recommendations",
+         {
+            method: "POST",
+            headers: {
+               "Content-Type": "application/json",
+            },
+            body: JSON.stringify(preference),
+         }
+      );
+   });
+
+   it("preserves final recommendation validation errors", async () => {
+      fetchMock.mockResolvedValue(
+         jsonResponse(
+            {
+               error: {
+                  code: "facet_not_on_reference",
+                  field: "references[0].facets.genre_ids[0]",
+                  message: (
+                     "The selected facet does not belong to this "
+                     + "reference game."
+                  ),
+               },
+            },
+            422
+         )
+      );
+
+      await expect(
+         getFinalRecommendations(1, preference)
+      ).rejects.toMatchObject({
+         name: "ApiError",
+         status: 422,
+         code: "facet_not_on_reference",
+         field: "references[0].facets.genre_ids[0]",
+         message: (
+            "The selected facet does not belong to this reference game."
+         ),
+      });
    });
 
    it("preserves recommendation error code and field", async () => {
