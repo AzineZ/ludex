@@ -94,6 +94,8 @@ def _owned_game(
     *,
     status: str = "ready",
     cover_image_id: str | None = None,
+    playtime_minutes: int = 0,
+    normal_completion_seconds: int | None = None,
     links: tuple[GameIGDBMetadataTerm, ...] = (),
 ) -> Game:
     game = Game(
@@ -101,12 +103,13 @@ def _owned_game(
         name=name,
         igdb_status=status,
         cover_image_id=cover_image_id,
+        time_to_beat_normally_seconds=normal_completion_seconds,
     )
     game.metadata_term_links.extend(links)
     game.profile_games.append(
         ProfileGame(
             profile=profile,
-            playtime_minutes=0,
+            playtime_minutes=playtime_minutes,
         )
     )
     return game
@@ -342,6 +345,185 @@ def test_validate_preference_returns_canonical_direct_object(
             "play_status": "either",
         },
     }
+
+
+def _add_recommendation_library(
+    recommendation_api: RecommendationAPI,
+    candidate_count: int,
+) -> None:
+    profile = _profile()
+    genre = IGDBMetadataTerm(
+        kind="genre",
+        igdb_id=10,
+        name="Adventure",
+    )
+    reference = _owned_game(
+        profile,
+        100,
+        "Reference Game",
+        links=(GameIGDBMetadataTerm(term=genre),),
+    )
+    candidates = tuple(
+        _owned_game(
+            profile,
+            200 + index,
+            f"Candidate {index}",
+            cover_image_id=("candidate-cover" if index == 1 else None),
+            playtime_minutes=index,
+            normal_completion_seconds=3_600,
+            links=(GameIGDBMetadataTerm(term=genre),),
+        )
+        for index in range(1, candidate_count + 1)
+    )
+    recommendation_api.database_session.add_all(
+        (reference, *candidates)
+    )
+    recommendation_api.database_session.commit()
+
+
+@pytest.mark.parametrize(
+    ("candidate_count", "expected_outcome"),
+    [
+        (0, "empty"),
+        (2, "sparse"),
+        (6, "complete"),
+    ],
+)
+def test_final_recommendation_endpoint_returns_every_success_outcome(
+    recommendation_api: RecommendationAPI,
+    candidate_count: int,
+    expected_outcome: str,
+) -> None:
+    _add_recommendation_library(recommendation_api, candidate_count)
+
+    response = recommendation_api.client.post(
+        "/profiles/1/recommendations",
+        json=_valid_preference_body(),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["outcome"] == expected_outcome
+    assert payload["eligible_count"] == candidate_count
+    assert payload["returned_count"] == candidate_count
+    assert [item["rank"] for item in payload["items"]] == list(
+        range(1, candidate_count + 1)
+    )
+    assert [item["steam_app_id"] for item in payload["items"]] == list(
+        range(201, 201 + candidate_count)
+    )
+    if payload["items"]:
+        first = payload["items"][0]
+        assert first["title"] == "Candidate 1"
+        assert first["profile_playtime_minutes"] == 1
+        assert first["normal_completion_seconds"] == 3_600
+        assert first["factual_evidence"] == {
+            "version": "factual-overlap-v1",
+            "score_basis_points": 10_000,
+            "active_budget": 30,
+            "contributions": [
+                {
+                    "reference_steam_app_id": 100,
+                    "facet_kind": "genre",
+                    "facet_igdb_id": 10,
+                    "match_state": "matched",
+                    "points_numerator": 10_000,
+                    "points_denominator": 1,
+                }
+            ],
+        }
+        assert first["facet_labels"] == [
+            {
+                "facet_kind": "genre",
+                "facet_igdb_id": 10,
+                "name": "Adventure",
+            }
+        ]
+        assert first["match_summary"] == {
+            "reasons": [
+                {
+                    "facet_kind": "genre",
+                    "facet_igdb_id": 10,
+                    "name": "Adventure",
+                    "reference_steam_app_ids": [100],
+                    "points_numerator": 10_000,
+                    "points_denominator": 1,
+                }
+            ],
+            "additional_match_count": 0,
+            "text": "Matches your Adventure preference.",
+        }
+        assert first["tradeoff"] is None
+
+
+def test_final_recommendation_endpoint_maps_preference_failure(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    response = recommendation_api.client.post(
+        "/profiles/999/recommendations",
+        json=_valid_preference_body(),
+    )
+
+    _assert_error(
+        response,
+        status_code=404,
+        code="profile_not_found",
+        field="profile_id",
+        message="The selected profile does not exist.",
+    )
+
+
+def test_final_recommendation_request_is_bounded_read_only_and_cache_only(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    _add_recommendation_library(recommendation_api, 6)
+    statements: list[str] = []
+
+    def record_statement(
+        connection: object,
+        cursor: object,
+        statement: str,
+        parameters: object,
+        context: object,
+        executemany: bool,
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(
+        recommendation_api.engine,
+        "before_cursor_execute",
+        record_statement,
+    )
+    try:
+        response = recommendation_api.client.post(
+            "/profiles/1/recommendations",
+            json=_valid_preference_body(),
+        )
+    finally:
+        event.remove(
+            recommendation_api.engine,
+            "before_cursor_execute",
+            record_statement,
+        )
+
+    assert response.status_code == 200
+    selects = [
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith("SELECT")
+    ]
+    writes = [
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith(
+            ("INSERT", "UPDATE", "DELETE")
+        )
+    ]
+    assert len(selects) == 5
+    assert writes == []
+    combined_sql = " ".join(statement.lower() for statement in selects)
+    assert "game_trait" not in combined_sql
+    assert "gemini" not in combined_sql
 
 
 def test_search_rejects_unknown_profile(

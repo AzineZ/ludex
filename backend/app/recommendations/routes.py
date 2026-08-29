@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_database_session
 from app.recommendations.api_schemas import (
     FacetOptionResponse,
+    FinalRecommendationResponse,
     KeywordSearchResponse,
     OwnedGameSearchResponse,
     OwnedGameSuggestionResponse,
@@ -13,6 +14,7 @@ from app.recommendations.api_schemas import (
     RecommendationErrorResponse,
     ReferenceDetailsResponse,
     ReferenceFacetsResponse,
+    to_final_recommendation_response,
 )
 from app.recommendations.api_validation import (
     RecommendationAPIRoute,
@@ -36,6 +38,7 @@ from app.recommendations.reference_reads import (
     search_owned_games,
     search_reference_keywords,
 )
+from app.recommendations.service import recommend_cached_games
 
 
 PositivePathIdentifier = Annotated[int, Path(gt=0)]
@@ -68,6 +71,38 @@ router = APIRouter(
     tags=["recommendations"],
     route_class=RecommendationAPIRoute,
 )
+
+
+@router.post(
+    "",
+    response_model=FinalRecommendationResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
+        status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: (
+            UNPROCESSABLE_RESPONSE
+        ),
+    },
+)
+def create_final_recommendations(
+    profile_id: PositivePathIdentifier,
+    preference: RecommendationPreference,
+    database_session: Annotated[
+        Session,
+        Depends(get_database_session),
+    ],
+) -> FinalRecommendationResponse:
+    """Return final recommendations from one cached owned library."""
+    try:
+        result = recommend_cached_games(
+            database_session,
+            profile_id=profile_id,
+            preference=preference,
+        )
+    except PreferenceValidationError as error:
+        _raise_preference_validation_error(error)
+
+    return to_final_recommendation_response(result)
 
 
 @router.get(
