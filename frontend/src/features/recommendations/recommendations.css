@@ -132,6 +132,7 @@
 .reference-game-card__facet,
 .reference-keywords button,
 .preference-validation button {
+   min-height: 2.75rem;
    padding: 0.65rem 0.85rem;
    border: 1px solid var(--color-bone-cream);
    border-radius: 999px;
@@ -225,6 +226,166 @@
    overflow-wrap: anywhere;
 }
 
+.preference-validation__recommendation-action {
+   margin-top: 1rem;
+   padding-top: 1rem;
+   border-top: 1px solid var(--color-ash-taupe);
+}
+
+.preference-validation__recommendation-action button:disabled {
+   cursor: not-allowed;
+   opacity: 0.5;
+}
+
+.recommendation-result-card {
+   display: grid;
+   grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+   gap: clamp(1rem, 4vw, 1.75rem);
+   padding: clamp(1rem, 4vw, 1.5rem);
+   border: 1px solid var(--color-bone-cream);
+   background: rgb(0 0 0 / 82%);
+}
+
+.recommendation-result-card__cover-frame {
+   align-self: start;
+}
+
+.recommendation-result-card__cover,
+.recommendation-result-card__cover-fallback {
+   display: block;
+   width: 100%;
+   aspect-ratio: 3 / 4;
+}
+
+.recommendation-result-card__cover {
+   object-fit: cover;
+}
+
+.recommendation-result-card__cover-fallback {
+   display: grid;
+   place-items: center;
+   padding: 0.75rem;
+   border: 1px dashed var(--color-ash-taupe);
+   color: var(--color-ash-taupe);
+   font-size: 0.75rem;
+   font-weight: 800;
+   text-align: center;
+   text-transform: uppercase;
+}
+
+.recommendation-result-card__content {
+   min-width: 0;
+}
+
+.recommendation-result-card__content h3 {
+   margin: 0.25rem 0 0;
+   overflow-wrap: anywhere;
+   text-align: left;
+}
+
+.recommendation-result-card__rank {
+   margin: 0;
+   color: var(--color-alarm-red);
+   font-size: 0.75rem;
+   font-weight: 900;
+   letter-spacing: 0.12em;
+   text-transform: uppercase;
+}
+
+.recommendation-result-card__facts {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 0.75rem;
+   margin: 1.25rem 0 0;
+}
+
+.recommendation-result-card__facts div {
+   min-width: 0;
+   padding: 0.75rem;
+   border: 1px solid var(--color-ash-taupe);
+}
+
+.recommendation-result-card__facts dt,
+.recommendation-result-card__reason h4,
+.recommendation-result-card__tradeoff h4 {
+   font-size: 0.7rem;
+   font-weight: 900;
+   letter-spacing: 0.08em;
+   text-transform: uppercase;
+}
+
+.recommendation-result-card__facts dd {
+   margin: 0.35rem 0 0;
+   overflow-wrap: anywhere;
+}
+
+.recommendation-result-card__reason,
+.recommendation-result-card__tradeoff {
+   margin-top: 1.25rem;
+}
+
+.recommendation-result-card__reason h4,
+.recommendation-result-card__tradeoff h4,
+.recommendation-result-card__reason p,
+.recommendation-result-card__tradeoff p {
+   margin: 0;
+}
+
+.recommendation-result-card__reason p,
+.recommendation-result-card__tradeoff p {
+   margin-top: 0.4rem;
+   line-height: 1.45;
+}
+
+.recommendation-result-card__tradeoff {
+   padding-left: 0.85rem;
+   border-left: 3px solid var(--color-alarm-red);
+}
+
+.recommendation-results {
+   margin-top: 3rem;
+   padding-top: 2rem;
+   border-top: 2px solid var(--color-alarm-red);
+}
+
+.recommendation-results__header {
+   margin-bottom: 1.5rem;
+}
+
+.recommendation-results__header h3,
+.recommendation-results__header p {
+   margin: 0;
+}
+
+.recommendation-results__header p {
+   margin-top: 0.5rem;
+   color: var(--color-ash-taupe);
+}
+
+.recommendation-results__cards {
+   display: grid;
+   gap: 1.5rem;
+}
+
+.recommendation-results__state {
+   margin-top: 2rem;
+   padding: 1.25rem;
+   border: 1px dashed var(--color-ash-taupe);
+   color: var(--color-bone-cream);
+}
+
+.recommendation-results__state h3 {
+   margin-top: 0;
+}
+
+.recommendation-results__state p:last-child {
+   margin-bottom: 0;
+}
+
+.recommendation-results__error {
+   border-color: var(--color-alarm-red);
+}
+
 @media (max-width: 36rem) {
    .reference-game-card__header {
       grid-template-columns: 5rem minmax(0, 1fr);
@@ -244,6 +405,15 @@
    .recommendation-constraints,
    .preference-validation {
       padding: 0.85rem;
+   }
+
+   .recommendation-result-card {
+      grid-template-columns: 5rem minmax(0, 1fr);
+      gap: 0.85rem;
+   }
+
+   .recommendation-result-card__facts {
+      grid-template-columns: 1fr;
    }
 }
 

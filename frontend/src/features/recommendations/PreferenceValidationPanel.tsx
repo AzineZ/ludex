@@ -1,5 +1,7 @@
 import type { RecommendationPreference } from "../../api";
+import RecommendationResultsPanel from "./RecommendationResultsPanel";
 import { usePreferenceValidation } from "./usePreferenceValidation";
+import { useRecommendationRequest } from "./useRecommendationRequest";
 
 type PreferenceValidationPanelProps = {
    profileId: number | null;
@@ -11,7 +13,16 @@ function PreferenceValidationPanel({
    preference,
 }: PreferenceValidationPanelProps) {
    const validation = usePreferenceValidation(profileId, preference);
+   const recommendation = useRecommendationRequest(
+      profileId,
+      validation.validatedPreference
+   );
    const isValidating = validation.status === "validating";
+   const isLoadingRecommendations = recommendation.status === "loading";
+   const canRequestRecommendations =
+      validation.status === "valid" &&
+      validation.validatedPreference !== null &&
+      !isLoadingRecommendations;
 
    return (
       <section
@@ -52,6 +63,28 @@ function PreferenceValidationPanel({
                   : `${validation.errorField}: ${validation.error}`}
             </p>
          )}
+
+         <div className="preference-validation__recommendation-action">
+            <button
+               type="button"
+               disabled={!canRequestRecommendations}
+               onClick={() => {
+                  recommendation.request();
+               }}
+            >
+               {isLoadingRecommendations
+                  ? "Finding recommendations…"
+                  : recommendation.status === "error"
+                    ? "Try recommendations again"
+                    : "Get recommendations"}
+            </button>
+         </div>
+
+         <RecommendationResultsPanel
+            status={recommendation.status}
+            response={recommendation.response}
+            error={recommendation.error}
+         />
       </section>
    );
 }
