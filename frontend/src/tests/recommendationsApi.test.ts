@@ -6,6 +6,7 @@ import {
    getReferenceKeywords,
    getReferenceDetails,
    listProfiles,
+   refineFinalRecommendations,
    searchReferenceGames,
    searchReferenceKeywords,
    validateRecommendationPreference,
@@ -13,6 +14,7 @@ import {
    type KeywordBrowseResponse,
    type OwnedGameSearchResponse,
    type RecommendationPreference,
+   type RecommendationRefinementRequest,
    type ReferenceDetailsResponse,
 } from "../api";
 
@@ -275,6 +277,29 @@ describe("recommendation API", () => {
                "Content-Type": "application/json",
             },
             body: JSON.stringify(preference),
+         }
+      );
+   });
+
+   it("posts rejected IDs only through the refinement request", async () => {
+      fetchMock.mockResolvedValue(jsonResponse(finalRecommendations));
+      const refinement: RecommendationRefinementRequest = {
+         preference,
+         rejected_steam_app_ids: [201, 203],
+      };
+
+      await expect(
+         refineFinalRecommendations(1, preference, [201, 203])
+      ).resolves.toEqual(finalRecommendations);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+         "http://localhost:8000/profiles/1/recommendations/refine",
+         {
+            method: "POST",
+            headers: {
+               "Content-Type": "application/json",
+            },
+            body: JSON.stringify(refinement),
          }
       );
    });

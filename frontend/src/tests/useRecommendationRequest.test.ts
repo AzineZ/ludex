@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
    getFinalRecommendations,
+   refineFinalRecommendations,
    type FinalRecommendationResponse,
    type RecommendationPreference,
 } from "../api";
@@ -17,6 +18,7 @@ vi.mock("../api", async (importOriginal) => {
    return {
       ...actual,
       getFinalRecommendations: vi.fn(),
+      refineFinalRecommendations: vi.fn(),
    };
 });
 
@@ -52,6 +54,9 @@ const response: FinalRecommendationResponse = {
 };
 
 const mockedGetFinalRecommendations = vi.mocked(getFinalRecommendations);
+const mockedRefineFinalRecommendations = vi.mocked(
+   refineFinalRecommendations
+);
 
 function deferred<Value>(): Deferred<Value> {
    let resolve!: (value: Value) => void;
@@ -64,7 +69,10 @@ function deferred<Value>(): Deferred<Value> {
 }
 
 describe("useRecommendationRequest", () => {
-   beforeEach(() => mockedGetFinalRecommendations.mockReset());
+   beforeEach(() => {
+      mockedGetFinalRecommendations.mockReset();
+      mockedRefineFinalRecommendations.mockReset();
+   });
 
    it("stays idle and does not request without a canonical preference", () => {
       const { result, rerender } = renderHook(
@@ -78,6 +86,7 @@ describe("useRecommendationRequest", () => {
       );
 
       act(() => result.current.request());
+      act(() => result.current.refine([201]));
       expect(result.current).toMatchObject({
          status: "idle",
          response: null,
@@ -88,6 +97,7 @@ describe("useRecommendationRequest", () => {
       act(() => result.current.request());
       expect(result.current.status).toBe("idle");
       expect(mockedGetFinalRecommendations).not.toHaveBeenCalled();
+      expect(mockedRefineFinalRecommendations).not.toHaveBeenCalled();
    });
 
    it("exposes loading and then the successful response", async () => {
@@ -137,6 +147,87 @@ describe("useRecommendationRequest", () => {
       await act(async () => {
          request.resolve(response);
          await request.promise;
+      });
+   });
+
+   it("exposes a stale-safe refinement request with exact rejected IDs", async () => {
+      const request = deferred<FinalRecommendationResponse>();
+      mockedRefineFinalRecommendations.mockReturnValue(request.promise);
+      const { result } = renderHook(() => (
+         useRecommendationRequest(7, preference)
+      ));
+      await act(async () => {
+         result.current.refine([201, 203]);
+         await Promise.resolve();
+      });
+
+      expect(result.current.status).toBe("loading");
+      expect(mockedRefineFinalRecommendations).toHaveBeenCalledWith(
+         7,
+         preference,
+         [201, 203]
+      );
+
+      await act(async () => {
+         request.resolve(response);
+         await request.promise;
+      });
+
+      expect(result.current).toMatchObject({
+         status: "ready",
+         response,
+         error: null,
+      });
+   });
+
+   it("locks duplicate refinement submissions while one is loading", async () => {
+      const request = deferred<FinalRecommendationResponse>();
+      mockedRefineFinalRecommendations.mockReturnValue(request.promise);
+      const { result } = renderHook(() => (
+         useRecommendationRequest(7, preference)
+      ));
+      await act(async () => {
+         result.current.refine([201]);
+         result.current.refine([201]);
+         await Promise.resolve();
+      });
+
+      expect(mockedRefineFinalRecommendations).toHaveBeenCalledOnce();
+
+      await act(async () => {
+         request.resolve(response);
+         await request.promise;
+      });
+   });
+
+   it("ignores a late refinement after its canonical key becomes stale", async () => {
+      const staleRequest = deferred<FinalRecommendationResponse>();
+      mockedRefineFinalRecommendations.mockReturnValue(staleRequest.promise);
+      const { result, rerender } = renderHook(
+         ({ value }) => useRecommendationRequest(7, value),
+         {
+            initialProps: {
+               value: preference as RecommendationPreference | null,
+            },
+         }
+      );
+      await act(async () => {
+         result.current.refine([201]);
+         await Promise.resolve();
+      });
+
+      rerender({ value: null });
+      expect(result.current.status).toBe("idle");
+
+      await act(async () => {
+         staleRequest.resolve(response);
+         await staleRequest.promise;
+      });
+
+      expect(result.current).toMatchObject({
+         status: "idle",
+         response: null,
+         error: null,
       });
    });
 

@@ -14,6 +14,8 @@ export type RecommendationErrorCode =
    | "duplicate_facet"
    | "empty_reference_facets"
    | "too_many_keywords"
+   | "duplicate_rejected_game"
+   | "too_many_rejected_games"
    | "invalid_query"
    | "profile_not_found"
    | "reference_not_owned"
@@ -167,6 +169,11 @@ export type FinalRecommendationResponse = {
    items: FinalRecommendationItemResponse[];
 };
 
+export type RecommendationRefinementRequest = {
+   preference: RecommendationPreference;
+   rejected_steam_app_ids: number[];
+};
+
 function recommendationPath(profileId: number): string {
    return `/profiles/${profileId}/recommendations`;
 }
@@ -242,6 +249,27 @@ export function getFinalRecommendations(
             "Content-Type": "application/json",
          },
          body: JSON.stringify(preference),
+      }
+   );
+}
+
+export function refineFinalRecommendations(
+   profileId: number,
+   preference: RecommendationPreference,
+   rejectedSteamAppIds: readonly number[]
+): Promise<FinalRecommendationResponse> {
+   const refinement: RecommendationRefinementRequest = {
+      preference,
+      rejected_steam_app_ids: [...rejectedSteamAppIds],
+   };
+   return requestJson<FinalRecommendationResponse>(
+      `${recommendationPath(profileId)}/refine`,
+      {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         body: JSON.stringify(refinement),
       }
    );
 }

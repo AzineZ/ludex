@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
    getFinalRecommendations,
+   refineFinalRecommendations,
    type FinalRecommendationResponse,
    type RecommendationPreference,
 } from "../../api";
@@ -30,6 +31,7 @@ export type RecommendationRequestResult = {
    response: FinalRecommendationResponse | null;
    error: string | null;
    request: () => void;
+   refine: (rejectedSteamAppIds: readonly number[]) => void;
 };
 
 function recommendationRequestError(error: unknown): string {
@@ -77,22 +79,24 @@ export function useRecommendationRequest(
       generationRef.current += 1;
    }, [key]);
 
-   function request(): void {
-      if (profileId === null || validatedPreference === null || key === null) {
+   function startRequest(
+      requestKey: string,
+      sendRequest: () => Promise<FinalRecommendationResponse>
+   ): void {
+      if (key === null) {
          return;
       }
+      const stateKey = key;
 
       if (
-         inFlightRef.current?.key === key &&
-         inFlightRef.current.generation === generationRef.current
+         inFlightRef.current?.generation === generationRef.current
       ) {
          return;
       }
 
-      const requestKey = key;
       const requestGeneration = generationRef.current;
       setState({
-         key: requestKey,
+         key: stateKey,
          status: "loading",
          response: null,
          error: null,
@@ -100,7 +104,7 @@ export function useRecommendationRequest(
 
       function finishWithError(error: unknown): void {
          if (generationRef.current === requestGeneration) {
-            setState(recommendationRequestFailure(requestKey, error));
+            setState(recommendationRequestFailure(stateKey, error));
          }
          if (
             inFlightRef.current?.key === requestKey &&
@@ -112,10 +116,7 @@ export function useRecommendationRequest(
 
       let pendingRequest: Promise<FinalRecommendationResponse>;
       try {
-         pendingRequest = getFinalRecommendations(
-            profileId,
-            validatedPreference
-         );
+         pendingRequest = sendRequest();
       } catch (error: unknown) {
          finishWithError(error);
          return;
@@ -125,7 +126,7 @@ export function useRecommendationRequest(
          (response) => {
             if (generationRef.current === requestGeneration) {
                setState({
-                  key: requestKey,
+                  key: stateKey,
                   status: "ready",
                   response,
                   error: null,
@@ -147,10 +148,41 @@ export function useRecommendationRequest(
       };
    }
 
+   function request(): void {
+      if (profileId === null || validatedPreference === null || key === null) {
+         return;
+      }
+
+      startRequest(
+         JSON.stringify({ key, kind: "initial" }),
+         () => getFinalRecommendations(
+            profileId,
+            validatedPreference
+         )
+      );
+   }
+
+   function refine(rejectedSteamAppIds: readonly number[]): void {
+      if (profileId === null || validatedPreference === null || key === null) {
+         return;
+      }
+
+      const rejectedIds = [...rejectedSteamAppIds];
+      startRequest(
+         JSON.stringify({ key, kind: "refinement", rejectedIds }),
+         () => refineFinalRecommendations(
+            profileId,
+            validatedPreference,
+            rejectedIds
+         )
+      );
+   }
+
    return {
       status: visibleState?.status ?? "idle",
       response: visibleState?.response ?? null,
       error: visibleState?.error ?? null,
       request,
+      refine,
    };
 }
