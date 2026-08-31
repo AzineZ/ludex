@@ -3,6 +3,7 @@ import { useId } from "react";
 import type { FinalRecommendationResponse } from "../../api";
 import RecommendationResultCard from "./RecommendationResultCard";
 import { splitRecommendationItems } from "./recommendationResults";
+import type { RecommendationSessionState } from "./recommendationSession";
 import type { RecommendationRequestStatus } from "./useRecommendationRequest";
 
 
@@ -10,6 +11,10 @@ type RecommendationResultsPanelProps = {
    status: RecommendationRequestStatus;
    response: FinalRecommendationResponse | null;
    error: string | null;
+   session?: RecommendationSessionState | null;
+   onShowAnother?: (steamAppId: number) => void;
+   onPlayThis?: (steamAppId: number) => void;
+   onStartOver?: () => void;
 };
 
 const UNEXPECTED_ERROR_MESSAGE =
@@ -29,6 +34,10 @@ function RecommendationResultsPanel({
    status,
    response,
    error,
+   session = null,
+   onShowAnother,
+   onPlayThis,
+   onStartOver,
 }: RecommendationResultsPanelProps) {
    const headingId = useId();
 
@@ -61,8 +70,6 @@ function RecommendationResultsPanel({
       );
    }
 
-   const { visibleItems } = splitRecommendationItems(response.items);
-
    if (response.outcome === "empty") {
       return (
          <section
@@ -76,10 +83,37 @@ function RecommendationResultsPanel({
                   No owned games match these preferences. Try changing your
                   reference games, selected facets, or constraints.
                </p>
+               {session !== null && onStartOver !== undefined && (
+                  <button
+                     className="app__secondary-button"
+                     type="button"
+                     onClick={onStartOver}
+                  >
+                     Start over
+                  </button>
+               )}
             </div>
          </section>
       );
    }
+
+   const acceptedSession = session?.phase === "accepted" ? session : null;
+   const activeSession = session?.phase === "active" ? session : null;
+   const fallbackItems = splitRecommendationItems(response.items).visibleItems;
+   const visibleItems = acceptedSession !== null
+      ? [acceptedSession.acceptedItem]
+      : activeSession?.visibleItems ?? fallbackItems;
+   const queueExhausted =
+      activeSession !== null
+      && activeSession.visibleItems.length > 0
+      && activeSession.waitingItems.length === 0;
+   const statusMessage = acceptedSession !== null
+      ? `You chose ${acceptedSession.acceptedItem.title}.`
+      : queueExhausted
+         ? `${resultCountMessage(response)} You’ve seen every recommendation `
+            + "in this bounded queue. Choose a game, refine your preferences, "
+            + "or start over."
+         : resultCountMessage(response);
 
    return (
       <section
@@ -88,8 +122,21 @@ function RecommendationResultsPanel({
          aria-live="polite"
       >
          <header className="recommendation-results__header">
-            <h3 id={headingId}>Your recommendations</h3>
-            <p role="status">{resultCountMessage(response)}</p>
+            <h3 id={headingId}>
+               {acceptedSession === null
+                  ? "Your recommendations"
+                  : "Your choice"}
+            </h3>
+            <p role="status">{statusMessage}</p>
+            {session !== null && onStartOver !== undefined && (
+               <button
+                  className="app__secondary-button recommendation-results__start-over"
+                  type="button"
+                  onClick={onStartOver}
+               >
+                  Start over
+               </button>
+            )}
          </header>
 
          <div className="recommendation-results__cards">
@@ -97,6 +144,17 @@ function RecommendationResultsPanel({
                <RecommendationResultCard
                   key={item.steam_app_id}
                   item={item}
+                  onPlayThis={
+                     activeSession !== null && onPlayThis !== undefined
+                        ? () => onPlayThis(item.steam_app_id)
+                        : undefined
+                  }
+                  onShowAnother={
+                     activeSession !== null && onShowAnother !== undefined
+                        ? () => onShowAnother(item.steam_app_id)
+                        : undefined
+                  }
+                  showAnotherDisabled={queueExhausted}
                />
             ))}
          </div>

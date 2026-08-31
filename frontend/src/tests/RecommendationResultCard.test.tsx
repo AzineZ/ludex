@@ -1,5 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { FinalRecommendationItemResponse } from "../api";
 import RecommendationResultCard from "../features/recommendations/RecommendationResultCard";
@@ -105,5 +105,40 @@ describe("RecommendationResultCard", () => {
       expect(screen.queryByText("factual-overlap-v1")).not.toBeInTheDocument();
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
       expect(screen.queryByRole("link")).not.toBeInTheDocument();
+   });
+
+   it("offers explicit Play this and Show another session actions", () => {
+      const onPlayThis = vi.fn();
+      const onShowAnother = vi.fn();
+
+      render(
+         <RecommendationResultCard
+            item={recommendation}
+            onPlayThis={onPlayThis}
+            onShowAnother={onShowAnother}
+         />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Play this" }));
+      fireEvent.click(screen.getByRole("button", { name: "Show another" }));
+
+      expect(onPlayThis).toHaveBeenCalledOnce();
+      expect(onShowAnother).toHaveBeenCalledOnce();
+   });
+
+   it("disables Show another when the bounded waiting queue is exhausted", () => {
+      render(
+         <RecommendationResultCard
+            item={recommendation}
+            onPlayThis={vi.fn()}
+            onShowAnother={vi.fn()}
+            showAnotherDisabled
+         />
+      );
+
+      expect(
+         screen.getByRole("button", { name: "Show another" })
+      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Play this" })).toBeEnabled();
    });
 });

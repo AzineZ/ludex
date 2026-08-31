@@ -5,6 +5,9 @@ import type { FinalRecommendationItemResponse } from "../../api";
 
 type RecommendationResultCardProps = {
    item: FinalRecommendationItemResponse;
+   onPlayThis?: () => void;
+   onShowAnother?: () => void;
+   showAnotherDisabled?: boolean;
 };
 
 function formatMinutes(minutes: number): string {
@@ -20,7 +23,12 @@ function formatMinutes(minutes: number): string {
    return `${hours} hr ${remainingMinutes} min`;
 }
 
-function RecommendationResultCard({ item }: RecommendationResultCardProps) {
+function RecommendationResultCard({
+   item,
+   onPlayThis,
+   onShowAnother,
+   showAnotherDisabled = false,
+}: RecommendationResultCardProps) {
    const headingId = useId();
    const playtime =
       item.profile_playtime_minutes === 0
@@ -83,6 +91,30 @@ function RecommendationResultCard({ item }: RecommendationResultCardProps) {
                   <h4>Keep in mind</h4>
                   <p>{item.tradeoff.text}</p>
                </aside>
+            )}
+
+            {(onPlayThis !== undefined || onShowAnother !== undefined) && (
+               <div className="recommendation-result-card__actions">
+                  {onPlayThis !== undefined && (
+                     <button
+                        className="app__primary-button"
+                        type="button"
+                        onClick={onPlayThis}
+                     >
+                        Play this
+                     </button>
+                  )}
+                  {onShowAnother !== undefined && (
+                     <button
+                        className="app__secondary-button"
+                        type="button"
+                        onClick={onShowAnother}
+                        disabled={showAnotherDisabled}
+                     >
+                        Show another
+                     </button>
+                  )}
+               </div>
             )}
          </div>
       </article>

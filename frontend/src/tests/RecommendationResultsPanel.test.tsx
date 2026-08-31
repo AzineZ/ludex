@@ -1,12 +1,35 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
    FinalRecommendationItemResponse,
    FinalRecommendationResponse,
+   RecommendationPreference,
 } from "../api";
 import RecommendationResultsPanel from "../features/recommendations/RecommendationResultsPanel";
+import {
+   acceptRecommendation,
+   createRecommendationSession,
+} from "../features/recommendations/recommendationSession";
 
+
+const preference: RecommendationPreference = {
+   references: [
+      {
+         steam_app_id: 100,
+         facets: {
+            genre_ids: [10],
+            theme_ids: [],
+            keyword_ids: [],
+            game_mode_ids: [],
+         },
+      },
+   ],
+   constraints: {
+      maximum_completion_minutes: null,
+      play_status: "either",
+   },
+};
 
 function recommendationItem(rank: number): FinalRecommendationItemResponse {
    return {
@@ -172,5 +195,105 @@ describe("RecommendationResultsPanel", () => {
       expect(screen.getByRole("alert")).toHaveTextContent(
          "Something went wrong while loading recommendations."
       );
+   });
+
+   it("renders the browser-local queue and identifies each chosen action", () => {
+      const response = recommendationResponse("complete", 6);
+      const session = createRecommendationSession(preference, response.items);
+      const onShowAnother = vi.fn();
+      const onPlayThis = vi.fn();
+      const onStartOver = vi.fn();
+
+      render(
+         <RecommendationResultsPanel
+            status="ready"
+            response={response}
+            error={null}
+            session={session}
+            onShowAnother={onShowAnother}
+            onPlayThis={onPlayThis}
+            onStartOver={onStartOver}
+         />
+      );
+
+      const gameTwo = screen.getByRole("article", { name: "Game 2" });
+      fireEvent.click(
+         within(gameTwo).getByRole("button", { name: "Show another" })
+      );
+      fireEvent.click(
+         within(gameTwo).getByRole("button", { name: "Play this" })
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+
+      expect(onShowAnother).toHaveBeenCalledWith(1002);
+      expect(onPlayThis).toHaveBeenCalledWith(1002);
+      expect(onStartOver).toHaveBeenCalledOnce();
+      expect(screen.queryByText("Game 4")).not.toBeInTheDocument();
+   });
+
+   it("keeps Play this available and explains an exhausted bounded queue", () => {
+      const response = recommendationResponse("complete", 3);
+      const session = createRecommendationSession(preference, response.items);
+
+      render(
+         <RecommendationResultsPanel
+            status="ready"
+            response={response}
+            error={null}
+            session={session}
+            onShowAnother={vi.fn()}
+            onPlayThis={vi.fn()}
+            onStartOver={vi.fn()}
+         />
+      );
+
+      expect(screen.getAllByRole("button", { name: "Show another" }))
+         .toHaveLength(3);
+      for (const button of screen.getAllByRole("button", {
+         name: "Show another",
+      })) {
+         expect(button).toBeDisabled();
+      }
+      expect(screen.getAllByRole("button", { name: "Play this" }))
+         .toHaveLength(3);
+      expect(screen.getByRole("status")).toHaveTextContent(
+         "You’ve seen every recommendation in this bounded queue. "
+         + "Choose a game, refine your preferences, or start over."
+      );
+   });
+
+   it("shows only the accepted game as the terminal Play this state", () => {
+      const response = recommendationResponse("sparse", 2);
+      const activeSession = createRecommendationSession(
+         preference,
+         response.items
+      );
+      const session = acceptRecommendation(activeSession, 1002);
+
+      render(
+         <RecommendationResultsPanel
+            status="ready"
+            response={response}
+            error={null}
+            session={session}
+            onShowAnother={vi.fn()}
+            onPlayThis={vi.fn()}
+            onStartOver={vi.fn()}
+         />
+      );
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+         "You chose Game 2."
+      );
+      expect(screen.getAllByRole("article")).toHaveLength(1);
+      expect(screen.getByRole("article", { name: "Game 2" }))
+         .toBeInTheDocument();
+      expect(screen.queryByText("Game 1")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Play this" }))
+         .not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Show another" }))
+         .not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start over" }))
+         .toBeEnabled();
    });
 });
