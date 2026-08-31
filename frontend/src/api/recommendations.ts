@@ -40,6 +40,11 @@ export type KeywordSearchResponse = {
    items: FacetOptionResponse[];
 };
 
+export type KeywordBrowseResponse = {
+   items: FacetOptionResponse[];
+   truncated: boolean;
+};
+
 export type ReferenceFacetsResponse = {
    genres: FacetOptionResponse[];
    themes: FacetOptionResponse[];
@@ -196,6 +201,16 @@ export function searchReferenceKeywords(
    return requestJson<KeywordSearchResponse>(
       `${recommendationPath(profileId)}/references/${steamAppId}` +
          `/keywords?${queryString(query)}`
+   );
+}
+
+export function getReferenceKeywords(
+   profileId: number,
+   steamAppId: number
+): Promise<KeywordBrowseResponse> {
+   return requestJson<KeywordBrowseResponse>(
+      `${recommendationPath(profileId)}/references/${steamAppId}` +
+         "/keywords/browse"
    );
 }
 

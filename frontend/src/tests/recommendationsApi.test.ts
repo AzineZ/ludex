@@ -3,12 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
    ApiError,
    getFinalRecommendations,
+   getReferenceKeywords,
    getReferenceDetails,
    listProfiles,
    searchReferenceGames,
    searchReferenceKeywords,
    validateRecommendationPreference,
    type FinalRecommendationResponse,
+   type KeywordBrowseResponse,
    type OwnedGameSearchResponse,
    type RecommendationPreference,
    type ReferenceDetailsResponse,
@@ -210,6 +212,27 @@ describe("recommendation API", () => {
          (
             "http://localhost:8000/profiles/1/recommendations/"
             + "references/100/keywords?query=farming+%26+life"
+         ),
+         undefined
+      );
+   });
+
+   it("browses the bounded cached keywords for one exact reference", async () => {
+      const response: KeywordBrowseResponse = {
+         items: [
+            { id: 20, name: "Atmospheric" },
+            { id: 30, name: "Story rich" },
+         ],
+         truncated: false,
+      };
+      fetchMock.mockResolvedValue(jsonResponse(response));
+
+      await expect(getReferenceKeywords(1, 100)).resolves.toEqual(response);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+         (
+            "http://localhost:8000/profiles/1/recommendations/"
+            + "references/100/keywords/browse"
          ),
          undefined
       );

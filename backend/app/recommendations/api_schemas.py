@@ -79,6 +79,13 @@ class KeywordSearchResponse(RecommendationHTTPModel):
     items: tuple[FacetOptionResponse, ...]
 
 
+class KeywordBrowseResponse(RecommendationHTTPModel):
+    """Envelope a bounded reference-scoped keyword collection."""
+
+    items: tuple[FacetOptionResponse, ...]
+    truncated: bool
+
+
 class ReferenceFacetsResponse(RecommendationHTTPModel):
     """Describe the directly displayed facets for a reference."""
 

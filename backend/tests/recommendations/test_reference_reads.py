@@ -14,8 +14,10 @@ from app.models import (
     ProfileGame,
 )
 from app.recommendations.reference_reads import (
+    KEYWORD_BROWSE_LIMIT,
     FacetOption,
     InvalidSearchQueryError,
+    KeywordBrowse,
     MetadataStatus,
     OwnedGameSuggestion,
     ProfileNotFoundError,
@@ -23,6 +25,7 @@ from app.recommendations.reference_reads import (
     ReferenceFacets,
     ReferenceMetadataUnavailableError,
     ReferenceNotOwnedError,
+    browse_reference_keywords,
     load_reference_details,
     normalize_search_query,
     search_owned_games,
@@ -672,6 +675,175 @@ def test_ready_reference_without_keywords_returns_empty_tuple(
     ) == ()
 
 
+def test_browses_all_reference_keywords_in_stable_name_order(
+    database_session: Session,
+) -> None:
+    profile = _profile(1)
+    reference = Game(
+        steam_app_id=10,
+        name="Reference Game",
+        igdb_status="ready",
+    )
+    reference.metadata_term_links.extend(
+        [
+            _term("keyword", 30, "story rich"),
+            _term("keyword", 20, "Atmospheric"),
+            _term("keyword", 10, "atmospheric"),
+            _term("genre", 40, "Adventure"),
+        ]
+    )
+    other_game = Game(
+        steam_app_id=20,
+        name="Other Reference",
+        igdb_status="ready",
+    )
+    other_game.metadata_term_links.append(
+        _term("keyword", 50, "Other keyword")
+    )
+    database_session.add_all(
+        [
+            _ownership(profile, reference),
+            _ownership(profile, other_game),
+        ]
+    )
+    database_session.commit()
+
+    result = browse_reference_keywords(
+        database_session,
+        profile.id,
+        reference.steam_app_id,
+    )
+
+    assert result == KeywordBrowse(
+        items=(
+            FacetOption(id=20, name="Atmospheric"),
+            FacetOption(id=10, name="atmospheric"),
+            FacetOption(id=30, name="story rich"),
+        ),
+        truncated=False,
+    )
+
+
+def test_keyword_browse_is_bounded_and_reports_truncation(
+    database_session: Session,
+) -> None:
+    profile = _profile(1)
+    reference = Game(
+        steam_app_id=10,
+        name="Reference Game",
+        igdb_status="ready",
+    )
+    reference.metadata_term_links.extend(
+        _term("keyword", 1_000 + index, f"Keyword {index:03d}")
+        for index in range(KEYWORD_BROWSE_LIMIT + 2)
+    )
+    database_session.add(_ownership(profile, reference))
+    database_session.commit()
+
+    result = browse_reference_keywords(
+        database_session,
+        profile.id,
+        reference.steam_app_id,
+    )
+
+    assert len(result.items) == KEYWORD_BROWSE_LIMIT
+    assert result.items[0].name == "Keyword 000"
+    assert result.items[-1].name == "Keyword 249"
+    assert result.truncated is True
+
+
+def test_keyword_browse_returns_explicit_empty_collection(
+    database_session: Session,
+) -> None:
+    profile = _profile(1)
+    reference = Game(
+        steam_app_id=10,
+        name="Reference Game",
+        igdb_status="ready",
+    )
+    database_session.add(_ownership(profile, reference))
+    database_session.commit()
+
+    assert browse_reference_keywords(
+        database_session,
+        profile.id,
+        reference.steam_app_id,
+    ) == KeywordBrowse(items=(), truncated=False)
+
+
+def test_keyword_browse_preserves_reference_access_boundaries(
+    database_session: Session,
+) -> None:
+    selected_profile = _profile(1)
+    other_profile = _profile(2)
+    unowned = Game(
+        steam_app_id=10,
+        name="Other Reference",
+        igdb_status="ready",
+    )
+    unavailable = Game(
+        steam_app_id=20,
+        name="Unavailable Reference",
+        igdb_status="missing",
+    )
+    database_session.add_all(
+        [
+            selected_profile,
+            _ownership(other_profile, unowned),
+            _ownership(selected_profile, unavailable),
+        ]
+    )
+    database_session.commit()
+
+    with pytest.raises(ProfileNotFoundError):
+        browse_reference_keywords(database_session, 999, 10)
+    with pytest.raises(ReferenceNotOwnedError):
+        browse_reference_keywords(database_session, 1, 10)
+    with pytest.raises(ReferenceMetadataUnavailableError):
+        browse_reference_keywords(database_session, 1, 20)
+
+
+def test_keyword_browse_uses_at_most_three_queries(
+    database_session: Session,
+) -> None:
+    profile = _profile(1)
+    reference = Game(
+        steam_app_id=10,
+        name="Reference Game",
+        igdb_status="ready",
+    )
+    reference.metadata_term_links.append(
+        _term("keyword", 10, "Atmospheric")
+    )
+    database_session.add(_ownership(profile, reference))
+    database_session.commit()
+    statements: list[str] = []
+
+    def record_select(
+        connection: object,
+        cursor: object,
+        statement: str,
+        parameters: object,
+        context: object,
+        executemany: bool,
+    ) -> None:
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement)
+
+    bind = database_session.get_bind()
+    event.listen(bind, "before_cursor_execute", record_select)
+    try:
+        browse_reference_keywords(
+            database_session,
+            profile.id,
+            reference.steam_app_id,
+        )
+    finally:
+        event.remove(bind, "before_cursor_execute", record_select)
+
+    assert len(statements) <= 3
+
+
 def test_keyword_search_rejects_unknown_profile(
     database_session: Session,
 ) -> None:
@@ -876,6 +1048,10 @@ def test_read_results_are_immutable(
     with pytest.raises(FrozenInstanceError):
         result.name = "Changed"
 
+    keyword_browse = KeywordBrowse(items=(), truncated=False)
+    with pytest.raises(FrozenInstanceError):
+        keyword_browse.truncated = True
+
 
 def test_reference_reads_do_not_flush_commit_or_roll_back(
     database_session: Session,
@@ -930,6 +1106,11 @@ def test_reference_reads_do_not_flush_commit_or_roll_back(
             profile.id,
             reference.steam_app_id,
             "Farm",
+        )
+        browse_reference_keywords(
+            database_session,
+            profile.id,
+            reference.steam_app_id,
         )
     finally:
         event.remove(database_session, "before_flush", record_flush)

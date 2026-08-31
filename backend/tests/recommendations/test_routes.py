@@ -302,6 +302,38 @@ def test_search_reference_keywords_returns_items_envelope(
     }
 
 
+def test_browse_reference_keywords_returns_bounded_envelope(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    profile = _profile()
+    recommendation_api.database_session.add(
+        _owned_game(
+            profile,
+            100,
+            "Reference Game",
+            links=(
+                _term_link("keyword", 30, "story rich"),
+                _term_link("keyword", 20, "Atmospheric"),
+                _term_link("genre", 10, "Adventure"),
+            ),
+        )
+    )
+    recommendation_api.database_session.commit()
+
+    response = recommendation_api.client.get(
+        "/profiles/1/recommendations/references/100/keywords/browse"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [
+            {"id": 20, "name": "Atmospheric"},
+            {"id": 30, "name": "story rich"},
+        ],
+        "truncated": False,
+    }
+
+
 def test_validate_preference_returns_canonical_direct_object(
     recommendation_api: RecommendationAPI,
 ) -> None:
@@ -603,6 +635,10 @@ def test_reference_detail_hides_unknown_and_unowned_identically(
         (
             "/profiles/1/recommendations/references/100/keywords"
             "?query=game"
+        ),
+        (
+            "/profiles/1/recommendations/references/100/"
+            "keywords/browse"
         ),
     ],
 )
@@ -1126,6 +1162,12 @@ def test_routes_are_read_only(
                 ),
                 params={"query": "explore"},
             ),
+            recommendation_api.client.get(
+                (
+                    "/profiles/1/recommendations/references/100/"
+                    "keywords/browse"
+                )
+            ),
             recommendation_api.client.post(
                 (
                     "/profiles/1/recommendations/preferences/"
@@ -1140,6 +1182,7 @@ def test_routes_are_read_only(
         event.remove(Session, "after_rollback", record_rollback)
 
     assert [response.status_code for response in responses] == [
+        200,
         200,
         200,
         200,
@@ -1169,6 +1212,12 @@ def test_openapi_declares_recommendation_contracts(
             "{steam_app_id}/keywords"
         )
     ]["get"]
+    keyword_browse = paths[
+        (
+            "/profiles/{profile_id}/recommendations/references/"
+            "{steam_app_id}/keywords/browse"
+        )
+    ]["get"]
     validation = paths[
         (
             "/profiles/{profile_id}/recommendations/preferences/"
@@ -1184,6 +1233,12 @@ def test_openapi_declares_recommendation_contracts(
         "422",
     }
     assert set(keywords["responses"]) == {
+        "200",
+        "404",
+        "409",
+        "422",
+    }
+    assert set(keyword_browse["responses"]) == {
         "200",
         "404",
         "409",

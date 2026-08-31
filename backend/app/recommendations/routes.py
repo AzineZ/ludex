@@ -7,6 +7,7 @@ from app.database import get_database_session
 from app.recommendations.api_schemas import (
     FacetOptionResponse,
     FinalRecommendationResponse,
+    KeywordBrowseResponse,
     KeywordSearchResponse,
     OwnedGameSearchResponse,
     OwnedGameSuggestionResponse,
@@ -34,6 +35,7 @@ from app.recommendations.reference_reads import (
     ReferenceDetails,
     ReferenceMetadataUnavailableError,
     ReferenceNotOwnedError,
+    browse_reference_keywords,
     load_reference_details,
     search_owned_games,
     search_reference_keywords,
@@ -221,6 +223,48 @@ def search_keywords(
             _facet_option_response(keyword)
             for keyword in keywords
         )
+    )
+
+
+@router.get(
+    "/references/{steam_app_id}/keywords/browse",
+    response_model=KeywordBrowseResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
+        status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: (
+            UNPROCESSABLE_RESPONSE
+        ),
+    },
+)
+def browse_keywords(
+    profile_id: PositivePathIdentifier,
+    steam_app_id: PositivePathIdentifier,
+    database_session: Annotated[
+        Session,
+        Depends(get_database_session),
+    ],
+) -> KeywordBrowseResponse:
+    """Return cached keywords for browsing one ready owned reference."""
+    try:
+        keyword_browse = browse_reference_keywords(
+            database_session,
+            profile_id,
+            steam_app_id,
+        )
+    except (
+        ProfileNotFoundError,
+        ReferenceNotOwnedError,
+        ReferenceMetadataUnavailableError,
+    ) as error:
+        _raise_reference_read_error(error)
+
+    return KeywordBrowseResponse(
+        items=tuple(
+            _facet_option_response(keyword)
+            for keyword in keyword_browse.items
+        ),
+        truncated=keyword_browse.truncated,
     )
 
 

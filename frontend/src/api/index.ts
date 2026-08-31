@@ -11,6 +11,7 @@ export {
 } from "./profiles";
 export {
    getFinalRecommendations,
+   getReferenceKeywords,
    getReferenceDetails,
    searchReferenceGames,
    searchReferenceKeywords,
@@ -24,6 +25,7 @@ export {
    type FinalRecommendationItemResponse,
    type FinalRecommendationResponse,
    type KeywordSearchResponse,
+   type KeywordBrowseResponse,
    type MetadataStatus,
    type MatchReasonResponse,
    type MatchSummaryResponse,

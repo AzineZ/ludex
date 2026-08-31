@@ -17,6 +17,7 @@ IGDB_COVER_URL_PREFIX = (
 )
 
 SEARCH_RESULT_LIMIT = 10
+KEYWORD_BROWSE_LIMIT = 250
 
 
 class InvalidSearchQueryError(ValueError):
@@ -72,6 +73,14 @@ class FacetOption:
 
     id: int
     name: str
+
+
+@dataclass(frozen=True)
+class KeywordBrowse:
+    """Project one bounded reference-scoped keyword collection."""
+
+    items: tuple[FacetOption, ...]
+    truncated: bool
 
 
 @dataclass(frozen=True)
@@ -433,4 +442,50 @@ def search_reference_keywords(
             name=row.name,
         )
         for row in rows
+    )
+
+
+def browse_reference_keywords(
+    session: Session,
+    profile_id: int,
+    steam_app_id: int,
+) -> KeywordBrowse:
+    """Browse a bounded alphabetical keyword list for one reference.
+
+    The extra fetched row is used only to report truncation. It is never
+    exposed as a selectable option.
+    """
+    _load_owned_ready_reference(
+        session,
+        profile_id,
+        steam_app_id,
+    )
+
+    rows = session.execute(
+        select(
+            IGDBMetadataTerm.igdb_id,
+            IGDBMetadataTerm.name,
+        )
+        .join(
+            GameIGDBMetadataTerm,
+            GameIGDBMetadataTerm.term_id == IGDBMetadataTerm.id,
+        )
+        .where(
+            GameIGDBMetadataTerm.steam_app_id == steam_app_id,
+            IGDBMetadataTerm.kind == "keyword",
+        )
+        .order_by(
+            func.lower(IGDBMetadataTerm.name),
+            IGDBMetadataTerm.name,
+            IGDBMetadataTerm.igdb_id,
+        )
+        .limit(KEYWORD_BROWSE_LIMIT + 1)
+    ).all()
+
+    return KeywordBrowse(
+        items=tuple(
+            FacetOption(id=row.igdb_id, name=row.name)
+            for row in rows[:KEYWORD_BROWSE_LIMIT]
+        ),
+        truncated=len(rows) > KEYWORD_BROWSE_LIMIT,
     )
