@@ -13,6 +13,7 @@ from app.recommendations.api_schemas import (
     OwnedGameSuggestionResponse,
     RecommendationErrorCode,
     RecommendationErrorResponse,
+    RecommendationRefinementRequest,
     ReferenceDetailsResponse,
     ReferenceFacetsResponse,
     to_final_recommendation_response,
@@ -100,6 +101,41 @@ def create_final_recommendations(
             database_session,
             profile_id=profile_id,
             preference=preference,
+        )
+    except PreferenceValidationError as error:
+        _raise_preference_validation_error(error)
+
+    return to_final_recommendation_response(result)
+
+
+@router.post(
+    "/refine",
+    response_model=FinalRecommendationResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
+        status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: (
+            UNPROCESSABLE_RESPONSE
+        ),
+    },
+)
+def refine_final_recommendations(
+    profile_id: PositivePathIdentifier,
+    refinement: RecommendationRefinementRequest,
+    database_session: Annotated[
+        Session,
+        Depends(get_database_session),
+    ],
+) -> FinalRecommendationResponse:
+    """Return a new cached result excluding session-rejected games."""
+    try:
+        result = recommend_cached_games(
+            database_session,
+            profile_id=profile_id,
+            preference=refinement.preference,
+            session_excluded_steam_app_ids=frozenset(
+                refinement.rejected_steam_app_ids
+            ),
         )
     except PreferenceValidationError as error:
         _raise_preference_validation_error(error)

@@ -251,6 +251,26 @@ def _translate_contract_validator(
             ),
         )
 
+    if "Rejected game IDs must be unique." in message:
+        duplicate_index = _later_duplicate_index(error.get("input"))
+        return RecommendationErrorDetail(
+            code=RecommendationErrorCode.DUPLICATE_REJECTED_GAME,
+            field=f"{field}[{duplicate_index}]",
+            message="Rejected game IDs must be unique.",
+        )
+
+    if (
+        "A session may exclude at most 30 rejected games."
+        in message
+    ):
+        return RecommendationErrorDetail(
+            code=RecommendationErrorCode.TOO_MANY_REJECTED_GAMES,
+            field=field,
+            message=(
+                "A session may exclude at most 30 rejected games."
+            ),
+        )
+
     return None
 
 
@@ -350,6 +370,9 @@ def _is_identifier_field(field: str) -> bool:
         ".keyword_ids[",
         ".game_mode_ids[",
     )
+
+    if field.startswith("rejected_steam_app_ids["):
+        return True
 
     return any(
         facet_field in field

@@ -200,6 +200,46 @@ def test_service_composes_one_retrieval_projection_and_assembly(
     ]
 
 
+def test_service_passes_session_exclusions_to_retrieval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = Mock(spec=Session)
+    exclusions = frozenset({201, 203})
+    received_exclusions: list[frozenset[int]] = []
+    pool = FactualCandidatePool(candidates=(), eligible_count=0)
+
+    def retrieve(
+        received_session: Session,
+        *,
+        profile_id: int,
+        preference: RecommendationPreference,
+        session_excluded_steam_app_ids: frozenset[int],
+    ) -> FactualCandidatePool:
+        received_exclusions.append(session_excluded_steam_app_ids)
+        return pool
+
+    monkeypatch.setattr(
+        service_module,
+        "retrieve_factual_candidates",
+        retrieve,
+    )
+    monkeypatch.setattr(
+        service_module,
+        "load_final_result_presentation",
+        lambda *args, **kwargs: FinalResultPresentationProjection((), ()),
+    )
+
+    result = recommend_cached_games(
+        session,
+        profile_id=7,
+        preference=_preference(),
+        session_excluded_steam_app_ids=exclusions,
+    )
+
+    assert result.outcome is RecommendationOutcome.EMPTY
+    assert received_exclusions == [exclusions]
+
+
 def test_empty_pool_flows_through_zero_input_projection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

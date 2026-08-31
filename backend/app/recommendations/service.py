@@ -17,13 +17,16 @@ def recommend_cached_games(
     *,
     profile_id: int,
     preference: RecommendationPreference,
+    session_excluded_steam_app_ids: frozenset[int] = frozenset(),
 ) -> FinalRecommendationResult:
     """Build final recommendations using only one profile's cached facts."""
     candidate_pool = retrieve_factual_candidates(
         session,
         profile_id=profile_id,
         preference=preference,
-        session_excluded_steam_app_ids=frozenset(),
+        session_excluded_steam_app_ids=(
+            session_excluded_steam_app_ids
+        ),
     )
     selected_candidates = candidate_pool.candidates[
         :FINAL_RECOMMENDATION_LIMIT

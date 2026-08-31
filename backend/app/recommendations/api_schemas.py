@@ -1,8 +1,12 @@
 from enum import StrEnum
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.recommendations.contracts import (
+    PositiveIdentifier,
+    RecommendationPreference,
+)
 from app.recommendations.factual_scoring import (
     FacetKind,
     FacetMatchState,
@@ -42,6 +46,8 @@ class RecommendationErrorCode(StrEnum):
     DUPLICATE_FACET = "duplicate_facet"
     EMPTY_REFERENCE_FACETS = "empty_reference_facets"
     TOO_MANY_KEYWORDS = "too_many_keywords"
+    DUPLICATE_REJECTED_GAME = "duplicate_rejected_game"
+    TOO_MANY_REJECTED_GAMES = "too_many_rejected_games"
     INVALID_QUERY = "invalid_query"
     PROFILE_NOT_FOUND = "profile_not_found"
     REFERENCE_NOT_OWNED = "reference_not_owned"
@@ -215,6 +221,31 @@ class FinalRecommendationResponse(RecommendationHTTPModel):
     eligible_count: int
     returned_count: int
     items: tuple[FinalRecommendationItemResponse, ...]
+
+
+MAX_SESSION_REJECTED_GAMES = 30
+
+
+class RecommendationRefinementRequest(RecommendationHTTPModel):
+    """Carry one canonical preference and bounded session exclusions."""
+
+    preference: RecommendationPreference
+    rejected_steam_app_ids: tuple[PositiveIdentifier, ...]
+
+    @field_validator("rejected_steam_app_ids")
+    @classmethod
+    def validate_rejected_steam_app_ids(
+        cls,
+        steam_app_ids: tuple[int, ...],
+    ) -> tuple[int, ...]:
+        """Reject duplicate or unbounded session exclusions."""
+        if len(steam_app_ids) > MAX_SESSION_REJECTED_GAMES:
+            raise ValueError(
+                "A session may exclude at most 30 rejected games."
+            )
+        if len(set(steam_app_ids)) != len(steam_app_ids):
+            raise ValueError("Rejected game IDs must be unique.")
+        return steam_app_ids
 
 
 def _match_reason_response(reason: MatchReason) -> MatchReasonResponse:

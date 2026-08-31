@@ -139,6 +139,15 @@ def _valid_preference_body(
     }
 
 
+def _valid_refinement_body(
+    rejected_steam_app_ids: list[object] | None = None,
+) -> dict[str, Any]:
+    return {
+        "preference": _valid_preference_body(),
+        "rejected_steam_app_ids": rejected_steam_app_ids or [],
+    }
+
+
 def _assert_error(
     response: Any,
     *,
@@ -488,6 +497,129 @@ def test_final_recommendation_endpoint_returns_every_success_outcome(
         assert first["tradeoff"] is None
 
 
+def test_refinement_endpoint_excludes_rejected_games(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    _add_recommendation_library(recommendation_api, 6)
+
+    response = recommendation_api.client.post(
+        "/profiles/1/recommendations/refine",
+        json=_valid_refinement_body([201, 203]),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["outcome"] == "sparse"
+    assert payload["eligible_count"] == 4
+    assert payload["returned_count"] == 4
+    assert [item["steam_app_id"] for item in payload["items"]] == [
+        202,
+        204,
+        205,
+        206,
+    ]
+
+
+def test_refinement_endpoint_accepts_an_empty_exclusion_set(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    _add_recommendation_library(recommendation_api, 2)
+
+    response = recommendation_api.client.post(
+        "/profiles/1/recommendations/refine",
+        json=_valid_refinement_body(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["returned_count"] == 2
+
+
+def test_refinement_endpoint_accepts_exactly_thirty_exclusions(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    _add_recommendation_library(recommendation_api, 2)
+
+    response = recommendation_api.client.post(
+        "/profiles/1/recommendations/refine",
+        json=_valid_refinement_body(list(range(1_000, 1_030))),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["returned_count"] == 2
+
+
+@pytest.mark.parametrize(
+    (
+        "rejected_steam_app_ids",
+        "expected_code",
+        "expected_field",
+        "expected_message",
+    ),
+    [
+        (
+            [201, 201],
+            "duplicate_rejected_game",
+            "rejected_steam_app_ids[1]",
+            "Rejected game IDs must be unique.",
+        ),
+        (
+            list(range(1, 32)),
+            "too_many_rejected_games",
+            "rejected_steam_app_ids",
+            "A session may exclude at most 30 rejected games.",
+        ),
+        (
+            [True],
+            "invalid_type",
+            "rejected_steam_app_ids[0]",
+            "This field has an invalid type.",
+        ),
+        (
+            [0],
+            "invalid_value",
+            "rejected_steam_app_ids[0]",
+            "IDs must be positive integers.",
+        ),
+    ],
+)
+def test_refinement_rejects_invalid_exclusion_lists(
+    recommendation_api: RecommendationAPI,
+    rejected_steam_app_ids: list[object],
+    expected_code: str,
+    expected_field: str,
+    expected_message: str,
+) -> None:
+    response = recommendation_api.client.post(
+        "/profiles/1/recommendations/refine",
+        json=_valid_refinement_body(rejected_steam_app_ids),
+    )
+
+    _assert_error(
+        response,
+        status_code=422,
+        code=expected_code,
+        field=expected_field,
+        message=expected_message,
+    )
+
+
+def test_refinement_requires_the_bounded_exclusion_field(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    response = recommendation_api.client.post(
+        "/profiles/1/recommendations/refine",
+        json={"preference": _valid_preference_body()},
+    )
+
+    _assert_error(
+        response,
+        status_code=422,
+        code="missing_field",
+        field="rejected_steam_app_ids",
+        message="This field is required.",
+    )
+
+
 def test_final_recommendation_endpoint_maps_preference_failure(
     recommendation_api: RecommendationAPI,
 ) -> None:
@@ -505,8 +637,20 @@ def test_final_recommendation_endpoint_maps_preference_failure(
     )
 
 
-def test_final_recommendation_request_is_bounded_read_only_and_cache_only(
+@pytest.mark.parametrize(
+    ("path", "body"),
+    [
+        ("/profiles/1/recommendations", _valid_preference_body()),
+        (
+            "/profiles/1/recommendations/refine",
+            _valid_refinement_body([201]),
+        ),
+    ],
+)
+def test_recommendation_requests_are_bounded_read_only_and_cache_only(
     recommendation_api: RecommendationAPI,
+    path: str,
+    body: dict[str, Any],
 ) -> None:
     _add_recommendation_library(recommendation_api, 6)
     statements: list[str] = []
@@ -528,8 +672,8 @@ def test_final_recommendation_request_is_bounded_read_only_and_cache_only(
     )
     try:
         response = recommendation_api.client.post(
-            "/profiles/1/recommendations",
-            json=_valid_preference_body(),
+            path,
+            json=body,
         )
     finally:
         event.remove(
@@ -1224,6 +1368,9 @@ def test_openapi_declares_recommendation_contracts(
             "validate"
         )
     ]["post"]
+    refinement = paths[
+        "/profiles/{profile_id}/recommendations/refine"
+    ]["post"]
 
     assert set(search["responses"]) == {"200", "404", "422"}
     assert set(detail["responses"]) == {
@@ -1250,6 +1397,12 @@ def test_openapi_declares_recommendation_contracts(
         "409",
         "422",
     }
+    assert set(refinement["responses"]) == {
+        "200",
+        "404",
+        "409",
+        "422",
+    }
 
     validation_request_schema = validation["requestBody"][
         "content"
@@ -1264,12 +1417,30 @@ def test_openapi_declares_recommendation_contracts(
     assert validation_success_schema["$ref"].endswith(
         "/RecommendationPreference"
     )
+    refinement_request_schema = refinement["requestBody"][
+        "content"
+    ]["application/json"]["schema"]
+    refinement_success_schema = refinement["responses"]["200"][
+        "content"
+    ]["application/json"]["schema"]
+    assert refinement_request_schema["$ref"].endswith(
+        "/RecommendationRefinementRequest"
+    )
+    assert refinement_success_schema["$ref"].endswith(
+        "/FinalRecommendationResponse"
+    )
 
     assert all(
         response["content"]["application/json"]["schema"][
             "$ref"
         ].endswith("/RecommendationErrorResponse")
-        for operation in (search, detail, keywords, validation)
+        for operation in (
+            search,
+            detail,
+            keywords,
+            validation,
+            refinement,
+        )
         for status_code, response in operation["responses"].items()
         if status_code != "200"
     )
