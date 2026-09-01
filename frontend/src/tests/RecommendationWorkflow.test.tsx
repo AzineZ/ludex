@@ -1,8 +1,15 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+   fireEvent,
+   render,
+   screen,
+   waitFor,
+   within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
    getFinalRecommendations,
+   refineFinalRecommendations,
    validateRecommendationPreference,
    type FinalRecommendationResponse,
    type RecommendationPreference,
@@ -15,6 +22,7 @@ vi.mock("../api", async (importOriginal) => {
    return {
       ...actual,
       getFinalRecommendations: vi.fn(),
+      refineFinalRecommendations: vi.fn(),
       validateRecommendationPreference: vi.fn(),
    };
 });
@@ -50,6 +58,22 @@ const canonicalPreference: RecommendationPreference = {
    },
 };
 
+const refinedDraft: RecommendationPreference = {
+   ...draft,
+   constraints: {
+      maximum_completion_minutes: 1200,
+      play_status: "either",
+   },
+};
+
+const refinedCanonicalPreference: RecommendationPreference = {
+   ...refinedDraft,
+   constraints: {
+      maximum_completion_minutes: 1200,
+      play_status: "unplayed",
+   },
+};
+
 const response: FinalRecommendationResponse = {
    outcome: "sparse",
    eligible_count: 1,
@@ -79,8 +103,33 @@ const response: FinalRecommendationResponse = {
    ],
 };
 
+const completeResponse: FinalRecommendationResponse = {
+   outcome: "complete",
+   eligible_count: 4,
+   returned_count: 4,
+   items: Array.from({ length: 4 }, (_, index) => ({
+      ...response.items[0],
+      rank: index + 1,
+      steam_app_id: 620 + index,
+      title: index === 0 ? "Portal 2" : `Game ${index + 1}`,
+   })),
+};
+
+const refinedResponse: FinalRecommendationResponse = {
+   outcome: "sparse",
+   eligible_count: 2,
+   returned_count: 2,
+   items: Array.from({ length: 2 }, (_, index) => ({
+      ...response.items[0],
+      rank: index + 1,
+      steam_app_id: 700 + index,
+      title: `Refined Game ${index + 1}`,
+   })),
+};
+
 const mockedValidate = vi.mocked(validateRecommendationPreference);
 const mockedGetRecommendations = vi.mocked(getFinalRecommendations);
+const mockedRefineRecommendations = vi.mocked(refineFinalRecommendations);
 
 function deferred<Value>(): Deferred<Value> {
    let resolve!: (value: Value) => void;
@@ -106,8 +155,10 @@ describe("preference recommendation workflow", () => {
    beforeEach(() => {
       mockedValidate.mockReset();
       mockedGetRecommendations.mockReset();
+      mockedRefineRecommendations.mockReset();
       mockedValidate.mockResolvedValue(canonicalPreference);
       mockedGetRecommendations.mockResolvedValue(response);
+      mockedRefineRecommendations.mockResolvedValue(refinedResponse);
    });
 
    it("submits only the canonical preference and renders its result", async () => {
@@ -153,7 +204,7 @@ describe("preference recommendation workflow", () => {
       await screen.findByRole("article", { name: "Portal 2" });
    });
 
-   it("invalidates validation and results when the draft changes", async () => {
+   it("invalidates validation but retains results when the draft changes", async () => {
       const { rerender } = render(
          <PreferenceValidationPanel profileId={7} preference={draft} />
       );
@@ -175,10 +226,13 @@ describe("preference recommendation workflow", () => {
       await waitFor(() => {
          expect(screen.queryByText("Preference is valid.")).not.toBeInTheDocument();
       });
-      expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
-      expect(
-         screen.getByRole("button", { name: "Get recommendations" })
-      ).toBeDisabled();
+      expect(screen.getByRole("article", { name: "Portal 2" }))
+         .toBeInTheDocument();
+      await waitFor(() => {
+         expect(
+            screen.getByRole("button", { name: "Refine recommendations" })
+         ).toBeDisabled();
+      });
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
    });
 
@@ -199,6 +253,170 @@ describe("preference recommendation workflow", () => {
       expect(
          screen.getByRole("button", { name: "Get recommendations" })
       ).toBeDisabled();
+      expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+   });
+
+   it("owns Show another, Play this, and Start over without another request", async () => {
+      mockedGetRecommendations.mockResolvedValue(completeResponse);
+      render(<PreferenceValidationPanel profileId={7} preference={draft} />);
+      await completeWorkflow();
+
+      const portalCard = screen.getByRole("article", { name: "Portal 2" });
+      fireEvent.click(
+         within(portalCard).getByRole("button", { name: "Show another" })
+      );
+
+      expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
+      expect(screen.getByRole("article", { name: "Game 4" }))
+         .toBeInTheDocument();
+      for (const button of screen.getAllByRole("button", {
+         name: "Show another",
+      })) {
+         expect(button).toBeDisabled();
+      }
+      expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+
+      const gameTwoCard = screen.getByRole("article", { name: "Game 2" });
+      fireEvent.click(
+         within(gameTwoCard).getByRole("button", { name: "Play this" })
+      );
+
+      expect(screen.getByText("You chose Game 2.")).toHaveAttribute(
+         "role",
+         "status"
+      );
+      expect(screen.getAllByRole("article")).toHaveLength(1);
+      expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+
+      fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+
+      expect(screen.queryByRole("article")).not.toBeInTheDocument();
+      expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+   });
+
+   it("retains the queue while editing and refines with rejected IDs", async () => {
+      mockedGetRecommendations.mockResolvedValue(completeResponse);
+      const { rerender } = render(
+         <PreferenceValidationPanel profileId={7} preference={draft} />
+      );
+      await completeWorkflow();
+
+      const portalCard = screen.getByRole("article", { name: "Portal 2" });
+      fireEvent.click(
+         within(portalCard).getByRole("button", { name: "Show another" })
+      );
+      expect(screen.getByRole("article", { name: "Game 4" }))
+         .toBeInTheDocument();
+
+      rerender(
+         <PreferenceValidationPanel profileId={7} preference={refinedDraft} />
+      );
+
+      expect(screen.getByRole("article", { name: "Game 4" }))
+         .toBeInTheDocument();
+      expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
+
+      mockedValidate.mockResolvedValueOnce(refinedCanonicalPreference);
+      fireEvent.click(
+         screen.getByRole("button", { name: "Validate preferences" })
+      );
+      await screen.findByText("Preference is valid.");
+      fireEvent.click(
+         screen.getByRole("button", { name: "Refine recommendations" })
+      );
+
+      await screen.findByRole("article", { name: "Refined Game 1" });
+      expect(mockedRefineRecommendations).toHaveBeenCalledOnce();
+      expect(mockedRefineRecommendations).toHaveBeenCalledWith(
+         7,
+         refinedCanonicalPreference,
+         [620]
+      );
+      expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("article", { name: "Game 4" })).toBeNull();
+   });
+
+   it("preserves the queue when edited preferences fail validation", async () => {
+      mockedGetRecommendations.mockResolvedValue(completeResponse);
+      const { rerender } = render(
+         <PreferenceValidationPanel profileId={7} preference={draft} />
+      );
+      await completeWorkflow();
+      fireEvent.click(
+         within(screen.getByRole("article", { name: "Portal 2" }))
+            .getByRole("button", { name: "Show another" })
+      );
+
+      rerender(
+         <PreferenceValidationPanel profileId={7} preference={refinedDraft} />
+      );
+      mockedValidate.mockRejectedValueOnce(
+         new Error("The edited preference is invalid.")
+      );
+      fireEvent.click(
+         screen.getByRole("button", { name: "Validate preferences" })
+      );
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+         "The edited preference is invalid."
+      );
+      expect(screen.getByRole("article", { name: "Game 4" }))
+         .toBeInTheDocument();
+      expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
+      expect(mockedRefineRecommendations).not.toHaveBeenCalled();
+   });
+
+   it("preserves rejected history and the queue when refinement is retried", async () => {
+      mockedGetRecommendations.mockResolvedValue(completeResponse);
+      const { rerender } = render(
+         <PreferenceValidationPanel profileId={7} preference={draft} />
+      );
+      await completeWorkflow();
+      fireEvent.click(
+         within(screen.getByRole("article", { name: "Portal 2" }))
+            .getByRole("button", { name: "Show another" })
+      );
+      rerender(
+         <PreferenceValidationPanel profileId={7} preference={refinedDraft} />
+      );
+      mockedValidate.mockResolvedValueOnce(refinedCanonicalPreference);
+      fireEvent.click(
+         screen.getByRole("button", { name: "Validate preferences" })
+      );
+      await screen.findByText("Preference is valid.");
+      mockedRefineRecommendations.mockRejectedValueOnce(
+         new Error("Refinement temporarily unavailable.")
+      );
+
+      fireEvent.click(
+         screen.getByRole("button", { name: "Refine recommendations" })
+      );
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+         "Refinement temporarily unavailable."
+      );
+      expect(screen.getByRole("article", { name: "Game 4" }))
+         .toBeInTheDocument();
+      expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
+
+      fireEvent.click(
+         screen.getByRole("button", { name: "Try refinement again" })
+      );
+
+      await screen.findByRole("article", { name: "Refined Game 1" });
+      expect(mockedRefineRecommendations).toHaveBeenCalledTimes(2);
+      expect(mockedRefineRecommendations).toHaveBeenNthCalledWith(
+         1,
+         7,
+         refinedCanonicalPreference,
+         [620]
+      );
+      expect(mockedRefineRecommendations).toHaveBeenNthCalledWith(
+         2,
+         7,
+         refinedCanonicalPreference,
+         [620]
+      );
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
    });
 });

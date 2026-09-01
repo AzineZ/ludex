@@ -1,7 +1,13 @@
-import type { RecommendationPreference } from "../../api";
+import { useEffect, useRef, useState } from "react";
+
+import type {
+   FinalRecommendationResponse,
+   RecommendationPreference,
+} from "../../api";
 import RecommendationResultsPanel from "./RecommendationResultsPanel";
 import { usePreferenceValidation } from "./usePreferenceValidation";
 import { useRecommendationRequest } from "./useRecommendationRequest";
+import { useRecommendationSession } from "./useRecommendationSession";
 
 type PreferenceValidationPanelProps = {
    profileId: number | null;
@@ -17,12 +23,96 @@ function PreferenceValidationPanel({
       profileId,
       validation.validatedPreference
    );
+   const {
+      state: sessionState,
+      initialize: initializeSession,
+      showAnother,
+      playThis,
+      updateDraft,
+      beginRefinement,
+      completeRefinement,
+      failRefinement,
+      startOver,
+   } = useRecommendationSession(profileId);
+   const processedResponseRef = useRef<FinalRecommendationResponse | null>(
+      null
+   );
+   const [retainedResponse, setRetainedResponse] =
+      useState<FinalRecommendationResponse | null>(null);
+
+   useEffect(() => {
+      if (
+         recommendation.status !== "ready"
+         || recommendation.response === null
+         || validation.validatedPreference === null
+      ) {
+         processedResponseRef.current = null;
+         return;
+      }
+      if (processedResponseRef.current === recommendation.response) {
+         return;
+      }
+
+      processedResponseRef.current = recommendation.response;
+      setRetainedResponse(recommendation.response);
+      if (sessionState.phase === "refining") {
+         completeRefinement(recommendation.response.items);
+      } else if (sessionState.phase === "idle") {
+         initializeSession(
+            validation.validatedPreference,
+            recommendation.response.items
+         );
+      }
+   }, [
+      completeRefinement,
+      initializeSession,
+      recommendation.response,
+      recommendation.status,
+      sessionState.phase,
+      validation.validatedPreference,
+   ]);
+
+   useEffect(() => {
+      const comparablePreference =
+         validation.status === "valid"
+         && validation.validatedPreference !== null
+            ? validation.validatedPreference
+            : preference;
+      updateDraft(comparablePreference);
+   }, [
+      preference,
+      updateDraft,
+      validation.status,
+      validation.validatedPreference,
+   ]);
+
+   useEffect(() => {
+      if (
+         recommendation.status === "error"
+         && sessionState.phase === "refining"
+      ) {
+         failRefinement();
+      }
+   }, [failRefinement, recommendation.status, sessionState.phase]);
    const isValidating = validation.status === "validating";
    const isLoadingRecommendations = recommendation.status === "loading";
+   const canSubmitForSession =
+      sessionState.phase === "idle" || sessionState.phase === "editing";
    const canRequestRecommendations =
       validation.status === "valid" &&
       validation.validatedPreference !== null &&
-      !isLoadingRecommendations;
+      !isLoadingRecommendations &&
+      canSubmitForSession;
+   const hasRetainedSession =
+      sessionState.phase !== "idle" && retainedResponse !== null;
+   const displayedStatus = hasRetainedSession
+      ? "ready"
+      : recommendation.status === "ready" && sessionState.phase === "idle"
+         ? "idle"
+         : recommendation.status;
+   const displayedResponse = hasRetainedSession
+      ? retainedResponse
+      : recommendation.response;
 
    return (
       <section
@@ -69,21 +159,63 @@ function PreferenceValidationPanel({
                type="button"
                disabled={!canRequestRecommendations}
                onClick={() => {
-                  recommendation.request();
+                  if (
+                     sessionState.phase === "editing"
+                     && validation.validatedPreference !== null
+                  ) {
+                     beginRefinement(validation.validatedPreference);
+                     recommendation.refine(
+                        sessionState.rejectedSteamAppIds
+                     );
+                  } else {
+                     recommendation.request();
+                  }
                }}
             >
-               {isLoadingRecommendations
-                  ? "Finding recommendations…"
+               {sessionState.phase === "refining"
+                  ? "Refining recommendations…"
+                  : isLoadingRecommendations
+                    ? "Finding recommendations…"
+                    : sessionState.phase === "editing"
+                      ? recommendation.status === "error"
+                        ? "Try refinement again"
+                        : "Refine recommendations"
+                      : sessionState.phase === "active"
+                        ? "Recommendations ready"
+                        : sessionState.phase === "accepted"
+                          ? "Game selected"
                   : recommendation.status === "error"
                     ? "Try recommendations again"
                     : "Get recommendations"}
             </button>
          </div>
 
+         {sessionState.phase === "editing"
+            && recommendation.status === "error" && (
+            <section
+               className="recommendation-results__state recommendation-results__error"
+               role="alert"
+            >
+               <h4>Refinement unavailable</h4>
+               <p>
+                  {recommendation.error
+                     ?? "Something went wrong while refining recommendations."}
+               </p>
+               <p>Your current recommendation queue has been preserved.</p>
+            </section>
+         )}
+
          <RecommendationResultsPanel
-            status={recommendation.status}
-            response={recommendation.response}
+            status={displayedStatus}
+            response={displayedResponse}
             error={recommendation.error}
+            session={sessionState}
+            onShowAnother={showAnother}
+            onPlayThis={playThis}
+            onStartOver={() => {
+               setRetainedResponse(null);
+               startOver();
+            }}
          />
       </section>
    );

@@ -99,21 +99,21 @@ function RecommendationResultsPanel({
 
    const acceptedSession = session?.phase === "accepted" ? session : null;
    const activeSession = session?.phase === "active" ? session : null;
+   const queuedSession =
+      session?.phase === "active"
+      || session?.phase === "editing"
+      || session?.phase === "refining"
+         ? session
+         : null;
    const fallbackItems = splitRecommendationItems(response.items).visibleItems;
    const visibleItems = acceptedSession !== null
       ? [acceptedSession.acceptedItem]
-      : activeSession?.visibleItems ?? fallbackItems;
+      : queuedSession?.visibleItems ?? fallbackItems;
    const queueExhausted =
       activeSession !== null
       && activeSession.visibleItems.length > 0
       && activeSession.waitingItems.length === 0;
-   const statusMessage = acceptedSession !== null
-      ? `You chose ${acceptedSession.acceptedItem.title}.`
-      : queueExhausted
-         ? `${resultCountMessage(response)} You’ve seen every recommendation `
-            + "in this bounded queue. Choose a game, refine your preferences, "
-            + "or start over."
-         : resultCountMessage(response);
+   const countMessage = resultCountMessage(response);
 
    return (
       <section
@@ -127,7 +127,24 @@ function RecommendationResultsPanel({
                   ? "Your recommendations"
                   : "Your choice"}
             </h3>
-            <p role="status">{statusMessage}</p>
+            <p role="status">
+               {acceptedSession !== null ? (
+                  `You chose ${acceptedSession.acceptedItem.title}.`
+               ) : session?.phase === "refining" ? (
+                  "Refining recommendations while keeping your current queue."
+               ) : (
+                  <>
+                     <span>{countMessage}</span>
+                     {queueExhausted && (
+                        <>
+                           {" You’ve seen every recommendation in this bounded "}
+                           queue. Choose a game, refine your preferences, or
+                           start over.
+                        </>
+                     )}
+                  </>
+               )}
+            </p>
             {session !== null && onStartOver !== undefined && (
                <button
                   className="app__secondary-button recommendation-results__start-over"

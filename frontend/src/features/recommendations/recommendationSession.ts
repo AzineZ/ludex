@@ -59,6 +59,19 @@ export type RecommendationSessionState =
    | EditingRecommendationSession
    | RefiningRecommendationSession;
 
+export function createIdleRecommendationSession(): IdleRecommendationSession {
+   return {
+      phase: "idle",
+      currentPreference: null,
+      pendingPreference: null,
+      visibleItems: [],
+      waitingItems: [],
+      shownSteamAppIds: [],
+      rejectedSteamAppIds: [],
+      acceptedItem: null,
+   };
+}
+
 function assertValidQueue(
    items: readonly FinalRecommendationItemResponse[]
 ): void {
@@ -170,16 +183,7 @@ export function startOverRecommendationSession(
    state: RecommendationSessionState
 ): IdleRecommendationSession {
    void state;
-   return {
-      phase: "idle",
-      currentPreference: null,
-      pendingPreference: null,
-      visibleItems: [],
-      waitingItems: [],
-      shownSteamAppIds: [],
-      rejectedSteamAppIds: [],
-      acceptedItem: null,
-   };
+   return createIdleRecommendationSession();
 }
 
 export function updateRecommendationSessionDraft(
