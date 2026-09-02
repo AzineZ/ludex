@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -50,6 +51,58 @@ class Profile(Base):
     owned_games: Mapped[list[ProfileGame]] = relationship(
         back_populates="profile",
         cascade="all, delete-orphan",
+    )
+    access_sessions: Mapped[list[SteamAccessSession]] = relationship(
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class SteamAccessSession(Base):
+    """Authorize one browser to access one cached Steam profile."""
+
+    __tablename__ = "steam_access_sessions"
+    __table_args__ = (
+        CheckConstraint(
+            "length(token_digest) = 32",
+            name="ck_steam_access_sessions_digest_length",
+        ),
+        CheckConstraint(
+            "expires_at > created_at",
+            name="ck_steam_access_sessions_expiration_order",
+        ),
+        CheckConstraint(
+            "revoked_at IS NULL OR revoked_at >= created_at",
+            name="ck_steam_access_sessions_revocation_order",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    token_digest: Mapped[bytes] = mapped_column(
+        LargeBinary(32),
+        unique=True,
+        index=True,
+    )
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("profiles.id", ondelete="CASCADE"),
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        index=True,
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    profile: Mapped[Profile] = relationship(
+        back_populates="access_sessions",
     )
 
 
