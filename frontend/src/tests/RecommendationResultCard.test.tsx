@@ -42,6 +42,52 @@ const recommendation: FinalRecommendationItemResponse = {
    },
 };
 
+const recommendationWithEvidence: FinalRecommendationItemResponse = {
+   ...recommendation,
+   factual_evidence: {
+      ...recommendation.factual_evidence,
+      contributions: [
+         {
+            reference_steam_app_id: 400,
+            facet_kind: "genre",
+            facet_igdb_id: 9,
+            match_state: "matched",
+            points_numerator: 3000,
+            points_denominator: 1,
+         },
+         {
+            reference_steam_app_id: 400,
+            facet_kind: "keyword",
+            facet_igdb_id: 4928,
+            match_state: "not_matched",
+            points_numerator: 0,
+            points_denominator: 1,
+         },
+         {
+            reference_steam_app_id: 500,
+            facet_kind: "game_mode",
+            facet_igdb_id: 44,
+            match_state: "unknown",
+            points_numerator: 0,
+            points_denominator: 1,
+         },
+      ],
+   },
+   facet_labels: [
+      ...recommendation.facet_labels,
+      {
+         facet_kind: "keyword",
+         facet_igdb_id: 4928,
+         name: "Environmental puzzles",
+      },
+      {
+         facet_kind: "game_mode",
+         facet_igdb_id: 44,
+         name: "Single player",
+      },
+   ],
+};
+
 describe("RecommendationResultCard", () => {
    it("renders the ranked identity and cached cover", () => {
       render(<RecommendationResultCard item={recommendation} />);
@@ -140,5 +186,43 @@ describe("RecommendationResultCard", () => {
          screen.getByRole("button", { name: "Show another" })
       ).toBeDisabled();
       expect(screen.getByRole("button", { name: "Play this" })).toBeEnabled();
+   });
+
+   it("discloses authoritative contribution labels and states in backend order", () => {
+      render(<RecommendationResultCard item={recommendationWithEvidence} />);
+
+      const disclosure = screen.getByText("Why this game?").closest("details");
+      expect(disclosure).not.toHaveAttribute("open");
+
+      fireEvent.click(screen.getByText("Why this game?"));
+
+      expect(disclosure).toHaveAttribute("open");
+      expect(screen.getAllByRole("listitem").map((item) => item.textContent))
+         .toEqual([
+            "PuzzleGenreMatched",
+            "Environmental puzzlesKeywordDid not match",
+            "Single playerGame modeMetadata unavailable",
+         ]);
+   });
+
+   it("keeps raw scoring and provider identities out of the disclosure", () => {
+      render(<RecommendationResultCard item={recommendationWithEvidence} />);
+      fireEvent.click(screen.getByText("Why this game?"));
+
+      expect(screen.queryByText("8765")).not.toBeInTheDocument();
+      expect(screen.queryByText("factual-overlap-v1")).not.toBeInTheDocument();
+      expect(screen.queryByText("3000")).not.toBeInTheDocument();
+      expect(screen.queryByText("400")).not.toBeInTheDocument();
+      expect(screen.queryByText("4928")).not.toBeInTheDocument();
+   });
+
+   it("explains an honestly empty contribution collection", () => {
+      render(<RecommendationResultCard item={recommendation} />);
+      fireEvent.click(screen.getByText("Why this game?"));
+
+      expect(screen.getByText(
+         "No factual contribution details are available for this comparison."
+      )).toBeInTheDocument();
+      expect(screen.queryByRole("list")).not.toBeInTheDocument();
    });
 });

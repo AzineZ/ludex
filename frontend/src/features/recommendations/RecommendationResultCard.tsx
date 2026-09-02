@@ -1,6 +1,7 @@
 import { useId } from "react";
 
 import type { FinalRecommendationItemResponse } from "../../api";
+import RecommendationEvidenceDisclosure from "./RecommendationEvidenceDisclosure";
 
 
 type RecommendationResultCardProps = {
@@ -92,6 +93,11 @@ function RecommendationResultCard({
                   <p>{item.tradeoff.text}</p>
                </aside>
             )}
+
+            <RecommendationEvidenceDisclosure
+               evidence={item.factual_evidence}
+               facetLabels={item.facet_labels}
+            />
 
             {(onPlayThis !== undefined || onShowAnother !== undefined) && (
                <div className="recommendation-result-card__actions">

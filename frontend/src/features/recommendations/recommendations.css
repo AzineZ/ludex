@@ -361,6 +361,60 @@
    border-left: 3px solid var(--color-alarm-red);
 }
 
+.recommendation-evidence {
+   margin-top: 1.5rem;
+   border-top: 1px solid var(--color-ash-taupe);
+   border-bottom: 1px solid var(--color-ash-taupe);
+}
+
+.recommendation-evidence summary {
+   padding: 0.85rem 0;
+   font-weight: 900;
+   cursor: pointer;
+}
+
+.recommendation-evidence__content {
+   padding-bottom: 1rem;
+}
+
+.recommendation-evidence__content > p {
+   margin: 0 0 0.85rem;
+   color: var(--color-ash-taupe);
+   line-height: 1.45;
+}
+
+.recommendation-evidence__list {
+   display: grid;
+   gap: 0.5rem;
+   margin: 0;
+   padding: 0;
+   list-style: none;
+}
+
+.recommendation-evidence__list li {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto auto;
+   gap: 0.75rem;
+   align-items: center;
+   padding: 0.65rem 0.75rem;
+   border: 1px solid var(--color-ash-taupe);
+   font-size: 0.8rem;
+}
+
+.recommendation-evidence__list strong {
+   min-width: 0;
+   overflow-wrap: anywhere;
+}
+
+.recommendation-evidence__list span {
+   color: var(--color-ash-taupe);
+}
+
+.recommendation-evidence__list [data-match-state="matched"] span:last-child {
+   color: var(--color-bone-cream);
+   font-weight: 900;
+}
+
 .recommendation-result-card__actions {
    display: flex;
    flex-wrap: wrap;
@@ -444,6 +498,11 @@
 
    .recommendation-result-card__facts {
       grid-template-columns: 1fr;
+   }
+
+   .recommendation-evidence__list li {
+      grid-template-columns: 1fr;
+      gap: 0.25rem;
    }
 }
 
