@@ -37,6 +37,12 @@ function PreferenceValidationPanel({
    const processedResponseRef = useRef<FinalRecommendationResponse | null>(
       null
    );
+   const recommendationActionRef = useRef<HTMLButtonElement>(null);
+   const focusStartOverRef = useRef(false);
+   const [focusRequest, setFocusRequest] = useState<{
+      steamAppId: number;
+      requestId: number;
+   } | null>(null);
    const [retainedResponse, setRetainedResponse] =
       useState<FinalRecommendationResponse | null>(null);
 
@@ -94,6 +100,13 @@ function PreferenceValidationPanel({
          failRefinement();
       }
    }, [failRefinement, recommendation.status, sessionState.phase]);
+
+   useEffect(() => {
+      if (sessionState.phase === "idle" && focusStartOverRef.current) {
+         focusStartOverRef.current = false;
+         recommendationActionRef.current?.focus();
+      }
+   }, [sessionState.phase]);
    const isValidating = validation.status === "validating";
    const isLoadingRecommendations = recommendation.status === "loading";
    const canSubmitForSession =
@@ -156,6 +169,7 @@ function PreferenceValidationPanel({
 
          <div className="preference-validation__recommendation-action">
             <button
+               ref={recommendationActionRef}
                type="button"
                disabled={!canRequestRecommendations}
                onClick={() => {
@@ -210,9 +224,31 @@ function PreferenceValidationPanel({
             response={displayedResponse}
             error={recommendation.error}
             session={sessionState}
-            onShowAnother={showAnother}
-            onPlayThis={playThis}
+            focusRequest={focusRequest}
+            onShowAnother={(steamAppId) => {
+               if (sessionState.phase !== "active") {
+                  return;
+               }
+               const replacement = sessionState.waitingItems[0];
+               if (replacement === undefined) {
+                  return;
+               }
+               setFocusRequest((current) => ({
+                  steamAppId: replacement.steam_app_id,
+                  requestId: (current?.requestId ?? 0) + 1,
+               }));
+               showAnother(steamAppId);
+            }}
+            onPlayThis={(steamAppId) => {
+               setFocusRequest((current) => ({
+                  steamAppId,
+                  requestId: (current?.requestId ?? 0) + 1,
+               }));
+               playThis(steamAppId);
+            }}
             onStartOver={() => {
+               focusStartOverRef.current = true;
+               setFocusRequest(null);
                setRetainedResponse(null);
                startOver();
             }}

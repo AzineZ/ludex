@@ -15,6 +15,10 @@ type RecommendationResultsPanelProps = {
    onShowAnother?: (steamAppId: number) => void;
    onPlayThis?: (steamAppId: number) => void;
    onStartOver?: () => void;
+   focusRequest?: {
+      steamAppId: number;
+      requestId: number;
+   } | null;
 };
 
 const UNEXPECTED_ERROR_MESSAGE =
@@ -38,6 +42,7 @@ function RecommendationResultsPanel({
    onShowAnother,
    onPlayThis,
    onStartOver,
+   focusRequest = null,
 }: RecommendationResultsPanelProps) {
    const headingId = useId();
 
@@ -172,6 +177,11 @@ function RecommendationResultsPanel({
                         : undefined
                   }
                   showAnotherDisabled={queueExhausted}
+                  focusRequestId={
+                     focusRequest?.steamAppId === item.steam_app_id
+                        ? focusRequest.requestId
+                        : undefined
+                  }
                />
             ))}
          </div>

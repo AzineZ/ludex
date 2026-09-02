@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 
 import type { FinalRecommendationItemResponse } from "../../api";
 import RecommendationEvidenceDisclosure from "./RecommendationEvidenceDisclosure";
@@ -9,6 +9,7 @@ type RecommendationResultCardProps = {
    onPlayThis?: () => void;
    onShowAnother?: () => void;
    showAnotherDisabled?: boolean;
+   focusRequestId?: number;
 };
 
 function formatMinutes(minutes: number): string {
@@ -29,8 +30,10 @@ function RecommendationResultCard({
    onPlayThis,
    onShowAnother,
    showAnotherDisabled = false,
+   focusRequestId,
 }: RecommendationResultCardProps) {
    const headingId = useId();
+   const cardRef = useRef<HTMLElement>(null);
    const playtime =
       item.profile_playtime_minutes === 0
          ? "Not played yet"
@@ -40,10 +43,18 @@ function RecommendationResultCard({
          ? "Unavailable"
          : formatMinutes(Math.round(item.normal_completion_seconds / 60));
 
+   useEffect(() => {
+      if (focusRequestId !== undefined) {
+         cardRef.current?.focus();
+      }
+   }, [focusRequestId]);
+
    return (
       <article
+         ref={cardRef}
          className="recommendation-result-card"
          aria-labelledby={headingId}
+         tabIndex={focusRequestId === undefined ? undefined : -1}
       >
          <div className="recommendation-result-card__cover-frame">
             {item.cover_url === null ? (

@@ -115,6 +115,18 @@ const completeResponse: FinalRecommendationResponse = {
    })),
 };
 
+const sixItemResponse: FinalRecommendationResponse = {
+   outcome: "complete",
+   eligible_count: 6,
+   returned_count: 6,
+   items: Array.from({ length: 6 }, (_, index) => ({
+      ...response.items[0],
+      rank: index + 1,
+      steam_app_id: 620 + index,
+      title: index === 0 ? "Portal 2" : `Game ${index + 1}`,
+   })),
+};
+
 const refinedResponse: FinalRecommendationResponse = {
    outcome: "sparse",
    eligible_count: 2,
@@ -262,13 +274,15 @@ describe("preference recommendation workflow", () => {
       await completeWorkflow();
 
       const portalCard = screen.getByRole("article", { name: "Portal 2" });
-      fireEvent.click(
-         within(portalCard).getByRole("button", { name: "Show another" })
-      );
+      const showAnotherButton = within(portalCard).getByRole("button", {
+         name: "Show another",
+      });
+      showAnotherButton.focus();
+      fireEvent.click(showAnotherButton);
 
       expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
-      expect(screen.getByRole("article", { name: "Game 4" }))
-         .toBeInTheDocument();
+      const replacementCard = screen.getByRole("article", { name: "Game 4" });
+      expect(replacementCard).toHaveFocus();
       for (const button of screen.getAllByRole("button", {
          name: "Show another",
       })) {
@@ -277,20 +291,26 @@ describe("preference recommendation workflow", () => {
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
 
       const gameTwoCard = screen.getByRole("article", { name: "Game 2" });
-      fireEvent.click(
-         within(gameTwoCard).getByRole("button", { name: "Play this" })
-      );
+      const playThisButton = within(gameTwoCard).getByRole("button", {
+         name: "Play this",
+      });
+      playThisButton.focus();
+      fireEvent.click(playThisButton);
 
       expect(screen.getByText("You chose Game 2.")).toHaveAttribute(
          "role",
          "status"
       );
-      expect(screen.getAllByRole("article")).toHaveLength(1);
+      const acceptedCard = screen.getByRole("article", { name: "Game 2" });
+      expect(acceptedCard).toHaveFocus();
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
 
       fireEvent.click(screen.getByRole("button", { name: "Start over" }));
 
       expect(screen.queryByRole("article")).not.toBeInTheDocument();
+      expect(
+         screen.getByRole("button", { name: "Get recommendations" })
+      ).toHaveFocus();
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
    });
 
@@ -418,5 +438,97 @@ describe("preference recommendation workflow", () => {
          [620]
       );
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+   });
+
+   it("consumes the complete queue once and refines with every rejection", async () => {
+      mockedGetRecommendations.mockResolvedValue(sixItemResponse);
+      const { rerender } = render(
+         <PreferenceValidationPanel profileId={7} preference={draft} />
+      );
+      await completeWorkflow();
+
+      for (const [rejectedTitle, replacementTitle] of [
+         ["Portal 2", "Game 4"],
+         ["Game 4", "Game 5"],
+         ["Game 5", "Game 6"],
+      ]) {
+         const rejectedCard = screen.getByRole("article", {
+            name: rejectedTitle,
+         });
+         fireEvent.click(
+            within(rejectedCard).getByRole("button", {
+               name: "Show another",
+            })
+         );
+
+         expect(screen.queryByRole("article", { name: rejectedTitle }))
+            .not.toBeInTheDocument();
+         expect(screen.getByRole("article", { name: replacementTitle }))
+            .toHaveFocus();
+      }
+
+      expect(screen.getAllByRole("article").map((card) => (
+         within(card).getByRole("heading", { level: 3 }).textContent
+      ))).toEqual(["Game 6", "Game 2", "Game 3"]);
+      for (const button of screen.getAllByRole("button", {
+         name: "Show another",
+      })) {
+         expect(button).toBeDisabled();
+      }
+      expect(screen.getByText(/seen every recommendation in this bounded/))
+         .toBeInTheDocument();
+      expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+      expect(mockedRefineRecommendations).not.toHaveBeenCalled();
+
+      rerender(
+         <PreferenceValidationPanel profileId={7} preference={refinedDraft} />
+      );
+      mockedValidate.mockResolvedValueOnce(refinedCanonicalPreference);
+      fireEvent.click(
+         screen.getByRole("button", { name: "Validate preferences" })
+      );
+      await screen.findByText("Preference is valid.");
+      fireEvent.click(
+         screen.getByRole("button", { name: "Refine recommendations" })
+      );
+
+      await screen.findByRole("article", { name: "Refined Game 1" });
+      expect(mockedRefineRecommendations).toHaveBeenCalledWith(
+         7,
+         refinedCanonicalPreference,
+         [620, 623, 624]
+      );
+      expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("article", { name: "Game 6" }))
+         .not.toBeInTheDocument();
+   });
+
+   it("drops the browser-local session across a refresh boundary", async () => {
+      mockedGetRecommendations.mockResolvedValue(sixItemResponse);
+      const firstRender = render(
+         <PreferenceValidationPanel profileId={7} preference={draft} />
+      );
+      await completeWorkflow();
+      fireEvent.click(
+         within(screen.getByRole("article", { name: "Portal 2" }))
+            .getByRole("button", { name: "Show another" })
+      );
+      expect(screen.queryByRole("article", { name: "Portal 2" }))
+         .not.toBeInTheDocument();
+
+      firstRender.unmount();
+      render(<PreferenceValidationPanel profileId={7} preference={draft} />);
+
+      expect(screen.queryByRole("article")).not.toBeInTheDocument();
+      expect(
+         screen.getByRole("button", { name: "Get recommendations" })
+      ).toBeDisabled();
+      expect(mockedGetRecommendations).toHaveBeenCalledOnce();
+
+      await completeWorkflow();
+      expect(screen.getByRole("article", { name: "Portal 2" }))
+         .toBeInTheDocument();
+      expect(mockedGetRecommendations).toHaveBeenCalledTimes(2);
+      expect(mockedRefineRecommendations).not.toHaveBeenCalled();
    });
 });
