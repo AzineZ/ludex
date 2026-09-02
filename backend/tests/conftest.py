@@ -7,6 +7,7 @@ os.environ.setdefault(
     "postgresql+psycopg://ludex:ludex@localhost:5432/ludex",
 )
 os.environ.setdefault("FRONTEND_ORIGIN", "http://localhost:5173")
+os.environ.setdefault("ACCESS_SESSION_COOKIE_SECURE", "false")
 os.environ.setdefault("STEAM_API_KEY", "test-steam-api-key")
 os.environ.setdefault("IGDB_CLIENT_ID", "test-igdb-client-id")
 os.environ.setdefault("IGDB_CLIENT_SECRET", "test-igdb-client-secret")

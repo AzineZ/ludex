@@ -45,3 +45,25 @@ def test_allows_missing_gemini_api_key(
     )
 
     assert settings.gemini_api_key is None
+
+
+def test_access_session_cookie_is_secure_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ACCESS_SESSION_COOKIE_SECURE", raising=False)
+    settings = Settings(
+        _env_file=None,
+        **_valid_settings(),
+    )
+
+    assert settings.access_session_cookie_secure is True
+
+
+def test_allows_local_development_to_disable_secure_cookie() -> None:
+    settings = Settings(
+        _env_file=None,
+        **_valid_settings(),
+        access_session_cookie_secure=False,
+    )
+
+    assert settings.access_session_cookie_secure is False

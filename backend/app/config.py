@@ -7,6 +7,7 @@ class Settings(BaseSettings):
 
     database_url: str
     frontend_origin: str
+    access_session_cookie_secure: bool = True
     steam_api_key: SecretStr
     igdb_client_id: str
     igdb_client_secret: SecretStr

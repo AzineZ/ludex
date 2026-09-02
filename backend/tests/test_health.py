@@ -28,3 +28,28 @@ def test_health_check_reports_database_connection() -> None:
         "database": "connected",
     }
     database_session.execute.assert_called_once()
+
+
+def test_cors_allows_credentials_only_for_configured_frontend() -> None:
+    with TestClient(app) as client:
+        allowed = client.options(
+            "/health",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        unlisted = client.options(
+            "/health",
+            headers={
+                "Origin": "http://localhost:4173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == (
+        "http://localhost:5173"
+    )
+    assert allowed.headers["access-control-allow-credentials"] == "true"
+    assert "access-control-allow-origin" not in unlisted.headers
