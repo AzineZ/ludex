@@ -37,6 +37,20 @@ def sync_profile(
     """
     identifier = normalize_steam_identifier(raw_identifier)
     steam_id = steam_client.resolve_steam_id(identifier)
+
+    return sync_profile_by_steam_id(
+        database_session,
+        steam_client,
+        steam_id,
+    )
+
+
+def sync_profile_by_steam_id(
+    database_session: Session,
+    steam_client: SteamClient,
+    steam_id: str,
+) -> Profile:
+    """Synchronize one already-resolved numeric Steam profile identifier."""
     steam_profile = steam_client.get_profile(steam_id)
     steam_games = steam_client.get_owned_games(steam_id)
 

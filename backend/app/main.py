@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_database_session
 from app.profiles import router as profiles_router
+from app.session_routes import router as session_router
 
 from app.recommendations.routes import (
     router as recommendations_router,
@@ -26,6 +27,7 @@ app.add_middleware(
 
 app.include_router(profiles_router)
 app.include_router(recommendations_router)
+app.include_router(session_router)
 
 
 @app.get("/health")

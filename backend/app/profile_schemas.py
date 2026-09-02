@@ -41,3 +41,15 @@ class ProfileDetailResponse(ProfileSummaryResponse):
     """Describe a saved profile together with its owned games."""
 
     games: list[OwnedGameResponse]
+
+
+class SessionProfileResponse(BaseModel):
+    """Describe the cookie-authorized profile without its internal ID."""
+
+    steam_id: str
+    display_name: str
+    profile_url: str | None
+    avatar_url: str | None
+    created_at: datetime
+    last_synced_at: datetime | None
+    games: list[OwnedGameResponse]
