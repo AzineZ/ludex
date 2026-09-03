@@ -89,6 +89,27 @@ uv run pytest
 
 The health-endpoint test uses a controlled database-session replacement and does not require a running PostgreSQL instance.
 
+## Run profile-retention maintenance
+
+From the `backend` directory, preview profiles eligible for the 30-day cleanup:
+
+```bash
+uv run python -m app.retention_cleanup_command
+```
+
+Preview is the default and does not change data. After reviewing that report and
+confirming a database backup is available, apply exactly the currently eligible
+cleanup with the explicit flag:
+
+```bash
+uv run python -m app.retention_cleanup_command --apply
+```
+
+Application rechecks eligibility in one transaction, removes only eligible
+profile, access-session, and profile-ownership rows, and retains shared game and
+IGDB facts. This command is manual maintenance; recommendation and session
+requests never trigger it.
+
 ## Run frontend checks
 
 Install the locked frontend dependencies:
