@@ -1,6 +1,8 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -26,6 +28,18 @@ app.add_middleware(
 
 app.include_router(recommendations_router)
 app.include_router(session_router)
+
+
+@app.exception_handler(SQLAlchemyError)
+async def database_unavailable_handler(
+    _request: Request,
+    _error: SQLAlchemyError,
+) -> JSONResponse:
+    """Return one safe response for database failures outside recommendations."""
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Ludex is temporarily unavailable."},
+    )
 
 
 @app.get("/health")

@@ -8,9 +8,11 @@ from typing import Any, Callable
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import app.recommendations.routes as routes_module
 from app.access_session_http import (
     ACCESS_SESSION_COOKIE_NAME,
     require_access_session,
@@ -593,6 +595,40 @@ def test_final_recommendation_endpoint_returns_every_success_outcome(
             "text": "Matches your Adventure preference.",
         }
         assert first["tradeoff"] is None
+
+
+def test_recommendation_database_failure_returns_safe_retryable_error(
+    recommendation_api: RecommendationAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_recommendation(*_: object, **__: object) -> None:
+        raise OperationalError(
+            "SELECT secret_column FROM private_table",
+            {"password": "do-not-expose"},
+            RuntimeError("database host is private.internal"),
+        )
+
+    monkeypatch.setattr(
+        routes_module,
+        "recommend_cached_games",
+        fail_recommendation,
+    )
+
+    response = recommendation_api.client.post(
+        "/recommendations",
+        json=_valid_preference_body(),
+    )
+
+    _assert_error(
+        response,
+        status_code=503,
+        code="service_unavailable",
+        field="request",
+        message="Recommendations are temporarily unavailable.",
+    )
+    assert "secret_column" not in response.text
+    assert "do-not-expose" not in response.text
+    assert "private.internal" not in response.text
 
 
 def test_refinement_endpoint_excludes_rejected_games(
@@ -1465,14 +1501,22 @@ def test_openapi_declares_recommendation_contracts(
         "404",
         "409",
         "422",
+        "503",
     }
-    assert set(search["responses"]) == {"200", "401", "404", "422"}
+    assert set(search["responses"]) == {
+        "200",
+        "401",
+        "404",
+        "422",
+        "503",
+    }
     assert set(detail["responses"]) == {
         "200",
         "401",
         "404",
         "409",
         "422",
+        "503",
     }
     assert set(keywords["responses"]) == {
         "200",
@@ -1480,6 +1524,7 @@ def test_openapi_declares_recommendation_contracts(
         "404",
         "409",
         "422",
+        "503",
     }
     assert set(keyword_browse["responses"]) == {
         "200",
@@ -1487,6 +1532,7 @@ def test_openapi_declares_recommendation_contracts(
         "404",
         "409",
         "422",
+        "503",
     }
     assert set(validation["responses"]) == {
         "200",
@@ -1494,6 +1540,7 @@ def test_openapi_declares_recommendation_contracts(
         "404",
         "409",
         "422",
+        "503",
     }
     assert set(refinement["responses"]) == {
         "200",
@@ -1501,6 +1548,7 @@ def test_openapi_declares_recommendation_contracts(
         "404",
         "409",
         "422",
+        "503",
     }
 
     validation_request_schema = validation["requestBody"][

@@ -5,6 +5,7 @@ from fastapi import Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.recommendations.api_schemas import (
     RecommendationErrorCode,
@@ -56,6 +57,21 @@ class RecommendationAPIRoute(APIRoute):
                 return _error_response(
                     status.HTTP_422_UNPROCESSABLE_CONTENT,
                     _translate_request_validation_error(error),
+                )
+            except SQLAlchemyError:
+                return _error_response(
+                    status.HTTP_503_SERVICE_UNAVAILABLE,
+                    RecommendationErrorDetail(
+                        code=(
+                            RecommendationErrorCode
+                            .SERVICE_UNAVAILABLE
+                        ),
+                        field="request",
+                        message=(
+                            "Recommendations are temporarily "
+                            "unavailable."
+                        ),
+                    ),
                 )
 
         return translated_handler

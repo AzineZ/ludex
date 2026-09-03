@@ -55,6 +55,7 @@ class RecommendationErrorCode(StrEnum):
         "reference_metadata_unavailable"
     )
     FACET_NOT_ON_REFERENCE = "facet_not_on_reference"
+    SERVICE_UNAVAILABLE = "service_unavailable"
 
 
 class OwnedGameSuggestionResponse(RecommendationHTTPModel):

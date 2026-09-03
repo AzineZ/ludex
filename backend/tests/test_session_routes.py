@@ -5,9 +5,11 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import app.session_routes as session_routes_module
 from app.access_session_http import ACCESS_SESSION_COOKIE_NAME
 from app.database import Base, get_database_session
 from app.dependencies import get_steam_client
@@ -288,6 +290,50 @@ def test_current_profile_requires_session_cookie(
     assert response.json() == {
         "detail": "Steam access session required."
     }
+
+
+def test_current_profile_sanitizes_database_unavailability(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, session_factory = session_api
+    _store_cached_profile(session_factory)
+    assert client.post(
+        "/session",
+        json={"identifier": FIRST_STEAM_ID},
+    ).status_code == 201
+    current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
+
+    def fail_profile_read(*_: object, **__: object) -> None:
+        raise OperationalError(
+            "SELECT secret_column FROM private_table",
+            {"password": "do-not-expose"},
+            RuntimeError("database host is private.internal"),
+        )
+
+    monkeypatch.setattr(
+        session_routes_module,
+        "_load_profile_by_id",
+        fail_profile_read,
+    )
+
+    with TestClient(app, raise_server_exceptions=False) as failure_client:
+        failure_client.cookies.set(
+            ACCESS_SESSION_COOKIE_NAME,
+            current_token,
+            domain="testserver.local",
+            path="/",
+        )
+        response = failure_client.get("/session/profile")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Ludex is temporarily unavailable."
+    }
+    assert "secret_column" not in response.text
+    assert "do-not-expose" not in response.text
+    assert "private.internal" not in response.text
+    assert failure_client.cookies[ACCESS_SESSION_COOKIE_NAME] == current_token
 
 
 def test_refresh_updates_only_session_profile_without_renewing_cookie(

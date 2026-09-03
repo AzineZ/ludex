@@ -69,6 +69,9 @@ CONFLICT_RESPONSE = _error_documentation(
 UNPROCESSABLE_RESPONSE = _error_documentation(
     "The submitted path, query, or preference is invalid."
 )
+SERVICE_UNAVAILABLE_RESPONSE = _error_documentation(
+    "The database is temporarily unavailable."
+)
 SESSION_REQUIRED_RESPONSE = {
     "description": "A valid Steam access session is required.",
 }
@@ -90,6 +93,9 @@ router = APIRouter(
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
             UNPROCESSABLE_RESPONSE
+        ),
+        status.HTTP_503_SERVICE_UNAVAILABLE: (
+            SERVICE_UNAVAILABLE_RESPONSE
         ),
     },
 )
@@ -126,6 +132,9 @@ def create_final_recommendations(
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
             UNPROCESSABLE_RESPONSE
+        ),
+        status.HTTP_503_SERVICE_UNAVAILABLE: (
+            SERVICE_UNAVAILABLE_RESPONSE
         ),
     },
 )
@@ -164,6 +173,9 @@ def refine_final_recommendations(
         status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
             UNPROCESSABLE_RESPONSE
+        ),
+        status.HTTP_503_SERVICE_UNAVAILABLE: (
+            SERVICE_UNAVAILABLE_RESPONSE
         ),
     },
 )
@@ -209,6 +221,9 @@ def search_references(
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
             UNPROCESSABLE_RESPONSE
         ),
+        status.HTTP_503_SERVICE_UNAVAILABLE: (
+            SERVICE_UNAVAILABLE_RESPONSE
+        ),
     },
 )
 def read_reference_details(
@@ -248,6 +263,9 @@ def read_reference_details(
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
             UNPROCESSABLE_RESPONSE
+        ),
+        status.HTTP_503_SERVICE_UNAVAILABLE: (
+            SERVICE_UNAVAILABLE_RESPONSE
         ),
     },
 )
@@ -297,6 +315,9 @@ def search_keywords(
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
             UNPROCESSABLE_RESPONSE
         ),
+        status.HTTP_503_SERVICE_UNAVAILABLE: (
+            SERVICE_UNAVAILABLE_RESPONSE
+        ),
     },
 )
 def browse_keywords(
@@ -342,6 +363,9 @@ def browse_keywords(
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
             UNPROCESSABLE_RESPONSE
+        ),
+        status.HTTP_503_SERVICE_UNAVAILABLE: (
+            SERVICE_UNAVAILABLE_RESPONSE
         ),
     },
 )
