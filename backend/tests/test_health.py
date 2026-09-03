@@ -1,6 +1,8 @@
 from collections.abc import Generator
+import logging
 from unittest.mock import MagicMock
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
@@ -31,7 +33,9 @@ def test_health_check_reports_database_connection() -> None:
     database_session.execute.assert_called_once()
 
 
-def test_health_check_sanitizes_database_unavailability() -> None:
+def test_health_check_sanitizes_database_unavailability(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     database_session = MagicMock(spec=Session)
     database_session.execute.side_effect = OperationalError(
         "SELECT secret_column FROM private_table",
@@ -45,8 +49,9 @@ def test_health_check_sanitizes_database_unavailability() -> None:
     app.dependency_overrides[get_database_session] = override_database_session
 
     try:
-        with TestClient(app, raise_server_exceptions=False) as client:
-            response = client.get("/health")
+        with caplog.at_level(logging.ERROR, logger="ludex.reliability"):
+            with TestClient(app, raise_server_exceptions=False) as client:
+                response = client.get("/health")
     finally:
         app.dependency_overrides.pop(get_database_session, None)
 
@@ -57,6 +62,20 @@ def test_health_check_sanitizes_database_unavailability() -> None:
     assert "secret_column" not in response.text
     assert "do-not-expose" not in response.text
     assert "private.internal" not in response.text
+    reliability_records = [
+        record
+        for record in caplog.records
+        if record.name == "ludex.reliability"
+    ]
+    assert len(reliability_records) == 1
+    record = reliability_records[0]
+    assert record.getMessage() == "Database request failed."
+    assert record.operation == "health_check"
+    assert record.failure_category == "database_unavailable"
+    assert record.status_code == 503
+    assert "secret_column" not in caplog.text
+    assert "do-not-expose" not in caplog.text
+    assert "private.internal" not in caplog.text
 
 
 def test_cors_allows_credentials_only_for_configured_frontend() -> None:

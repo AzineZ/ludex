@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_database_session
+from app.reliability_logging import log_database_request_failure
 from app.session_routes import router as session_router
 
 from app.recommendations.routes import (
@@ -36,6 +37,7 @@ async def database_unavailable_handler(
     _error: SQLAlchemyError,
 ) -> JSONResponse:
     """Return one safe response for database failures outside recommendations."""
+    log_database_request_failure(_request)
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": "Ludex is temporarily unavailable."},

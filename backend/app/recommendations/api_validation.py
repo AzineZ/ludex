@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.reliability_logging import log_database_request_failure
 from app.recommendations.api_schemas import (
     RecommendationErrorCode,
     RecommendationErrorDetail,
@@ -59,6 +60,7 @@ class RecommendationAPIRoute(APIRoute):
                     _translate_request_validation_error(error),
                 )
             except SQLAlchemyError:
+                log_database_request_failure(request)
                 return _error_response(
                     status.HTTP_503_SERVICE_UNAVAILABLE,
                     RecommendationErrorDetail(

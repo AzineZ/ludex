@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from app.steam_client import (
+    SteamAPIError,
     SteamAPIUnavailableError,
     SteamClient,
     SteamLibraryUnavailableError,
@@ -223,3 +224,55 @@ def test_network_failure_is_unavailable() -> None:
             client.get_profile(
                 "76561198000000000"
             )
+
+
+@pytest.mark.parametrize(
+    ("operation", "payload", "expected_message"),
+    [
+        (
+            "profile",
+            {"response": {"players": ["not-an-object"]}},
+            "Steam returned an unexpected profile response.",
+        ),
+        (
+            "library",
+            {
+                "response": {
+                    "game_count": 1,
+                    "games": [
+                        {
+                            "appid": "440",
+                            "name": "Team Fortress 2",
+                        }
+                    ],
+                }
+            },
+            "Steam returned an invalid Steam App ID.",
+        ),
+        (
+            "library",
+            {
+                "response": {
+                    "game_count": 1,
+                    "games": "not-a-list",
+                }
+            },
+            "Steam returned an unexpected library response.",
+        ),
+    ],
+)
+def test_rejects_malformed_profile_and_library_payloads(
+    operation: str,
+    payload: object,
+    expected_message: str,
+) -> None:
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, json=payload)
+    )
+
+    with SteamClient("test-key", transport=transport) as client:
+        with pytest.raises(SteamAPIError, match=expected_message):
+            if operation == "profile":
+                client.get_profile("76561198000000000")
+            else:
+                client.get_owned_games("76561198000000000")

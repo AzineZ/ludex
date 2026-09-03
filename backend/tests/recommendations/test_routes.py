@@ -3,6 +3,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+import logging
 from typing import Any, Callable
 
 import pytest
@@ -18,7 +19,9 @@ from app.access_session_http import (
     require_access_session,
 )
 from app.access_sessions import ActiveAccessSession
+from app.config import settings
 from app.database import Base, get_database_session
+from app.gemini.client import GeminiClient
 from app.main import app
 from app.models import (
     Game,
@@ -600,6 +603,7 @@ def test_final_recommendation_endpoint_returns_every_success_outcome(
 def test_recommendation_database_failure_returns_safe_retryable_error(
     recommendation_api: RecommendationAPI,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     def fail_recommendation(*_: object, **__: object) -> None:
         raise OperationalError(
@@ -614,10 +618,11 @@ def test_recommendation_database_failure_returns_safe_retryable_error(
         fail_recommendation,
     )
 
-    response = recommendation_api.client.post(
-        "/recommendations",
-        json=_valid_preference_body(),
-    )
+    with caplog.at_level(logging.ERROR, logger="ludex.reliability"):
+        response = recommendation_api.client.post(
+            "/recommendations",
+            json=_valid_preference_body(),
+        )
 
     _assert_error(
         response,
@@ -629,6 +634,20 @@ def test_recommendation_database_failure_returns_safe_retryable_error(
     assert "secret_column" not in response.text
     assert "do-not-expose" not in response.text
     assert "private.internal" not in response.text
+    reliability_records = [
+        record
+        for record in caplog.records
+        if record.name == "ludex.reliability"
+    ]
+    assert len(reliability_records) == 1
+    record = reliability_records[0]
+    assert record.getMessage() == "Database request failed."
+    assert record.operation == "create_final_recommendations"
+    assert record.failure_category == "database_unavailable"
+    assert record.status_code == 503
+    assert "secret_column" not in caplog.text
+    assert "do-not-expose" not in caplog.text
+    assert "private.internal" not in caplog.text
 
 
 def test_refinement_endpoint_excludes_rejected_games(
@@ -834,6 +853,122 @@ def test_recommendation_requests_are_bounded_read_only_and_cache_only(
     combined_sql = " ".join(statement.lower() for statement in selects)
     assert "game_trait" not in combined_sql
     assert "gemini" not in combined_sql
+
+
+def test_large_library_is_deterministic_with_fixed_query_count(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    profile = _profile()
+    genre = IGDBMetadataTerm(
+        kind="genre",
+        igdb_id=10,
+        name="Adventure",
+    )
+    reference = _owned_game(
+        profile,
+        100,
+        "Reference Game",
+        links=(GameIGDBMetadataTerm(term=genre),),
+    )
+    candidates = tuple(
+        _owned_game(
+            profile,
+            steam_app_id,
+            f"Candidate {steam_app_id}",
+            links=(GameIGDBMetadataTerm(term=genre),),
+        )
+        for steam_app_id in range(1_500, 1_000, -1)
+    )
+    recommendation_api.database_session.add_all(
+        (reference, *candidates)
+    )
+    recommendation_api.database_session.commit()
+    statements: list[str] = []
+
+    def record_statement(
+        connection: object,
+        cursor: object,
+        statement: str,
+        parameters: object,
+        context: object,
+        executemany: bool,
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(
+        recommendation_api.engine,
+        "before_cursor_execute",
+        record_statement,
+    )
+    try:
+        first = recommendation_api.client.post(
+            "/recommendations",
+            json=_valid_preference_body(),
+        )
+        second = recommendation_api.client.post(
+            "/recommendations",
+            json=_valid_preference_body(),
+        )
+    finally:
+        event.remove(
+            recommendation_api.engine,
+            "before_cursor_execute",
+            record_statement,
+        )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+    assert first.json()["outcome"] == "complete"
+    assert first.json()["eligible_count"] == 500
+    assert first.json()["returned_count"] == 6
+    assert [
+        item["steam_app_id"] for item in first.json()["items"]
+    ] == list(range(1_001, 1_007))
+
+    selects = [
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith("SELECT")
+    ]
+    writes = [
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith(
+            ("INSERT", "UPDATE", "DELETE")
+        )
+    ]
+    assert len(selects) == 10
+    assert writes == []
+    combined_sql = " ".join(statement.lower() for statement in selects)
+    assert "game_trait" not in combined_sql
+    assert "gemini" not in combined_sql
+
+
+def test_cached_recommendations_do_not_require_or_call_gemini(
+    recommendation_api: RecommendationAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _add_recommendation_library(recommendation_api, 6)
+    monkeypatch.setattr(settings, "gemini_api_key", None)
+
+    def reject_gemini_call(*_: object, **__: object) -> None:
+        raise AssertionError("Gemini must not run for recommendations.")
+
+    monkeypatch.setattr(
+        GeminiClient,
+        "generate_structured_content",
+        reject_gemini_call,
+    )
+
+    response = recommendation_api.client.post(
+        "/recommendations",
+        json=_valid_preference_body(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["outcome"] == "complete"
+    assert response.json()["returned_count"] == 6
 
 
 def test_search_rejects_unknown_profile(

@@ -17,8 +17,10 @@ from app.dependencies import get_steam_client
 from app.main import app
 from app.models import Game, Profile, ProfileGame, SteamAccessSession
 from app.steam_client import (
+    SteamAPIError,
     SteamAPIUnavailableError,
     SteamClient,
+    SteamLibraryUnavailableError,
     SteamOwnedGame,
     SteamProfile,
 )
@@ -427,6 +429,73 @@ def test_refresh_updates_only_session_profile_without_renewing_cookie(
     assert client.cookies[ACCESS_SESSION_COOKIE_NAME] == current_token
     steam_client.get_profile.assert_called_once_with(FIRST_STEAM_ID)
     steam_client.get_owned_games.assert_called_once_with(FIRST_STEAM_ID)
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (
+            SteamLibraryUnavailableError(
+                "This Steam library is private or unavailable."
+            ),
+            422,
+        ),
+        (
+            SteamAPIUnavailableError(
+                "Steam is currently unavailable."
+            ),
+            503,
+        ),
+        (
+            SteamAPIError("Steam returned invalid response data."),
+            502,
+        ),
+    ],
+)
+def test_failed_refresh_preserves_cached_profile_and_session(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    error: SteamAPIError,
+    expected_status: int,
+) -> None:
+    client, session_factory = session_api
+    _store_cached_profile(session_factory)
+    assert client.post(
+        "/session",
+        json={"identifier": FIRST_STEAM_ID},
+    ).status_code == 201
+    current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
+    steam_client.get_profile.return_value = SteamProfile(
+        steam_id=FIRST_STEAM_ID,
+        display_name="Uncommitted Name",
+        profile_url=None,
+        avatar_url=None,
+    )
+    steam_client.get_owned_games.side_effect = error
+
+    response = client.post("/session/profile/refresh")
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": str(error)}
+    assert "set-cookie" not in response.headers
+    assert client.cookies[ACCESS_SESSION_COOKIE_NAME] == current_token
+
+    cached = client.get("/session/profile")
+    assert cached.status_code == 200
+    assert cached.json()["display_name"] == "Cached Player"
+    assert [game["name"] for game in cached.json()["games"]] == [
+        "Cached Player Game"
+    ]
+
+    with session_factory() as database_session:
+        stored = database_session.scalar(
+            select(SteamAccessSession).where(
+                SteamAccessSession.token_digest
+                == sha256(current_token.encode("utf-8")).digest()
+            )
+        )
+        assert stored is not None
+        assert stored.revoked_at is None
 
 
 def test_delete_session_revokes_cookie_and_returns_to_unauthorized_state(

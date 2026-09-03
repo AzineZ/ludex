@@ -2,17 +2,21 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 import app.igdb_enrichment as enrichment
+from app.database import Base
 from app.igdb_client import (
     IGDBClient,
+    IGDBResponseError,
     IGDBUnavailableError,
 )
 from app.igdb_matching import (
     IGDBMatchResult,
     IGDBMatchStatus,
 )
+from app.models import Game, GameIGDBMetadataTerm, IGDBMetadataTerm
 
 
 def test_enriches_unique_games_in_paced_batches(
@@ -164,6 +168,91 @@ def test_records_batch_failure_without_persisting_partial_results(
     metadata_mock.assert_not_called()
     persistence_mock.assert_not_called()
     sleeper.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("error_type", "message"),
+    [
+        (IGDBUnavailableError, "IGDB is currently unavailable."),
+        (IGDBResponseError, "IGDB returned malformed match data."),
+    ],
+)
+def test_enrichment_failure_preserves_last_valid_factual_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    error_type: type[Exception],
+    message: str,
+) -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    enriched_at = datetime(2026, 8, 1, 12, tzinfo=UTC)
+    attempted_at = datetime(2026, 8, 10, 12, tzinfo=UTC)
+
+    with Session(engine) as session:
+        game = Game(
+            steam_app_id=440,
+            name="Team Fortress 2",
+            igdb_game_id=891,
+            igdb_status="ready",
+            igdb_enriched_at=enriched_at,
+            summary="Existing cached summary.",
+            cover_image_id="existing-cover",
+        )
+        game.metadata_term_links.append(
+            GameIGDBMetadataTerm(
+                term=IGDBMetadataTerm(
+                    kind="genre",
+                    igdb_id=5,
+                    name="Shooter",
+                )
+            )
+        )
+        session.add(game)
+        session.commit()
+
+        monkeypatch.setattr(
+            enrichment,
+            "match_steam_app_ids",
+            MagicMock(side_effect=error_type(message)),
+        )
+        metadata_mock = MagicMock()
+        monkeypatch.setattr(
+            enrichment,
+            "fetch_game_metadata",
+            metadata_mock,
+        )
+
+        with pytest.raises(error_type, match=message):
+            enrichment.enrich_game_metadata(
+                session,
+                MagicMock(spec=IGDBClient),
+                [440],
+                clock=lambda: attempted_at,
+                sleeper=MagicMock(),
+            )
+
+        metadata_mock.assert_not_called()
+        session.expire_all()
+        stored = session.get(Game, 440)
+
+        assert stored is not None
+        assert stored.igdb_status == "ready"
+        assert stored.igdb_game_id == 891
+        assert stored.summary == "Existing cached summary."
+        assert stored.cover_image_id == "existing-cover"
+        assert stored.igdb_enriched_at is not None
+        assert stored.igdb_enriched_at.replace(tzinfo=UTC) == enriched_at
+        assert stored.igdb_last_attempted_at is not None
+        assert (
+            stored.igdb_last_attempted_at.replace(tzinfo=UTC)
+            == attempted_at
+        )
+        assert stored.igdb_last_error == message
+        assert [
+            (link.term.kind, link.term.igdb_id, link.term.name)
+            for link in stored.metadata_term_links
+        ] == [("genre", 5, "Shooter")]
+
+    engine.dispose()
 
 
 def test_fetches_metadata_only_for_unique_matched_igdb_ids(
