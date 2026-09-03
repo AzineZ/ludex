@@ -10,17 +10,17 @@ import { useRecommendationRequest } from "./useRecommendationRequest";
 import { useRecommendationSession } from "./useRecommendationSession";
 
 type PreferenceValidationPanelProps = {
-   profileId: number | null;
+   sessionEpoch: number | null;
    preference: RecommendationPreference;
 };
 
 function PreferenceValidationPanel({
-   profileId,
+   sessionEpoch,
    preference,
 }: PreferenceValidationPanelProps) {
-   const validation = usePreferenceValidation(profileId, preference);
+   const validation = usePreferenceValidation(sessionEpoch, preference);
    const recommendation = useRecommendationRequest(
-      profileId,
+      sessionEpoch,
       validation.validatedPreference
    );
    const {
@@ -33,7 +33,7 @@ function PreferenceValidationPanel({
       completeRefinement,
       failRefinement,
       startOver,
-   } = useRecommendationSession(profileId);
+   } = useRecommendationSession(sessionEpoch);
    const processedResponseRef = useRef<FinalRecommendationResponse | null>(
       null
    );
@@ -140,7 +140,7 @@ function PreferenceValidationPanel({
 
          <button
             type="button"
-            disabled={profileId === null || isValidating}
+            disabled={sessionEpoch === null || isValidating}
             onClick={() => {
                void validation.validate();
             }}

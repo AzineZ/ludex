@@ -19,7 +19,7 @@ export type ReferenceKeywordBrowseResult = {
 };
 
 type StoredKeywordBrowse = {
-   profileId: number;
+   sessionEpoch: number;
    steamAppId: number;
    result: ReferenceKeywordBrowseResult;
 };
@@ -37,20 +37,20 @@ function errorMessage(error: unknown): string {
 }
 
 export function useReferenceKeywordBrowse(
-   profileId: number | null,
+   sessionEpoch: number | null,
    steamAppId: number | null
 ): ReferenceKeywordBrowseResult {
    const [storedBrowse, setStoredBrowse] =
       useState<StoredKeywordBrowse | null>(null);
-   const hasReference = profileId !== null && steamAppId !== null;
+   const hasReference = sessionEpoch !== null && steamAppId !== null;
 
    useEffect(() => {
-      if (profileId === null || steamAppId === null) {
+      if (sessionEpoch === null || steamAppId === null) {
          return;
       }
 
       let isCurrentRequest = true;
-      const requestProfileId = profileId;
+      const requestSessionEpoch = sessionEpoch;
       const requestSteamAppId = steamAppId;
 
       getReferenceKeywords(requestSteamAppId)
@@ -59,7 +59,7 @@ export function useReferenceKeywordBrowse(
                return;
             }
             setStoredBrowse({
-               profileId: requestProfileId,
+               sessionEpoch: requestSessionEpoch,
                steamAppId: requestSteamAppId,
                result: {
                   status: "ready",
@@ -74,7 +74,7 @@ export function useReferenceKeywordBrowse(
                return;
             }
             setStoredBrowse({
-               profileId: requestProfileId,
+               sessionEpoch: requestSessionEpoch,
                steamAppId: requestSteamAppId,
                result: {
                   ...emptyResult("unavailable"),
@@ -86,14 +86,14 @@ export function useReferenceKeywordBrowse(
       return () => {
          isCurrentRequest = false;
       };
-   }, [profileId, steamAppId]);
+   }, [sessionEpoch, steamAppId]);
 
    if (!hasReference) {
       return emptyResult("idle");
    }
    if (
       storedBrowse === null ||
-      storedBrowse.profileId !== profileId ||
+      storedBrowse.sessionEpoch !== sessionEpoch ||
       storedBrowse.steamAppId !== steamAppId
    ) {
       return emptyResult("loading");

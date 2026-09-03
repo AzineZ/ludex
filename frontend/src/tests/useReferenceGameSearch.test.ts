@@ -85,10 +85,10 @@ describe("useReferenceGameSearch", () => {
 
    it("stays idle without a profile or meaningful query", () => {
       const { result, rerender } = renderHook(
-         ({ profileId, query }) => useReferenceGameSearch(profileId, query),
+         ({ sessionEpoch, query }) => useReferenceGameSearch(sessionEpoch, query),
          {
             initialProps: {
-               profileId: null as number | null,
+               sessionEpoch: null as number | null,
                query: "alpha",
             },
          }
@@ -101,7 +101,7 @@ describe("useReferenceGameSearch", () => {
       });
 
       rerender({
-         profileId: 1,
+         sessionEpoch: 1,
          query: "  \t  ",
       });
       act(() => {
@@ -290,7 +290,7 @@ describe("useReferenceGameSearch", () => {
       expect(result.current.items).toEqual(thirdResponse.items);
    });
 
-   it("ignores a late response from a previously selected profile", async () => {
+   it("ignores a late response from a previous access-session epoch", async () => {
       const firstRequest = deferred<OwnedGameSearchResponse>();
       const secondRequest = deferred<OwnedGameSearchResponse>();
       mockedSearchReferenceGames
@@ -298,16 +298,16 @@ describe("useReferenceGameSearch", () => {
          .mockReturnValueOnce(secondRequest.promise);
 
       const { result, rerender } = renderHook(
-         ({ profileId }) => useReferenceGameSearch(profileId, "game"),
+         ({ sessionEpoch }) => useReferenceGameSearch(sessionEpoch, "game"),
          {
-            initialProps: { profileId: 1 },
+            initialProps: { sessionEpoch: 1 },
          }
       );
 
       act(() => {
          vi.advanceTimersByTime(250);
       });
-      rerender({ profileId: 2 });
+      rerender({ sessionEpoch: 2 });
       act(() => {
          vi.advanceTimersByTime(250);
       });

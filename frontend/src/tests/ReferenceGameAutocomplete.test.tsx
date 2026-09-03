@@ -76,19 +76,19 @@ const mockedUseReferenceGameSearch = vi.mocked(
 
 function renderAutocomplete(
    overrides: Partial<{
-      profileId: number | null;
+      sessionEpoch: number | null;
       selectedSteamAppIds: number[];
       onSelect: (suggestion: OwnedGameSuggestionResponse) => void;
    }> = {}
 ) {
    const onSelect = overrides.onSelect ?? vi.fn();
-   const profileId = overrides.profileId === undefined
+   const sessionEpoch = overrides.sessionEpoch === undefined
       ? 1
-      : overrides.profileId;
+      : overrides.sessionEpoch;
 
    const view = render(
       <ReferenceGameAutocomplete
-         profileId={profileId}
+         sessionEpoch={sessionEpoch}
          selectedSteamAppIds={overrides.selectedSteamAppIds ?? []}
          onSelect={onSelect}
       />
@@ -109,12 +109,12 @@ describe("ReferenceGameAutocomplete", () => {
       mockedUseReferenceGameSearch.mockReturnValue(idleResult);
    });
 
-   it("requires a selected profile before searching", () => {
-      const { input } = renderAutocomplete({ profileId: null });
+   it("requires an active Steam session before searching", () => {
+      const { input } = renderAutocomplete({ sessionEpoch: null });
 
       expect(input).toBeDisabled();
       expect(
-         screen.getByText("Select a profile to choose reference games.")
+         screen.getByText("Start a Steam session to choose reference games.")
       ).toBeInTheDocument();
    });
 
@@ -233,8 +233,8 @@ describe("ReferenceGameAutocomplete", () => {
 
    it("selects only a stored ready suggestion and clears the query", () => {
       mockedUseReferenceGameSearch.mockImplementation(
-         (profileId, query) => {
-            if (profileId === null || query === "") {
+         (sessionEpoch, query) => {
+            if (sessionEpoch === null || query === "") {
                return idleResult;
             }
 
@@ -267,7 +267,7 @@ describe("ReferenceGameAutocomplete", () => {
 
    it("exposes the listbox relationship only while results are visible", () => {
       mockedUseReferenceGameSearch.mockImplementation(
-         (_profileId, query) => (
+         (_sessionEpoch, query) => (
             query === ""
                ? idleResult
                : {
@@ -348,7 +348,7 @@ describe("ReferenceGameAutocomplete", () => {
 
    it("supports Home and End and selects only the active option", () => {
       mockedUseReferenceGameSearch.mockImplementation(
-         (_profileId, query) => (
+         (_sessionEpoch, query) => (
             query === ""
                ? idleResult
                : {
@@ -387,7 +387,7 @@ describe("ReferenceGameAutocomplete", () => {
 
    it("clears with Escape and never selects on Tab", () => {
       mockedUseReferenceGameSearch.mockImplementation(
-         (_profileId, query) => (
+         (_sessionEpoch, query) => (
             query === ""
                ? idleResult
                : {
@@ -452,7 +452,7 @@ describe("ReferenceGameAutocomplete", () => {
       currentSuggestions = [suggestions[5]];
       rerender(
          <ReferenceGameAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             selectedSteamAppIds={[]}
             onSelect={vi.fn()}
          />
@@ -475,7 +475,7 @@ describe("ReferenceGameAutocomplete", () => {
 
       rerender(
          <ReferenceGameAutocomplete
-            profileId={2}
+            sessionEpoch={2}
             selectedSteamAppIds={[]}
             onSelect={vi.fn()}
          />
@@ -505,7 +505,7 @@ describe("ReferenceGameAutocomplete", () => {
 
       rerender(
          <ReferenceGameAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             selectedSteamAppIds={[10, 20, 30]}
             onSelect={vi.fn()}
          />

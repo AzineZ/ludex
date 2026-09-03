@@ -47,11 +47,11 @@ describe("useReferenceKeywordSearch", () => {
 
    it("stays idle without a profile, reference, or meaningful query", () => {
       const { result, rerender } = renderHook(
-         ({ profileId, steamAppId, query }) =>
-            useReferenceKeywordSearch(profileId, steamAppId, query),
+         ({ sessionEpoch, steamAppId, query }) =>
+            useReferenceKeywordSearch(sessionEpoch, steamAppId, query),
          {
             initialProps: {
-               profileId: null as number | null,
+               sessionEpoch: null as number | null,
                steamAppId: 100 as number | null,
                query: "explore",
             },
@@ -59,9 +59,9 @@ describe("useReferenceKeywordSearch", () => {
       );
       expect(result.current.status).toBe("idle");
 
-      rerender({ profileId: 1, steamAppId: null, query: "explore" });
+      rerender({ sessionEpoch: 1, steamAppId: null, query: "explore" });
       expect(result.current.status).toBe("idle");
-      rerender({ profileId: 1, steamAppId: 100, query: "   " });
+      rerender({ sessionEpoch: 1, steamAppId: 100, query: "   " });
       expect(result.current.status).toBe("idle");
       expect(mockedSearchReferenceKeywords).not.toHaveBeenCalled();
    });
@@ -138,15 +138,15 @@ describe("useReferenceKeywordSearch", () => {
          .mockReturnValueOnce(first.promise)
          .mockReturnValueOnce(second.promise);
       const { result, rerender } = renderHook(
-         ({ profileId, steamAppId, query }) =>
-            useReferenceKeywordSearch(profileId, steamAppId, query),
+         ({ sessionEpoch, steamAppId, query }) =>
+            useReferenceKeywordSearch(sessionEpoch, steamAppId, query),
          {
-            initialProps: { profileId: 1, steamAppId: 100, query: "first" },
+            initialProps: { sessionEpoch: 1, steamAppId: 100, query: "first" },
          }
       );
 
       act(() => vi.advanceTimersByTime(250));
-      rerender({ profileId: 2, steamAppId: 200, query: "second" });
+      rerender({ sessionEpoch: 2, steamAppId: 200, query: "second" });
       act(() => vi.advanceTimersByTime(250));
       await act(async () => {
          first.resolve(response);

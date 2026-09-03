@@ -4,21 +4,21 @@ import type { FacetOptionResponse } from "../../api";
 import { useReferenceKeywordBrowse } from "./useReferenceKeywordBrowse";
 
 type ReferenceKeywordAutocompleteProps = {
-   profileId: number | null;
+   sessionEpoch: number | null;
    steamAppId: number;
    selectedKeywords: FacetOptionResponse[];
    onToggle: (option: FacetOptionResponse) => void;
 };
 
 function ReferenceKeywordAutocomplete({
-   profileId,
+   sessionEpoch,
    steamAppId,
    selectedKeywords,
    onToggle,
 }: ReferenceKeywordAutocompleteProps) {
    const filterId = useId();
    const [filter, setFilter] = useState("");
-   const browse = useReferenceKeywordBrowse(profileId, steamAppId);
+   const browse = useReferenceKeywordBrowse(sessionEpoch, steamAppId);
    const selectedIds = useMemo(
       () => new Set(selectedKeywords.map((keyword) => keyword.id)),
       [selectedKeywords]

@@ -1,489 +1,168 @@
-import { waitFor, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import App from "./App";
 import {
    ApiError,
-   createProfile,
+   createAccessSession,
+   deleteAccessSession,
+   getCurrentSessionProfile,
    getHealth,
-   getProfile,
-   listProfiles,
-   refreshProfile,
+   refreshCurrentSessionProfile,
+   SESSION_UNAUTHORIZED_EVENT,
    type HealthResponse,
-   type ProfileDetailResponse,
+   type SessionProfileResponse,
 } from "./api";
-import {
-   importedProfile,
-   profileWithGames,
-   savedProfiles,
-} from "./tests/profileFixtures";
 
 vi.mock("./api", async (importOriginal) => {
    const actual = await importOriginal<typeof import("./api")>();
-
    return {
       ...actual,
-      createProfile: vi.fn(),
+      createAccessSession: vi.fn(),
+      deleteAccessSession: vi.fn(),
+      getCurrentSessionProfile: vi.fn(),
       getHealth: vi.fn(),
-      getProfile: vi.fn(),
-      listProfiles: vi.fn(),
-      refreshProfile: vi.fn(),
+      refreshCurrentSessionProfile: vi.fn(),
    };
 });
 
-const mockedCreateProfile = vi.mocked(createProfile);
+const sessionProfile: SessionProfileResponse = {
+   steam_id: "76561198000000001",
+   display_name: "Session Player",
+   profile_url: null,
+   avatar_url: null,
+   created_at: "2026-08-01T13:00:00Z",
+   last_synced_at: "2026-08-01T13:00:00Z",
+   games: [
+      {
+         steam_app_id: 10,
+         name: "Alpha Game",
+         icon_url: null,
+         playtime_minutes: 120,
+         recent_playtime_minutes: 30,
+         last_played_at: null,
+      },
+      {
+         steam_app_id: 20,
+         name: "Beta Game",
+         icon_url: null,
+         playtime_minutes: 0,
+         recent_playtime_minutes: null,
+         last_played_at: null,
+      },
+   ],
+};
+
+const mockedCreate = vi.mocked(createAccessSession);
+const mockedDelete = vi.mocked(deleteAccessSession);
+const mockedGetCurrent = vi.mocked(getCurrentSessionProfile);
 const mockedGetHealth = vi.mocked(getHealth);
-const mockedGetProfile = vi.mocked(getProfile);
-const mockedListProfiles = vi.mocked(listProfiles);
-const mockedRefreshProfile = vi.mocked(refreshProfile);
+const mockedRefresh = vi.mocked(refreshCurrentSessionProfile);
 
-describe("App", () => {
+describe("App session experience", () => {
    beforeEach(() => {
-      window.localStorage.clear();
-      mockedCreateProfile.mockReset();
+      mockedCreate.mockReset();
+      mockedDelete.mockReset();
+      mockedGetCurrent.mockReset();
       mockedGetHealth.mockReset();
-      mockedListProfiles.mockReset();
-      mockedListProfiles.mockImplementation(() => new Promise(() => {}));
-      mockedGetProfile.mockReset();
-      mockedGetProfile.mockImplementation(() => new Promise(() => {}));
-      mockedRefreshProfile.mockReset();
-   });
-
-   it("renders while checking the backend connection", () => {
+      mockedRefresh.mockReset();
       mockedGetHealth.mockImplementation(
          () => new Promise<HealthResponse>(() => {})
       );
+      mockedGetCurrent.mockImplementation(() => new Promise(() => {}));
+   });
 
+   it("renders while checking backend and browser session state", () => {
       render(<App />);
-
       expect(
-         screen.getByRole("heading", {
-            name: "Ludex — Your next game awaits",
-         })
+         screen.getByRole("heading", { name: "Ludex — Your next game awaits" })
       ).toBeInTheDocument();
       expect(screen.getByText("Backend: checking")).toBeInTheDocument();
-      expect(screen.getByText("Loading profiles...")).toBeInTheDocument();
+      expect(screen.getByText("Checking your Steam session…")).toHaveAttribute(
+         "role",
+         "status"
+      );
    });
 
-   it("shows connected when the health request succeeds", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-
+   it("shows Steam ID entry when no browser session exists", async () => {
+      mockedGetCurrent.mockRejectedValue(new ApiError(401, "Required."));
       render(<App />);
-
-      expect(await screen.findByText("Backend: connected")).toBeInTheDocument();
+      expect(await screen.findByLabelText("Steam ID or profile URL"))
+         .toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Continue with Steam" }))
+         .toBeDisabled();
+      expect(screen.queryByText(/saved profiles/i)).not.toBeInTheDocument();
    });
 
-   it("shows unavailable when the health request fails", async () => {
-      mockedGetHealth.mockRejectedValue(new Error("Backend unavailable"));
-
+   it("shows a recoverable message when session startup is unavailable", async () => {
+      mockedGetCurrent.mockRejectedValue(new ApiError(503, "Try again later."));
       render(<App />);
-
-      expect(
-         await screen.findByText("Backend: unavailable")
-      ).toBeInTheDocument();
-   });
-
-   it("shows an empty state when no profiles are saved", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue([]);
-
-      render(<App />);
-
-      expect(
-         await screen.findByText("No Steam profiles have been added yet.")
-      ).toBeInTheDocument();
-   });
-
-   it("shows every saved profile", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-
-      render(<App />);
-
-      expect(await screen.findByText("First Player")).toBeInTheDocument();
-      expect(screen.getByText("Second Player")).toBeInTheDocument();
-   });
-
-   it("shows an error when profiles cannot be loaded", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockRejectedValue(new Error("Profiles unavailable"));
-
-      render(<App />);
-
       expect(await screen.findByRole("alert")).toHaveTextContent(
-         "Saved profiles are currently unavailable."
+         "Try again later."
       );
+      expect(screen.getByLabelText("Steam ID or profile URL"))
+         .toBeInTheDocument();
    });
 
-   it("adds a submitted Steam profile to the visible list", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue([]);
-      mockedCreateProfile.mockResolvedValue(importedProfile);
-
+   it("restores only the cookie-authorized profile and its library", async () => {
+      mockedGetCurrent.mockResolvedValue(sessionProfile);
       render(<App />);
-
-      const identifierInput = screen.getByLabelText("Steam ID or profile URL");
-
-      fireEvent.change(identifierInput, {
-         target: {
-            value: "  example-profile  ",
-         },
-      });
-      fireEvent.click(
-         screen.getByRole("button", {
-            name: "Add profile",
-         })
-      );
-
-      expect(mockedCreateProfile).toHaveBeenCalledWith("example-profile");
-      expect(await screen.findByText("Imported Player")).toBeInTheDocument();
-      expect(identifierInput).toHaveValue("");
+      expect(await screen.findByText("Session Player")).toBeInTheDocument();
+      expect(screen.getByText("2 games")).toBeInTheDocument();
+      expect(screen.getByText("Alpha Game")).toBeInTheDocument();
+      expect(screen.getByText("120 minutes played")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Choose reference games" }))
+         .toBeInTheDocument();
+      expect(screen.queryByText(/saved profiles/i)).not.toBeInTheDocument();
    });
 
-   it("disables the form while a profile is being added", () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue([]);
-      mockedCreateProfile.mockImplementation(() => new Promise(() => {}));
-
+   it("starts a session with the trimmed submitted identifier", async () => {
+      mockedGetCurrent.mockRejectedValue(new ApiError(401, "Required."));
+      mockedCreate.mockResolvedValue(sessionProfile);
       render(<App />);
-
-      const identifierInput = screen.getByLabelText("Steam ID or profile URL");
-
-      fireEvent.change(identifierInput, {
-         target: {
-            value: "example-profile",
-         },
-      });
-      fireEvent.click(
-         screen.getByRole("button", {
-            name: "Add profile",
-         })
-      );
-
-      expect(identifierInput).toBeDisabled();
-      expect(
-         screen.getByRole("button", {
-            name: "Adding profile...",
-         })
-      ).toBeDisabled();
+      const input = await screen.findByLabelText("Steam ID or profile URL");
+      fireEvent.change(input, { target: { value: "  example-profile  " } });
+      fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
+      expect(mockedCreate).toHaveBeenCalledWith("example-profile");
+      expect(await screen.findByText("Session Player")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Steam ID or profile URL"))
+         .not.toBeInTheDocument();
    });
 
-   it("shows the backend message when adding a profile fails", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue([]);
-      mockedCreateProfile.mockRejectedValue(
+   it("keeps the identifier available when session creation fails", async () => {
+      mockedGetCurrent.mockRejectedValue(new ApiError(401, "Required."));
+      mockedCreate.mockRejectedValue(
          new ApiError(422, "This Steam library is private or unavailable.")
       );
-
       render(<App />);
-
-      const identifierInput = screen.getByLabelText("Steam ID or profile URL");
-
-      fireEvent.change(identifierInput, {
-         target: {
-            value: "private-profile",
-         },
-      });
-      fireEvent.click(
-         screen.getByRole("button", {
-            name: "Add profile",
-         })
-      );
-
+      const input = await screen.findByLabelText("Steam ID or profile URL");
+      fireEvent.change(input, { target: { value: "private-profile" } });
+      fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
       expect(await screen.findByRole("alert")).toHaveTextContent(
          "This Steam library is private or unavailable."
       );
-      expect(identifierInput).toHaveValue("private-profile");
-      expect(identifierInput).not.toBeDisabled();
+      expect(input).toHaveValue("private-profile");
+      expect(input).not.toBeDisabled();
    });
 
-   it("updates an existing profile without duplicating it", async () => {
-      const updatedProfile = {
-         ...savedProfiles[0],
-         display_name: "Updated First Player",
-         games: [],
-      };
-
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-      mockedCreateProfile.mockResolvedValue(updatedProfile);
-
+   it("disables duplicate submission while starting a session", async () => {
+      mockedGetCurrent.mockRejectedValue(new ApiError(401, "Required."));
+      mockedCreate.mockImplementation(() => new Promise(() => {}));
       render(<App />);
-
-      await screen.findByText("First Player");
-
-      const identifierInput = screen.getByLabelText("Steam ID or profile URL");
-
-      fireEvent.change(identifierInput, {
-         target: {
-            value: savedProfiles[0].steam_id,
-         },
-      });
-      fireEvent.click(
-         screen.getByRole("button", {
-            name: "Add profile",
-         })
-      );
-
-      expect(
-         await screen.findByText("Updated First Player")
-      ).toBeInTheDocument();
-      expect(screen.queryByText("First Player")).not.toBeInTheDocument();
-      expect(screen.getAllByText("Updated First Player")).toHaveLength(1);
-      expect(screen.getByText("Second Player")).toBeInTheDocument();
+      const input = await screen.findByLabelText("Steam ID or profile URL");
+      fireEvent.change(input, { target: { value: "example-profile" } });
+      fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
+      expect(input).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Loading Steam profile…" }))
+         .toBeDisabled();
    });
 
-   it("selects one saved profile", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-
-      render(<App />);
-
-      const firstProfileButton = await screen.findByRole("button", {
-         name: "First Player",
-      });
-      const secondProfileButton = screen.getByRole("button", {
-         name: "Second Player",
-      });
-
-      expect(firstProfileButton).toHaveAttribute("aria-pressed", "false");
-      expect(secondProfileButton).toHaveAttribute("aria-pressed", "false");
-
-      fireEvent.click(secondProfileButton);
-
-      expect(firstProfileButton).toHaveAttribute("aria-pressed", "false");
-      expect(secondProfileButton).toHaveAttribute("aria-pressed", "true");
-      expect(
-         screen.getByText("Second Player", {
-            selector: "strong",
-         })
-      ).toBeInTheDocument();
-   });
-
-   it("stores the selected profile ID in browser storage", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-
-      render(<App />);
-
-      const secondProfileButton = await screen.findByRole("button", {
-         name: "Second Player",
-      });
-
-      fireEvent.click(secondProfileButton);
-
-      await waitFor(() => {
-         expect(window.localStorage.getItem("ludex.selectedProfileId")).toBe(
-            "2"
-         );
-      });
-   });
-
-   it("restores a previously selected profile", async () => {
-      window.localStorage.setItem("ludex.selectedProfileId", "2");
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-
-      render(<App />);
-
-      const secondProfileButton = await screen.findByRole("button", {
-         name: "Second Player",
-      });
-
-      expect(secondProfileButton).toHaveAttribute("aria-pressed", "true");
-      expect(
-         screen.getByText("Second Player", {
-            selector: "strong",
-         })
-      ).toBeInTheDocument();
-   });
-
-   it("discards a stored profile ID that no longer exists", async () => {
-      window.localStorage.setItem("ludex.selectedProfileId", "999");
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-
-      render(<App />);
-
-      await screen.findByText("First Player");
-
-      await waitFor(() => {
-         expect(
-            window.localStorage.getItem("ludex.selectedProfileId")
-         ).toBeNull();
-      });
-
-      expect(screen.queryByText(/Selected profile:/)).not.toBeInTheDocument();
-   });
-
-   it("loads and displays the selected profile library", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-      mockedGetProfile.mockResolvedValue(profileWithGames);
-
-      render(<App />);
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "Second Player",
-         })
-      );
-
-      expect(mockedGetProfile).toHaveBeenCalledWith(2);
-      expect(
-         await screen.findByRole("heading", {
-            name: "Game library",
-         })
-      ).toBeInTheDocument();
-      expect(screen.getByText("2 games")).toBeInTheDocument();
-      expect(screen.getByText("Alpha Game")).toBeInTheDocument();
-      expect(screen.getByText("Beta Game")).toBeInTheDocument();
-      expect(screen.getByText(/120 minutes played/)).toBeInTheDocument();
-   });
-
-   it("shows loading while retrieving a selected library", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-
-      render(<App />);
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "First Player",
-         })
-      );
-
-      expect(screen.getByText("Loading game library...")).toBeInTheDocument();
-   });
-
-   it("shows an error when a selected library cannot load", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-      mockedGetProfile.mockRejectedValue(
-         new ApiError(404, "Profile not found.")
-      );
-
-      render(<App />);
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "First Player",
-         })
-      );
-
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-         "Profile not found."
-      );
-   });
-
-   it("shows an empty selected library", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-      mockedGetProfile.mockResolvedValue({
-         ...savedProfiles[0],
-         games: [],
-      });
-
-      render(<App />);
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "First Player",
-         })
-      );
-
-      expect(
-         await screen.findByText("This Steam library is empty.")
-      ).toBeInTheDocument();
-      expect(screen.getByText("0 games")).toBeInTheDocument();
-   });
-
-   it("disables the refresh action while the library is refreshing", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-      mockedGetProfile.mockResolvedValue(profileWithGames);
-      mockedRefreshProfile.mockImplementation(() => new Promise(() => {}));
-
-      render(<App />);
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "Second Player",
-         })
-      );
-
-      const refreshButton = await screen.findByRole("button", {
-         name: "Refresh library",
-      });
-
-      fireEvent.click(refreshButton);
-
-      expect(mockedRefreshProfile).toHaveBeenCalledWith(2);
-      expect(
-         screen.getByRole("button", {
-            name: "Refreshing library...",
-         })
-      ).toBeDisabled();
-      expect(screen.getByText("Alpha Game")).toBeInTheDocument();
-   });
-
-   it("updates the selected profile after a successful refresh", async () => {
-      const refreshedProfile: ProfileDetailResponse = {
-         ...profileWithGames,
-         display_name: "Refreshed Second Player",
-         last_synced_at: "2026-08-04T12:00:00Z",
+   it("updates the current library after refresh without changing sessions", async () => {
+      mockedGetCurrent.mockResolvedValue(sessionProfile);
+      mockedRefresh.mockResolvedValue({
+         ...sessionProfile,
          games: [
-            ...profileWithGames.games,
+            ...sessionProfile.games,
             {
                steam_app_id: 30,
                name: "Gamma Game",
@@ -493,82 +172,65 @@ describe("App", () => {
                last_played_at: null,
             },
          ],
-      };
-
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
       });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-      mockedGetProfile.mockResolvedValue(profileWithGames);
-      mockedRefreshProfile.mockResolvedValue(refreshedProfile);
-
       render(<App />);
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "Second Player",
-         })
-      );
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "Refresh library",
-         })
-      );
-
-      expect(await screen.findByRole("status")).toHaveTextContent(
-         "Steam library refreshed."
-      );
+      fireEvent.click(await screen.findByRole("button", { name: "Refresh library" }));
+      expect(await screen.findByRole("status", { name: "refresh-result" }))
+         .toHaveTextContent("Steam library refreshed.");
       expect(screen.getByText("3 games")).toBeInTheDocument();
       expect(screen.getByText("Gamma Game")).toBeInTheDocument();
-      expect(
-         screen.getByRole("button", {
-            name: "Refreshed Second Player",
-         })
-      ).toBeInTheDocument();
-      expect(
-         screen.getByText("Refreshed Second Player", {
-            selector: "strong",
-         })
-      ).toBeInTheDocument();
    });
 
-   it("preserves the cached library when a refresh fails", async () => {
-      mockedGetHealth.mockResolvedValue({
-         status: "healthy",
-         database: "connected",
-      });
-      mockedListProfiles.mockResolvedValue(savedProfiles);
-      mockedGetProfile.mockResolvedValue(profileWithGames);
-      mockedRefreshProfile.mockRejectedValue(
-         new ApiError(503, "Steam is currently unavailable.")
-      );
-
+   it("preserves the current profile when refresh fails", async () => {
+      mockedGetCurrent.mockResolvedValue(sessionProfile);
+      mockedRefresh.mockRejectedValue(new ApiError(503, "Steam unavailable."));
       render(<App />);
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "Second Player",
-         })
-      );
-
-      fireEvent.click(
-         await screen.findByRole("button", {
-            name: "Refresh library",
-         })
-      );
-
+      fireEvent.click(await screen.findByRole("button", { name: "Refresh library" }));
       expect(await screen.findByRole("alert")).toHaveTextContent(
-         "Steam is currently unavailable."
+         "Steam unavailable."
       );
-      expect(screen.getByText("2 games")).toBeInTheDocument();
       expect(screen.getByText("Alpha Game")).toBeInTheDocument();
-      expect(screen.getByText("Beta Game")).toBeInTheDocument();
-      expect(
-         screen.getByRole("button", {
-            name: "Refresh library",
-         })
-      ).not.toBeDisabled();
+   });
+
+   it("revokes the current session before showing another-ID entry", async () => {
+      mockedGetCurrent.mockResolvedValue(sessionProfile);
+      mockedDelete.mockResolvedValue(undefined);
+      render(<App />);
+      fireEvent.click(
+         await screen.findByRole("button", { name: "Use another Steam ID" })
+      );
+      await waitFor(() => expect(mockedDelete).toHaveBeenCalledOnce());
+      expect(await screen.findByLabelText("Steam ID or profile URL"))
+         .toBeInTheDocument();
+      expect(screen.queryByText("Alpha Game")).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Choose reference games" }))
+         .not.toBeInTheDocument();
+   });
+
+   it("keeps the current profile visible when revocation fails", async () => {
+      mockedGetCurrent.mockResolvedValue(sessionProfile);
+      mockedDelete.mockRejectedValue(new ApiError(503, "Could not end session."));
+      render(<App />);
+      fireEvent.click(
+         await screen.findByRole("button", { name: "Use another Steam ID" })
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+         "Could not end session."
+      );
+      expect(screen.getByText("Session Player")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Steam ID or profile URL"))
+         .not.toBeInTheDocument();
+   });
+
+   it("returns to Steam ID entry when a protected request loses authority", async () => {
+      mockedGetCurrent.mockResolvedValue(sessionProfile);
+      render(<App />);
+      await screen.findByText("Session Player");
+
+      window.dispatchEvent(new Event(SESSION_UNAUTHORIZED_EVENT));
+
+      expect(await screen.findByLabelText("Steam ID or profile URL"))
+         .toBeInTheDocument();
+      expect(screen.queryByText("Alpha Game")).not.toBeInTheDocument();
    });
 });

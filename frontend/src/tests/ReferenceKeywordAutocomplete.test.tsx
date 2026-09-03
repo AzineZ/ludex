@@ -40,7 +40,7 @@ describe("ReferenceKeywordAutocomplete", () => {
    it("shows browsable keywords before the user knows what to filter", () => {
       render(
          <ReferenceKeywordAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             steamAppId={100}
             selectedKeywords={[]}
             onToggle={vi.fn()}
@@ -58,7 +58,7 @@ describe("ReferenceKeywordAutocomplete", () => {
    it("filters the visible cached list case-insensitively", () => {
       render(
          <ReferenceKeywordAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             steamAppId={100}
             selectedKeywords={[]}
             onToggle={vi.fn()}
@@ -77,7 +77,7 @@ describe("ReferenceKeywordAutocomplete", () => {
       const onToggle = vi.fn();
       const { rerender } = render(
          <ReferenceKeywordAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             steamAppId={100}
             selectedKeywords={[]}
             onToggle={onToggle}
@@ -90,7 +90,7 @@ describe("ReferenceKeywordAutocomplete", () => {
 
       rerender(
          <ReferenceKeywordAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             steamAppId={100}
             selectedKeywords={[items[0]]}
             onToggle={onToggle}
@@ -108,7 +108,7 @@ describe("ReferenceKeywordAutocomplete", () => {
    it("keeps browsing and removal available at the three-keyword limit", () => {
       render(
          <ReferenceKeywordAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             steamAppId={100}
             selectedKeywords={items.slice(0, 3)}
             onToggle={vi.fn()}
@@ -138,7 +138,7 @@ describe("ReferenceKeywordAutocomplete", () => {
       });
       render(
          <ReferenceKeywordAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             steamAppId={100}
             selectedKeywords={[]}
             onToggle={vi.fn()}
@@ -151,7 +151,7 @@ describe("ReferenceKeywordAutocomplete", () => {
       mockedBrowse.mockReturnValue({ ...ready, truncated: true });
       render(
          <ReferenceKeywordAutocomplete
-            profileId={1}
+            sessionEpoch={1}
             steamAppId={100}
             selectedKeywords={[]}
             onToggle={vi.fn()}

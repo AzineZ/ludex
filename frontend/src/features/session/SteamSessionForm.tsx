@@ -1,26 +1,23 @@
 import { useState, type FormEvent } from "react";
 
-type ProfileFormProps = {
+type SteamSessionFormProps = {
    error: string | null;
-   isAdding: boolean;
-   onAdd: (identifier: string) => Promise<boolean>;
+   isStarting: boolean;
+   onStart: (identifier: string) => Promise<boolean>;
 };
 
-/** Collects the Steam identifier used to import a local profile. */
-function ProfileForm({ error, isAdding, onAdd }: ProfileFormProps) {
+/** Collects the Steam identifier used to authorize this browser session. */
+function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps) {
    const [identifier, setIdentifier] = useState("");
 
    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
       event.preventDefault();
-
-      if (await onAdd(identifier)) {
-         setIdentifier("");
-      }
+      if (await onStart(identifier)) setIdentifier("");
    }
 
    return (
       <>
-         <form className="app__profile-form" onSubmit={handleSubmit}>
+         <form className="app__session-form" onSubmit={handleSubmit}>
             <label htmlFor="steam-identifier">Steam ID or profile URL</label>
             <input
                className="app__input"
@@ -28,20 +25,20 @@ function ProfileForm({ error, isAdding, onAdd }: ProfileFormProps) {
                name="identifier"
                value={identifier}
                onChange={(event) => setIdentifier(event.target.value)}
-               disabled={isAdding}
+               disabled={isStarting}
+               autoComplete="off"
             />
             <button
                className="app__primary-button"
                type="submit"
-               disabled={isAdding || identifier.trim().length === 0}
+               disabled={isStarting || identifier.trim().length === 0}
             >
-               {isAdding ? "Adding profile..." : "Add profile"}
+               {isStarting ? "Loading Steam profile…" : "Continue with Steam"}
             </button>
          </form>
-
          {error !== null && <p role="alert">{error}</p>}
       </>
    );
 }
 
-export default ProfileForm;
+export default SteamSessionForm;

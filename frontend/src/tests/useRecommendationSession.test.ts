@@ -102,14 +102,14 @@ describe("useRecommendationSession", () => {
       });
    });
 
-   it("clears the browser-local session when the selected profile changes", () => {
+   it("clears recommendation state when the access-session epoch changes", () => {
       const { result, rerender } = renderHook(
-         ({ profileId }) => useRecommendationSession(profileId),
-         { initialProps: { profileId: 7 } }
+         ({ sessionEpoch }) => useRecommendationSession(sessionEpoch),
+         { initialProps: { sessionEpoch: 7 } }
       );
       act(() => result.current.initialize(preference, recommendationItems(3)));
 
-      rerender({ profileId: 8 });
+      rerender({ sessionEpoch: 8 });
 
       expect(result.current.state.phase).toBe("idle");
       expect(result.current.state.visibleItems).toEqual([]);

@@ -174,7 +174,7 @@ describe("preference recommendation workflow", () => {
    });
 
    it("submits only the canonical preference and renders its result", async () => {
-      render(<PreferenceValidationPanel profileId={7} preference={draft} />);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
 
       expect(
          screen.getByRole("button", { name: "Get recommendations" })
@@ -193,7 +193,7 @@ describe("preference recommendation workflow", () => {
    it("locks and announces recommendation submission while it is pending", async () => {
       const pendingRequest = deferred<FinalRecommendationResponse>();
       mockedGetRecommendations.mockReturnValue(pendingRequest.promise);
-      render(<PreferenceValidationPanel profileId={7} preference={draft} />);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
 
       fireEvent.click(
          screen.getByRole("button", { name: "Validate preferences" })
@@ -217,13 +217,13 @@ describe("preference recommendation workflow", () => {
 
    it("invalidates validation but retains results when the draft changes", async () => {
       const { rerender } = render(
-         <PreferenceValidationPanel profileId={7} preference={draft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={draft} />
       );
       await completeWorkflow();
 
       rerender(
          <PreferenceValidationPanel
-            profileId={7}
+            sessionEpoch={7}
             preference={{
                ...draft,
                constraints: {
@@ -249,12 +249,12 @@ describe("preference recommendation workflow", () => {
 
    it("invalidates validation and results when the profile changes", async () => {
       const { rerender } = render(
-         <PreferenceValidationPanel profileId={7} preference={draft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={draft} />
       );
       await completeWorkflow();
 
       rerender(
-         <PreferenceValidationPanel profileId={8} preference={draft} />
+         <PreferenceValidationPanel sessionEpoch={8} preference={draft} />
       );
 
       await waitFor(() => {
@@ -269,7 +269,7 @@ describe("preference recommendation workflow", () => {
 
    it("owns Show another, Play this, and Start over without another request", async () => {
       mockedGetRecommendations.mockResolvedValue(completeResponse);
-      render(<PreferenceValidationPanel profileId={7} preference={draft} />);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
       await completeWorkflow();
 
       const portalCard = screen.getByRole("article", { name: "Portal 2" });
@@ -316,7 +316,7 @@ describe("preference recommendation workflow", () => {
    it("retains the queue while editing and refines with rejected IDs", async () => {
       mockedGetRecommendations.mockResolvedValue(completeResponse);
       const { rerender } = render(
-         <PreferenceValidationPanel profileId={7} preference={draft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={draft} />
       );
       await completeWorkflow();
 
@@ -328,7 +328,7 @@ describe("preference recommendation workflow", () => {
          .toBeInTheDocument();
 
       rerender(
-         <PreferenceValidationPanel profileId={7} preference={refinedDraft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={refinedDraft} />
       );
 
       expect(screen.getByRole("article", { name: "Game 4" }))
@@ -357,7 +357,7 @@ describe("preference recommendation workflow", () => {
    it("preserves the queue when edited preferences fail validation", async () => {
       mockedGetRecommendations.mockResolvedValue(completeResponse);
       const { rerender } = render(
-         <PreferenceValidationPanel profileId={7} preference={draft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={draft} />
       );
       await completeWorkflow();
       fireEvent.click(
@@ -366,7 +366,7 @@ describe("preference recommendation workflow", () => {
       );
 
       rerender(
-         <PreferenceValidationPanel profileId={7} preference={refinedDraft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={refinedDraft} />
       );
       mockedValidate.mockRejectedValueOnce(
          new Error("The edited preference is invalid.")
@@ -387,7 +387,7 @@ describe("preference recommendation workflow", () => {
    it("preserves rejected history and the queue when refinement is retried", async () => {
       mockedGetRecommendations.mockResolvedValue(completeResponse);
       const { rerender } = render(
-         <PreferenceValidationPanel profileId={7} preference={draft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={draft} />
       );
       await completeWorkflow();
       fireEvent.click(
@@ -395,7 +395,7 @@ describe("preference recommendation workflow", () => {
             .getByRole("button", { name: "Show another" })
       );
       rerender(
-         <PreferenceValidationPanel profileId={7} preference={refinedDraft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={refinedDraft} />
       );
       mockedValidate.mockResolvedValueOnce(refinedCanonicalPreference);
       fireEvent.click(
@@ -439,7 +439,7 @@ describe("preference recommendation workflow", () => {
    it("consumes the complete queue once and refines with every rejection", async () => {
       mockedGetRecommendations.mockResolvedValue(sixItemResponse);
       const { rerender } = render(
-         <PreferenceValidationPanel profileId={7} preference={draft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={draft} />
       );
       await completeWorkflow();
 
@@ -477,7 +477,7 @@ describe("preference recommendation workflow", () => {
       expect(mockedRefineRecommendations).not.toHaveBeenCalled();
 
       rerender(
-         <PreferenceValidationPanel profileId={7} preference={refinedDraft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={refinedDraft} />
       );
       mockedValidate.mockResolvedValueOnce(refinedCanonicalPreference);
       fireEvent.click(
@@ -501,7 +501,7 @@ describe("preference recommendation workflow", () => {
    it("drops the browser-local session across a refresh boundary", async () => {
       mockedGetRecommendations.mockResolvedValue(sixItemResponse);
       const firstRender = render(
-         <PreferenceValidationPanel profileId={7} preference={draft} />
+         <PreferenceValidationPanel sessionEpoch={7} preference={draft} />
       );
       await completeWorkflow();
       fireEvent.click(
@@ -512,7 +512,7 @@ describe("preference recommendation workflow", () => {
          .not.toBeInTheDocument();
 
       firstRender.unmount();
-      render(<PreferenceValidationPanel profileId={7} preference={draft} />);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
 
       expect(screen.queryByRole("article")).not.toBeInTheDocument();
       expect(

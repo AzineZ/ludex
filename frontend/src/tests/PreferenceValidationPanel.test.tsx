@@ -57,7 +57,7 @@ describe("PreferenceValidationPanel", () => {
    it("shows the outgoing draft and starts validation on request", () => {
       const validation = validationResult();
       mockedUseValidation.mockReturnValue(validation);
-      render(<PreferenceValidationPanel profileId={7} preference={preference} />);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={preference} />);
 
       expect(mockedUseValidation).toHaveBeenCalledWith(7, preference);
       expect(screen.getByTestId("preference-draft")).toHaveTextContent(
@@ -71,7 +71,7 @@ describe("PreferenceValidationPanel", () => {
       mockedUseValidation.mockReturnValue(
          validationResult({ status: "validating" })
       );
-      render(<PreferenceValidationPanel profileId={7} preference={preference} />);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={preference} />);
 
       expect(screen.getByRole("button", { name: "Validating preferences…" })).toBeDisabled();
       expect(screen.getByRole("status")).toHaveTextContent(
@@ -86,7 +86,7 @@ describe("PreferenceValidationPanel", () => {
             validatedPreference: preference,
          })
       );
-      render(<PreferenceValidationPanel profileId={7} preference={preference} />);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={preference} />);
 
       expect(screen.getByRole("status")).toHaveTextContent(
          "Preference is valid."
@@ -104,7 +104,7 @@ describe("PreferenceValidationPanel", () => {
             errorField: "references.0.facets",
          })
       );
-      render(<PreferenceValidationPanel profileId={7} preference={preference} />);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={preference} />);
 
       expect(screen.getByRole("alert")).toHaveTextContent(
          "references.0.facets: Choose at least one factual facet."

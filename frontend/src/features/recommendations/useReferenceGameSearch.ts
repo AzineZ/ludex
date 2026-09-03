@@ -19,7 +19,7 @@ export type ReferenceGameSearchResult = {
 };
 
 type StoredSearchResult = {
-   profileId: number;
+   sessionEpoch: number;
    query: string;
    result: ReferenceGameSearchResult;
 };
@@ -45,22 +45,22 @@ function errorMessage(error: unknown): string {
 }
 
 export function useReferenceGameSearch(
-   profileId: number | null,
+   sessionEpoch: number | null,
    query: string
 ): ReferenceGameSearchResult {
    const [storedSearch, setStoredSearch] = useState<StoredSearchResult | null>(
       null
    );
 
-   const hasSearch = profileId !== null && query.trim() !== "";
+   const hasSearch = sessionEpoch !== null && query.trim() !== "";
 
    useEffect(() => {
-      if (profileId === null || query.trim() === "") {
+      if (sessionEpoch === null || query.trim() === "") {
          return;
       }
 
       let isCurrentRequest = true;
-      const requestProfileId = profileId;
+      const requestSessionEpoch = sessionEpoch;
       const requestQuery = query;
 
       const timeoutId = window.setTimeout(() => {
@@ -69,7 +69,7 @@ export function useReferenceGameSearch(
          }
 
          setStoredSearch({
-            profileId: requestProfileId,
+            sessionEpoch: requestSessionEpoch,
             query: requestQuery,
             result: emptyResult("loading"),
          });
@@ -81,7 +81,7 @@ export function useReferenceGameSearch(
                }
 
                setStoredSearch({
-                  profileId: requestProfileId,
+                  sessionEpoch: requestSessionEpoch,
                   query: requestQuery,
                   result: {
                      status: "ready",
@@ -96,7 +96,7 @@ export function useReferenceGameSearch(
                }
 
                setStoredSearch({
-                  profileId: requestProfileId,
+                  sessionEpoch: requestSessionEpoch,
                   query: requestQuery,
                   result: {
                      status: "unavailable",
@@ -111,7 +111,7 @@ export function useReferenceGameSearch(
          isCurrentRequest = false;
          window.clearTimeout(timeoutId);
       };
-   }, [profileId, query]);
+   }, [sessionEpoch, query]);
 
    if (!hasSearch) {
       return emptyResult("idle");
@@ -119,7 +119,7 @@ export function useReferenceGameSearch(
 
    if (
       storedSearch === null ||
-      storedSearch.profileId !== profileId ||
+      storedSearch.sessionEpoch !== sessionEpoch ||
       storedSearch.query !== query
    ) {
       return emptyResult("waiting");

@@ -1,13 +1,5 @@
-export { ApiError } from "./client";
+export { ApiError, SESSION_UNAUTHORIZED_EVENT } from "./client";
 export { getHealth, type HealthResponse } from "./health";
-export {
-   createProfile,
-   getProfile,
-   listProfiles,
-   refreshProfile,
-   type ProfileDetailResponse,
-   type ProfileSummaryResponse,
-} from "./profiles";
 export {
    createAccessSession,
    deleteAccessSession,

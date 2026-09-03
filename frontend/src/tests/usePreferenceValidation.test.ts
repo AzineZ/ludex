@@ -89,8 +89,8 @@ describe("usePreferenceValidation", () => {
    it("returns to idle when the profile or draft changes", async () => {
       mockedValidate.mockResolvedValue(preference);
       const { result, rerender } = renderHook(
-         ({ profileId, value }) => usePreferenceValidation(profileId, value),
-         { initialProps: { profileId: 7, value: preference } }
+         ({ sessionEpoch, value }) => usePreferenceValidation(sessionEpoch, value),
+         { initialProps: { sessionEpoch: 7, value: preference } }
       );
       await act(async () => {
          await result.current.validate();
@@ -98,7 +98,7 @@ describe("usePreferenceValidation", () => {
       expect(result.current.status).toBe("valid");
 
       rerender({
-         profileId: 8,
+         sessionEpoch: 8,
          value: {
             ...preference,
             constraints: { ...preference.constraints, play_status: "unplayed" },

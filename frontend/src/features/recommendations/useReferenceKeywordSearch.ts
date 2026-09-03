@@ -19,7 +19,7 @@ export type ReferenceKeywordSearchResult = {
 };
 
 type StoredKeywordSearch = {
-   profileId: number;
+   sessionEpoch: number;
    steamAppId: number;
    query: string;
    result: ReferenceKeywordSearchResult;
@@ -40,22 +40,22 @@ function errorMessage(error: unknown): string {
 }
 
 export function useReferenceKeywordSearch(
-   profileId: number | null,
+   sessionEpoch: number | null,
    steamAppId: number | null,
    query: string
 ): ReferenceKeywordSearchResult {
    const [storedSearch, setStoredSearch] =
       useState<StoredKeywordSearch | null>(null);
    const hasSearch =
-      profileId !== null && steamAppId !== null && query.trim() !== "";
+      sessionEpoch !== null && steamAppId !== null && query.trim() !== "";
 
    useEffect(() => {
-      if (profileId === null || steamAppId === null || query.trim() === "") {
+      if (sessionEpoch === null || steamAppId === null || query.trim() === "") {
          return;
       }
 
       let isCurrentRequest = true;
-      const requestProfileId = profileId;
+      const requestSessionEpoch = sessionEpoch;
       const requestSteamAppId = steamAppId;
       const requestQuery = query;
       const timeoutId = window.setTimeout(() => {
@@ -64,7 +64,7 @@ export function useReferenceKeywordSearch(
          }
 
          setStoredSearch({
-            profileId: requestProfileId,
+            sessionEpoch: requestSessionEpoch,
             steamAppId: requestSteamAppId,
             query: requestQuery,
             result: emptyResult("loading"),
@@ -79,7 +79,7 @@ export function useReferenceKeywordSearch(
                   return;
                }
                setStoredSearch({
-                  profileId: requestProfileId,
+                  sessionEpoch: requestSessionEpoch,
                   steamAppId: requestSteamAppId,
                   query: requestQuery,
                   result: { status: "ready", items: response.items, error: null },
@@ -90,7 +90,7 @@ export function useReferenceKeywordSearch(
                   return;
                }
                setStoredSearch({
-                  profileId: requestProfileId,
+                  sessionEpoch: requestSessionEpoch,
                   steamAppId: requestSteamAppId,
                   query: requestQuery,
                   result: {
@@ -106,14 +106,14 @@ export function useReferenceKeywordSearch(
          isCurrentRequest = false;
          window.clearTimeout(timeoutId);
       };
-   }, [profileId, steamAppId, query]);
+   }, [sessionEpoch, steamAppId, query]);
 
    if (!hasSearch) {
       return emptyResult("idle");
    }
    if (
       storedSearch === null ||
-      storedSearch.profileId !== profileId ||
+      storedSearch.sessionEpoch !== sessionEpoch ||
       storedSearch.steamAppId !== steamAppId ||
       storedSearch.query !== query
    ) {

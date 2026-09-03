@@ -1,9 +1,9 @@
 import "./App.css";
 import Hero from "./components/Hero";
-import ProfilesSection from "./features/profiles/ProfilesSection";
+import AccessSessionSection from "./features/session/AccessSessionSection";
 import { useBackendHealth } from "./hooks/useBackendHealth";
 
-/** Composes Ludex's hero and local Steam-profile experience. */
+/** Composes Ludex's hero and browser-authorized Steam experience. */
 function App() {
    const connectionState = useBackendHealth();
 
@@ -11,7 +11,7 @@ function App() {
       <main className="app">
          <section className="app__content">
             <Hero connectionState={connectionState} />
-            <ProfilesSection />
+            <AccessSessionSection />
          </section>
       </main>
    );

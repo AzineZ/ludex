@@ -76,10 +76,10 @@ describe("useRecommendationRequest", () => {
 
    it("stays idle and does not request without a canonical preference", () => {
       const { result, rerender } = renderHook(
-         ({ profileId, value }) => useRecommendationRequest(profileId, value),
+         ({ sessionEpoch, value }) => useRecommendationRequest(sessionEpoch, value),
          {
             initialProps: {
-               profileId: 7 as number | null,
+               sessionEpoch: 7 as number | null,
                value: null as RecommendationPreference | null,
             },
          }
@@ -93,7 +93,7 @@ describe("useRecommendationRequest", () => {
          error: null,
       });
 
-      rerender({ profileId: null, value: preference });
+      rerender({ sessionEpoch: null, value: preference });
       act(() => result.current.request());
       expect(result.current.status).toBe("idle");
       expect(mockedGetFinalRecommendations).not.toHaveBeenCalled();
@@ -248,10 +248,10 @@ describe("useRecommendationRequest", () => {
       const request = deferred<FinalRecommendationResponse>();
       mockedGetFinalRecommendations.mockReturnValue(request.promise);
       const { result, rerender } = renderHook(
-         ({ profileId, value }) => useRecommendationRequest(profileId, value),
+         ({ sessionEpoch, value }) => useRecommendationRequest(sessionEpoch, value),
          {
             initialProps: {
-               profileId: 7 as number | null,
+               sessionEpoch: 7 as number | null,
                value: preference as RecommendationPreference | null,
             },
          }
@@ -267,7 +267,7 @@ describe("useRecommendationRequest", () => {
       expect(result.current.status).toBe("ready");
 
       rerender({
-         profileId: 8,
+         sessionEpoch: 8,
          value: {
             ...preference,
             constraints: {

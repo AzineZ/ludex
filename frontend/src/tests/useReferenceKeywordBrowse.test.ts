@@ -39,18 +39,18 @@ describe("useReferenceKeywordBrowse", () => {
 
    it("stays idle without both a profile and reference", () => {
       const { result, rerender } = renderHook(
-         ({ profileId, steamAppId }) =>
-            useReferenceKeywordBrowse(profileId, steamAppId),
+         ({ sessionEpoch, steamAppId }) =>
+            useReferenceKeywordBrowse(sessionEpoch, steamAppId),
          {
             initialProps: {
-               profileId: null as number | null,
+               sessionEpoch: null as number | null,
                steamAppId: 100 as number | null,
             },
          }
       );
       expect(result.current.status).toBe("idle");
 
-      rerender({ profileId: 1, steamAppId: null });
+      rerender({ sessionEpoch: 1, steamAppId: null });
       expect(result.current.status).toBe("idle");
       expect(mockedGetReferenceKeywords).not.toHaveBeenCalled();
    });
@@ -123,12 +123,12 @@ describe("useReferenceKeywordBrowse", () => {
          .mockReturnValueOnce(first.promise)
          .mockReturnValueOnce(second.promise);
       const { result, rerender } = renderHook(
-         ({ profileId, steamAppId }) =>
-            useReferenceKeywordBrowse(profileId, steamAppId),
-         { initialProps: { profileId: 1, steamAppId: 100 } }
+         ({ sessionEpoch, steamAppId }) =>
+            useReferenceKeywordBrowse(sessionEpoch, steamAppId),
+         { initialProps: { sessionEpoch: 1, steamAppId: 100 } }
       );
 
-      rerender({ profileId: 2, steamAppId: 200 });
+      rerender({ sessionEpoch: 2, steamAppId: 200 });
       await act(async () => {
          first.resolve(response);
          await first.promise;

@@ -6,6 +6,7 @@ import {
    deleteAccessSession,
    getCurrentSessionProfile,
    refreshCurrentSessionProfile,
+   SESSION_UNAUTHORIZED_EVENT,
    type SessionProfileResponse,
 } from "../api";
 
@@ -108,5 +109,18 @@ describe("session API", () => {
          status: 502,
          message: "Request failed with status 502.",
       });
+   });
+
+   it("announces a protected-request 401 to the session owner", async () => {
+      const listener = vi.fn();
+      window.addEventListener(SESSION_UNAUTHORIZED_EVENT, listener);
+      fetchMock.mockResolvedValue(
+         jsonResponse({ detail: "Steam access session required." }, 401)
+      );
+
+      await expect(getCurrentSessionProfile()).rejects.toBeInstanceOf(ApiError);
+
+      expect(listener).toHaveBeenCalledOnce();
+      window.removeEventListener(SESSION_UNAUTHORIZED_EVENT, listener);
    });
 });

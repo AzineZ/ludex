@@ -39,19 +39,19 @@ export type ReferenceSelectionResult = {
 };
 
 type ReferenceSelectionState = {
-   profileId: number | null;
+   sessionEpoch: number | null;
    references: SelectedReference[];
    pendingSteamAppId: number | null;
    error: string | null;
 };
 
 type StoredReferences = {
-   profileId: number | null;
+   sessionEpoch: number | null;
    references: SelectedReference[];
 };
 
 type PendingReference = {
-   profileId: number;
+   sessionEpoch: number;
    steamAppId: number;
 };
 
@@ -79,10 +79,10 @@ function directFacetOptions(
 }
 
 function emptySelectionState(
-   profileId: number | null
+   sessionEpoch: number | null
 ): ReferenceSelectionState {
    return {
-      profileId,
+      sessionEpoch,
       references: [],
       pendingSteamAppId: null,
       error: null,
@@ -98,29 +98,29 @@ function errorMessage(error: unknown): string {
 }
 
 export function useReferenceSelection(
-   profileId: number | null
+   sessionEpoch: number | null
 ): ReferenceSelectionResult {
    const [selectionState, setSelectionState] =
-      useState<ReferenceSelectionState>(() => emptySelectionState(profileId));
+      useState<ReferenceSelectionState>(() => emptySelectionState(sessionEpoch));
 
    const referencesRef = useRef<StoredReferences>({
-      profileId,
+      sessionEpoch,
       references: [],
    });
    const pendingReferenceRef = useRef<PendingReference | null>(null);
-   const activeProfileIdRef = useRef(profileId);
+   const activeSessionEpochRef = useRef(sessionEpoch);
 
    useEffect(() => {
-      activeProfileIdRef.current = profileId;
-   }, [profileId]);
+      activeSessionEpochRef.current = sessionEpoch;
+   }, [sessionEpoch]);
 
    const visibleState =
-      selectionState.profileId === profileId
+      selectionState.sessionEpoch === sessionEpoch
          ? selectionState
-         : emptySelectionState(profileId);
+         : emptySelectionState(sessionEpoch);
 
    function referencesForCurrentProfile(): SelectedReference[] {
-      if (referencesRef.current.profileId !== profileId) {
+      if (referencesRef.current.sessionEpoch !== sessionEpoch) {
          return [];
       }
 
@@ -128,7 +128,7 @@ export function useReferenceSelection(
    }
 
    function pendingForCurrentProfile(): PendingReference | null {
-      if (pendingReferenceRef.current?.profileId !== profileId) {
+      if (pendingReferenceRef.current?.sessionEpoch !== sessionEpoch) {
          return null;
       }
 
@@ -141,7 +141,7 @@ export function useReferenceSelection(
       const currentReferences = referencesForCurrentProfile();
 
       if (
-         profileId === null ||
+         sessionEpoch === null ||
          suggestion.metadata_status !== "ready" ||
          pendingForCurrentProfile() !== null ||
          currentReferences.length >= 3 ||
@@ -153,15 +153,15 @@ export function useReferenceSelection(
          return false;
       }
 
-      const requestProfileId = profileId;
+      const requestSessionEpoch = sessionEpoch;
       const pendingReference: PendingReference = {
-         profileId: requestProfileId,
+         sessionEpoch: requestSessionEpoch,
          steamAppId: suggestion.steam_app_id,
       };
 
       pendingReferenceRef.current = pendingReference;
       setSelectionState({
-         profileId: requestProfileId,
+         sessionEpoch: requestSessionEpoch,
          references: currentReferences,
          pendingSteamAppId: suggestion.steam_app_id,
          error: null,
@@ -172,7 +172,7 @@ export function useReferenceSelection(
             suggestion.steam_app_id
          );
 
-         if (activeProfileIdRef.current !== requestProfileId) {
+         if (activeSessionEpochRef.current !== requestSessionEpoch) {
             return false;
          }
 
@@ -181,17 +181,17 @@ export function useReferenceSelection(
             selectedFacets: emptySelectedFacets(),
          };
          const latestReferences =
-            referencesRef.current.profileId === requestProfileId
+            referencesRef.current.sessionEpoch === requestSessionEpoch
                ? referencesRef.current.references
                : [];
          const nextReferences = [...latestReferences, selectedReference];
 
          referencesRef.current = {
-            profileId: requestProfileId,
+            sessionEpoch: requestSessionEpoch,
             references: nextReferences,
          };
          setSelectionState({
-            profileId: requestProfileId,
+            sessionEpoch: requestSessionEpoch,
             references: nextReferences,
             pendingSteamAppId: suggestion.steam_app_id,
             error: null,
@@ -199,17 +199,17 @@ export function useReferenceSelection(
 
          return true;
       } catch (requestError: unknown) {
-         if (activeProfileIdRef.current !== requestProfileId) {
+         if (activeSessionEpochRef.current !== requestSessionEpoch) {
             return false;
          }
 
          const currentProfileReferences =
-            referencesRef.current.profileId === requestProfileId
+            referencesRef.current.sessionEpoch === requestSessionEpoch
                ? referencesRef.current.references
                : [];
 
          setSelectionState({
-            profileId: requestProfileId,
+            sessionEpoch: requestSessionEpoch,
             references: currentProfileReferences,
             pendingSteamAppId: suggestion.steam_app_id,
             error: errorMessage(requestError),
@@ -220,14 +220,14 @@ export function useReferenceSelection(
          const pendingReference = pendingReferenceRef.current;
 
          if (
-            activeProfileIdRef.current === requestProfileId &&
-            pendingReference?.profileId === requestProfileId &&
+            activeSessionEpochRef.current === requestSessionEpoch &&
+            pendingReference?.sessionEpoch === requestSessionEpoch &&
             pendingReference.steamAppId === suggestion.steam_app_id
          ) {
             pendingReferenceRef.current = null;
 
             setSelectionState((currentState) => {
-               if (currentState.profileId !== requestProfileId) {
+               if (currentState.sessionEpoch !== requestSessionEpoch) {
                   return currentState;
                }
 
@@ -288,11 +288,11 @@ export function useReferenceSelection(
       const currentPending = pendingForCurrentProfile();
 
       referencesRef.current = {
-         profileId,
+         sessionEpoch,
          references: nextReferences,
       };
       setSelectionState({
-         profileId,
+         sessionEpoch,
          references: nextReferences,
          pendingSteamAppId: currentPending?.steamAppId ?? null,
          error: visibleState.error,
@@ -308,11 +308,11 @@ export function useReferenceSelection(
       const currentPending = pendingForCurrentProfile();
 
       referencesRef.current = {
-         profileId,
+         sessionEpoch,
          references: nextReferences,
       };
       setSelectionState({
-         profileId,
+         sessionEpoch,
          references: nextReferences,
          pendingSteamAppId: currentPending?.steamAppId ?? null,
          error: visibleState.error,
@@ -357,9 +357,9 @@ export function useReferenceSelection(
       );
       const currentPending = pendingForCurrentProfile();
 
-      referencesRef.current = { profileId, references: nextReferences };
+      referencesRef.current = { sessionEpoch, references: nextReferences };
       setSelectionState({
-         profileId,
+         sessionEpoch,
          references: nextReferences,
          pendingSteamAppId: currentPending?.steamAppId ?? null,
          error: visibleState.error,

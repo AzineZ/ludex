@@ -1,11 +1,11 @@
-.app__profiles {
+.app__session {
    margin-top: 5rem;
    padding: clamp(3rem, 8vw, 5rem) 0 5rem;
    border-top: 2px solid var(--color-alarm-red);
 }
 
-.app__profiles h2,
-.app__profiles h3 {
+.app__session h2,
+.app__session h3 {
    margin: 0;
    color: var(--color-bone-cream);
    font-family: var(--font-display);
@@ -16,23 +16,23 @@
    text-transform: uppercase;
 }
 
-.app__profiles h2 {
+.app__session h2 {
    margin-bottom: 2.5rem;
    font-size: clamp(3.5rem, 12vw, 6.25rem);
 }
 
-.app__profiles h3 {
+.app__session h3 {
    font-size: clamp(2.5rem, 9vw, 4.5rem);
 }
 
-.app__profile-form {
+.app__session-form {
    display: grid;
    grid-template-columns: minmax(0, 1fr) auto;
    gap: 0.9rem;
    margin-bottom: 2rem;
 }
 
-.app__profile-form label {
+.app__session-form label {
    grid-column: 1 / -1;
    color: var(--color-bone-cream);
    font-size: 0.875rem;
@@ -56,8 +56,7 @@
 }
 
 .app__primary-button,
-.app__secondary-button,
-.app__profile-button {
+.app__secondary-button {
    border: 1px solid var(--color-bone-cream);
    border-radius: 999px;
    font: inherit;
@@ -91,36 +90,8 @@
    opacity: 0.5;
 }
 
-.app__profile-list {
-   display: flex;
-   flex-wrap: wrap;
-   justify-content: center;
-   gap: 0.75rem;
-   margin: 0;
-   padding: 0;
-   list-style: none;
-}
-
-.app__profile-button {
-   padding: 0.7rem 1rem;
-   color: var(--color-bone-cream);
-   background: var(--color-void-black);
-}
-
-.app__profile-button:hover {
-   color: var(--color-alarm-red);
-   border-color: var(--color-alarm-red);
-}
-
-.app__profile-button[aria-pressed="true"] {
-   color: var(--color-void-black);
-   border-color: var(--color-bone-cream);
-   background: var(--color-bone-cream);
-   box-shadow: 0 4px 0 var(--color-ash-taupe);
-}
-
 .app__selection,
-.app__profiles > p {
+.app__session > p {
    color: var(--color-bone-cream);
    text-align: center;
 }
@@ -203,11 +174,11 @@
 }
 
 @media (max-width: 36rem) {
-   .app__profile-form {
+   .app__session-form {
       grid-template-columns: 1fr;
    }
 
-   .app__profile-form label {
+   .app__session-form label {
       grid-column: auto;
    }
 

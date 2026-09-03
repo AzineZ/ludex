@@ -10,6 +10,14 @@ type ErrorDetails = {
    field: string | null;
 };
 
+export const SESSION_UNAUTHORIZED_EVENT = "ludex:session-unauthorized";
+
+function announceSessionUnauthorized(response: Response): void {
+   if (response.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event(SESSION_UNAUTHORIZED_EVENT));
+   }
+}
+
 /** Represents an unsuccessful response returned by the Ludex API. */
 export class ApiError extends Error {
    readonly status: number;
@@ -86,6 +94,7 @@ export async function requestJson<ResponseType>(
    });
 
    if (!response.ok) {
+      announceSessionUnauthorized(response);
       const error = await getErrorDetails(response);
 
       throw new ApiError(
@@ -110,6 +119,7 @@ export async function requestNoContent(
    });
 
    if (!response.ok) {
+      announceSessionUnauthorized(response);
       const error = await getErrorDetails(response);
 
       throw new ApiError(

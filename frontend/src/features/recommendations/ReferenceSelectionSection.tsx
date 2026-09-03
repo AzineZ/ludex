@@ -11,7 +11,7 @@ import { serializeRecommendationPreference } from "./preferenceSerialization";
 import { useReferenceSelection } from "./useReferenceSelection";
 
 type ReferenceSelectionSectionProps = {
-   profileId: number | null;
+   sessionEpoch: number | null;
 };
 
 const DEFAULT_CONSTRAINTS: PreferenceConstraints = {
@@ -20,9 +20,9 @@ const DEFAULT_CONSTRAINTS: PreferenceConstraints = {
 };
 
 function ReferenceSelectionSession({
-   profileId,
+   sessionEpoch,
 }: ReferenceSelectionSectionProps) {
-   const selection = useReferenceSelection(profileId);
+   const selection = useReferenceSelection(sessionEpoch);
    const [constraints, setConstraints] = useState<PreferenceConstraints>({
       ...DEFAULT_CONSTRAINTS,
    });
@@ -51,7 +51,7 @@ function ReferenceSelectionSession({
          </header>
 
          <ReferenceGameAutocomplete
-            profileId={profileId}
+            sessionEpoch={sessionEpoch}
             selectedSteamAppIds={selectedSteamAppIds}
             onSelect={(suggestion) => {
                void selection.addReference(suggestion);
@@ -82,7 +82,7 @@ function ReferenceSelectionSession({
                      onRemove={selection.removeReference}
                      keywordControl={
                         <ReferenceKeywordAutocomplete
-                           profileId={profileId}
+                           sessionEpoch={sessionEpoch}
                            steamAppId={reference.details.steam_app_id}
                            selectedKeywords={reference.selectedFacets.keywords}
                            onToggle={(option) => {
@@ -104,7 +104,7 @@ function ReferenceSelectionSession({
          />
 
          <PreferenceValidationPanel
-            profileId={profileId}
+            sessionEpoch={sessionEpoch}
             preference={preference}
          />
       </section>
@@ -114,7 +114,7 @@ function ReferenceSelectionSession({
 function ReferenceSelectionSection(props: ReferenceSelectionSectionProps) {
    return (
       <ReferenceSelectionSession
-         key={props.profileId ?? "no-profile"}
+         key={props.sessionEpoch ?? "no-session"}
          {...props}
       />
    );

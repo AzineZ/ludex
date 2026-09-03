@@ -46,15 +46,15 @@ export function preferenceValidationError(error: unknown): {
 }
 
 export function usePreferenceValidation(
-   profileId: number | null,
+   sessionEpoch: number | null,
    preference: RecommendationPreference
 ): PreferenceValidationResult {
    const [state, setState] = useState<ValidationState | null>(null);
-   const key = JSON.stringify({ profileId, preference });
+   const key = JSON.stringify({ sessionEpoch, preference });
    const visibleState = state?.key === key ? state : null;
 
    function validate(): Promise<boolean> {
-      if (profileId === null) {
+      if (sessionEpoch === null) {
          return Promise.resolve(false);
       }
 

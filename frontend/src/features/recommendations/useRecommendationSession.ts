@@ -36,19 +36,19 @@ export type RecommendationSessionOwner = {
 };
 
 export function useRecommendationSession(
-   profileId: number | null
+   sessionEpoch: number | null
 ): RecommendationSessionOwner {
    const [state, setState] = useState<RecommendationSessionState>(
       createIdleRecommendationSession
    );
-   const previousProfileIdRef = useRef(profileId);
+   const previousSessionEpochRef = useRef(sessionEpoch);
 
    useEffect(() => {
-      if (previousProfileIdRef.current !== profileId) {
-         previousProfileIdRef.current = profileId;
+      if (previousSessionEpochRef.current !== sessionEpoch) {
+         previousSessionEpochRef.current = sessionEpoch;
          setState(createIdleRecommendationSession());
       }
-   }, [profileId]);
+   }, [sessionEpoch]);
 
    const initialize = useCallback((
       preference: RecommendationPreference,

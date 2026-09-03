@@ -439,9 +439,9 @@ describe("useReferenceSelection", () => {
       const request = deferred<ReferenceDetailsResponse>();
       mockedGetReferenceDetails.mockReturnValue(request.promise);
       const { result, rerender } = renderHook(
-         ({ profileId }) => useReferenceSelection(profileId),
+         ({ sessionEpoch }) => useReferenceSelection(sessionEpoch),
          {
-            initialProps: { profileId: 1 as number | null },
+            initialProps: { sessionEpoch: 1 as number | null },
          }
       );
       let addition!: Promise<boolean>;
@@ -451,7 +451,7 @@ describe("useReferenceSelection", () => {
       });
       expect(result.current.pendingSteamAppId).toBe(100);
 
-      rerender({ profileId: 2 });
+      rerender({ sessionEpoch: 2 });
       expect(result.current).toMatchObject({
          references: [],
          pendingSteamAppId: null,

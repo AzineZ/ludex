@@ -51,11 +51,11 @@ vi.mock(
    "../features/recommendations/ReferenceGameAutocomplete",
    () => ({
       default: ({
-         profileId,
+         sessionEpoch,
          selectedSteamAppIds,
          onSelect,
       }: {
-         profileId: number | null;
+         sessionEpoch: number | null;
          selectedSteamAppIds: number[];
          onSelect: (suggestion: OwnedGameSuggestionResponse) => void;
       }) => (
@@ -63,7 +63,7 @@ vi.mock(
             type="button"
             onClick={() => onSelect(suggestion)}
          >
-            Add reference for profile {profileId ?? "none"} with selected{
+            Add reference for profile {sessionEpoch ?? "none"} with selected{
                ` ${selectedSteamAppIds.join(",")}`
             }
          </button>
@@ -93,13 +93,13 @@ describe("ReferenceSelectionSection", () => {
       mockedUseReferenceSelection.mockReset();
    });
 
-   it("connects the selected profile and selected IDs to reference addition", () => {
+   it("connects the session epoch and selected IDs to reference addition", () => {
       const selection = selectionResult({
          references: [selectedReference],
       });
       mockedUseReferenceSelection.mockReturnValue(selection);
 
-      render(<ReferenceSelectionSection profileId={7} />);
+      render(<ReferenceSelectionSection sessionEpoch={7} />);
 
       expect(mockedUseReferenceSelection).toHaveBeenCalledWith(7);
       fireEvent.click(
@@ -117,7 +117,7 @@ describe("ReferenceSelectionSection", () => {
       });
       mockedUseReferenceSelection.mockReturnValue(selection);
 
-      render(<ReferenceSelectionSection profileId={7} />);
+      render(<ReferenceSelectionSection sessionEpoch={7} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Role-playing" }));
       expect(selection.toggleDirectFacet).toHaveBeenCalledWith(
@@ -138,7 +138,7 @@ describe("ReferenceSelectionSection", () => {
          })
       );
 
-      render(<ReferenceSelectionSection profileId={7} />);
+      render(<ReferenceSelectionSection sessionEpoch={7} />);
 
       expect(screen.getByRole("status")).toHaveTextContent(
          "Loading reference game details…"
@@ -164,7 +164,7 @@ describe("ReferenceSelectionSection", () => {
       });
       mockedUseReferenceSelection.mockReturnValue(selection);
 
-      render(<ReferenceSelectionSection profileId={7} />);
+      render(<ReferenceSelectionSection sessionEpoch={7} />);
       fireEvent.click(
          screen.getByRole("button", { name: "Remove keyword Exploration" })
       );
@@ -174,7 +174,7 @@ describe("ReferenceSelectionSection", () => {
 
    it("serializes controlled constraints into the inspectable draft", () => {
       mockedUseReferenceSelection.mockReturnValue(selectionResult());
-      render(<ReferenceSelectionSection profileId={7} />);
+      render(<ReferenceSelectionSection sessionEpoch={7} />);
 
       const preview = screen.getByTestId("preference-draft");
       expect(preview).toHaveTextContent('"play_status": "either"');
@@ -184,7 +184,7 @@ describe("ReferenceSelectionSection", () => {
 
    it("resets recommendation constraints when the profile changes", () => {
       mockedUseReferenceSelection.mockReturnValue(selectionResult());
-      const { rerender } = render(<ReferenceSelectionSection profileId={7} />);
+      const { rerender } = render(<ReferenceSelectionSection sessionEpoch={7} />);
       fireEvent.click(
          screen.getByRole("radio", { name: "Previously played" })
       );
@@ -192,7 +192,7 @@ describe("ReferenceSelectionSection", () => {
          screen.getByRole("radio", { name: "Previously played" })
       ).toBeChecked();
 
-      rerender(<ReferenceSelectionSection profileId={8} />);
+      rerender(<ReferenceSelectionSection sessionEpoch={8} />);
       expect(screen.getByRole("radio", { name: "Either" })).toBeChecked();
    });
 });

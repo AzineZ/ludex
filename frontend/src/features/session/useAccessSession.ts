@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
    ApiError,
+   SESSION_UNAUTHORIZED_EVENT,
    createAccessSession,
    deleteAccessSession,
    getCurrentSessionProfile,
@@ -28,12 +29,25 @@ export function useAccessSession() {
    const [isStarting, setIsStarting] = useState(false);
    const [startError, setStartError] = useState<string | null>(null);
    const [isRefreshing, setIsRefreshing] = useState(false);
+   const [refreshSucceeded, setRefreshSucceeded] = useState(false);
    const [refreshError, setRefreshError] = useState<string | null>(null);
    const [isEnding, setIsEnding] = useState(false);
    const [endError, setEndError] = useState<string | null>(null);
+   const statusRef = useRef<AccessSessionStatus>(status);
+
+   useEffect(() => {
+      statusRef.current = status;
+   }, [status]);
 
    useEffect(() => {
       let requestIsCurrent = true;
+      const handleUnauthorizedEvent = () => {
+         if (statusRef.current === "ready") handleSessionUnauthorized();
+      };
+      window.addEventListener(
+         SESSION_UNAUTHORIZED_EVENT,
+         handleUnauthorizedEvent
+      );
 
       getCurrentSessionProfile()
          .then((currentProfile) => {
@@ -57,6 +71,10 @@ export function useAccessSession() {
 
       return () => {
          requestIsCurrent = false;
+         window.removeEventListener(
+            SESSION_UNAUTHORIZED_EVENT,
+            handleUnauthorizedEvent
+         );
       };
    }, []);
 
@@ -94,14 +112,14 @@ export function useAccessSession() {
 
       setIsRefreshing(true);
       setRefreshError(null);
+      setRefreshSucceeded(false);
       try {
          const refreshedProfile = await refreshCurrentSessionProfile();
          setProfile(refreshedProfile);
+         setRefreshSucceeded(true);
          return true;
       } catch (error) {
-         if (error instanceof ApiError && error.status === 401) {
-            handleSessionUnauthorized();
-         } else {
+         if (!(error instanceof ApiError && error.status === 401)) {
             setRefreshError(
                errorMessage(error, "The Steam library could not be refreshed.")
             );
@@ -124,10 +142,7 @@ export function useAccessSession() {
          setSessionEpoch((currentEpoch) => currentEpoch + 1);
          return true;
       } catch (error) {
-         if (error instanceof ApiError && error.status === 401) {
-            handleSessionUnauthorized();
-            return true;
-         }
+         if (error instanceof ApiError && error.status === 401) return true;
          setEndError(errorMessage(error, "The session could not be ended."));
          return false;
       } finally {
@@ -144,6 +159,7 @@ export function useAccessSession() {
       isStarting,
       profile,
       refreshError,
+      refreshSucceeded,
       refreshSessionProfile,
       sessionEpoch,
       startError,

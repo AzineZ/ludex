@@ -4,7 +4,7 @@ import type { OwnedGameSuggestionResponse } from "../../api";
 import { useReferenceGameSearch } from "./useReferenceGameSearch";
 
 type ReferenceGameAutocompleteProps = {
-   profileId: number | null;
+   sessionEpoch: number | null;
    selectedSteamAppIds: number[];
    onSelect: (suggestion: OwnedGameSuggestionResponse) => void;
 };
@@ -40,7 +40,7 @@ function availabilityLabel(
 }
 
 function ReferenceGameAutocompleteSession({
-   profileId,
+   sessionEpoch,
    selectedSteamAppIds,
    onSelect,
    selectionLimitReached,
@@ -50,9 +50,9 @@ function ReferenceGameAutocompleteSession({
    const [query, setQuery] = useState("");
    const [activeOption, setActiveOption] = useState<ActiveOption | null>(null);
 
-   const canSearch = profileId !== null && !selectionLimitReached;
+   const canSearch = sessionEpoch !== null && !selectionLimitReached;
    const searchResult = useReferenceGameSearch(
-      profileId,
+      sessionEpoch,
       canSearch ? query : ""
    );
 
@@ -211,11 +211,11 @@ function ReferenceGameAutocompleteSession({
             onKeyDown={handleKeyDown}
          />
 
-         {profileId === null && (
-            <p>Select a profile to choose reference games.</p>
+         {sessionEpoch === null && (
+            <p>Start a Steam session to choose reference games.</p>
          )}
 
-         {profileId !== null && selectionLimitReached && (
+         {sessionEpoch !== null && selectionLimitReached && (
             <p>You can select up to three reference games.</p>
          )}
 
@@ -283,7 +283,7 @@ function ReferenceGameAutocomplete(props: ReferenceGameAutocompleteProps) {
    const selectionLimitReached = props.selectedSteamAppIds.length >= 3;
 
    const sessionKey = [
-      props.profileId ?? "no-profile",
+      props.sessionEpoch ?? "no-session",
       selectionLimitReached ? "limit-reached" : "search-open",
    ].join(":");
 

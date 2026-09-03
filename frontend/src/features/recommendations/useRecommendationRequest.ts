@@ -63,16 +63,16 @@ export function recommendationRequestFailure(
 }
 
 export function useRecommendationRequest(
-   profileId: number | null,
+   sessionEpoch: number | null,
    validatedPreference: RecommendationPreference | null
 ): RecommendationRequestResult {
    const [state, setState] = useState<StoredRecommendationRequest | null>(null);
    const generationRef = useRef(0);
    const inFlightRef = useRef<InFlightRecommendationRequest | null>(null);
    const key =
-      profileId === null || validatedPreference === null
+      sessionEpoch === null || validatedPreference === null
          ? null
-         : JSON.stringify({ profileId, validatedPreference });
+         : JSON.stringify({ sessionEpoch, validatedPreference });
    const visibleState = key !== null && state?.key === key ? state : null;
 
    useEffect(() => {
@@ -149,7 +149,7 @@ export function useRecommendationRequest(
    }
 
    function request(): void {
-      if (profileId === null || validatedPreference === null || key === null) {
+      if (sessionEpoch === null || validatedPreference === null || key === null) {
          return;
       }
 
@@ -160,7 +160,7 @@ export function useRecommendationRequest(
    }
 
    function refine(rejectedSteamAppIds: readonly number[]): void {
-      if (profileId === null || validatedPreference === null || key === null) {
+      if (sessionEpoch === null || validatedPreference === null || key === null) {
          return;
       }
 
