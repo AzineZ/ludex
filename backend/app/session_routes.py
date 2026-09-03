@@ -109,7 +109,9 @@ def _resolve_profile_for_session(
             steam_client,
             steam_id,
         )
-        return profile.id
+        profile_id = profile.id
+        database_session.rollback()
+        return profile_id
     except (
         InvalidSteamIdentifierError,
         SteamAPIError,

@@ -3,6 +3,8 @@ from typing import Annotated, NoReturn
 from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
+from app.access_session_http import require_access_session
+from app.access_sessions import ActiveAccessSession
 from app.database import get_database_session
 from app.recommendations.api_schemas import (
     FacetOptionResponse,
@@ -67,10 +69,13 @@ CONFLICT_RESPONSE = _error_documentation(
 UNPROCESSABLE_RESPONSE = _error_documentation(
     "The submitted path, query, or preference is invalid."
 )
+SESSION_REQUIRED_RESPONSE = {
+    "description": "A valid Steam access session is required.",
+}
 
 
 router = APIRouter(
-    prefix="/profiles/{profile_id}/recommendations",
+    prefix="/recommendations",
     tags=["recommendations"],
     route_class=RecommendationAPIRoute,
 )
@@ -80,6 +85,7 @@ router = APIRouter(
     "",
     response_model=FinalRecommendationResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: SESSION_REQUIRED_RESPONSE,
         status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -88,8 +94,11 @@ router = APIRouter(
     },
 )
 def create_final_recommendations(
-    profile_id: PositivePathIdentifier,
     preference: RecommendationPreference,
+    access_session: Annotated[
+        ActiveAccessSession,
+        Depends(require_access_session),
+    ],
     database_session: Annotated[
         Session,
         Depends(get_database_session),
@@ -99,7 +108,7 @@ def create_final_recommendations(
     try:
         result = recommend_cached_games(
             database_session,
-            profile_id=profile_id,
+            profile_id=access_session.profile_id,
             preference=preference,
         )
     except PreferenceValidationError as error:
@@ -112,6 +121,7 @@ def create_final_recommendations(
     "/refine",
     response_model=FinalRecommendationResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: SESSION_REQUIRED_RESPONSE,
         status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -120,8 +130,11 @@ def create_final_recommendations(
     },
 )
 def refine_final_recommendations(
-    profile_id: PositivePathIdentifier,
     refinement: RecommendationRefinementRequest,
+    access_session: Annotated[
+        ActiveAccessSession,
+        Depends(require_access_session),
+    ],
     database_session: Annotated[
         Session,
         Depends(get_database_session),
@@ -131,7 +144,7 @@ def refine_final_recommendations(
     try:
         result = recommend_cached_games(
             database_session,
-            profile_id=profile_id,
+            profile_id=access_session.profile_id,
             preference=refinement.preference,
             session_excluded_steam_app_ids=frozenset(
                 refinement.rejected_steam_app_ids
@@ -147,6 +160,7 @@ def refine_final_recommendations(
     "/references",
     response_model=OwnedGameSearchResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: SESSION_REQUIRED_RESPONSE,
         status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
             UNPROCESSABLE_RESPONSE
@@ -154,8 +168,11 @@ def refine_final_recommendations(
     },
 )
 def search_references(
-    profile_id: PositivePathIdentifier,
     query: RequiredSearchQuery,
+    access_session: Annotated[
+        ActiveAccessSession,
+        Depends(require_access_session),
+    ],
     database_session: Annotated[
         Session,
         Depends(get_database_session),
@@ -165,7 +182,7 @@ def search_references(
     try:
         suggestions = search_owned_games(
             database_session,
-            profile_id,
+            access_session.profile_id,
             query,
         )
     except (
@@ -186,6 +203,7 @@ def search_references(
     "/references/{steam_app_id}",
     response_model=ReferenceDetailsResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: SESSION_REQUIRED_RESPONSE,
         status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -194,8 +212,11 @@ def search_references(
     },
 )
 def read_reference_details(
-    profile_id: PositivePathIdentifier,
     steam_app_id: PositivePathIdentifier,
+    access_session: Annotated[
+        ActiveAccessSession,
+        Depends(require_access_session),
+    ],
     database_session: Annotated[
         Session,
         Depends(get_database_session),
@@ -205,7 +226,7 @@ def read_reference_details(
     try:
         details = load_reference_details(
             database_session,
-            profile_id,
+            access_session.profile_id,
             steam_app_id,
         )
     except (
@@ -222,6 +243,7 @@ def read_reference_details(
     "/references/{steam_app_id}/keywords",
     response_model=KeywordSearchResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: SESSION_REQUIRED_RESPONSE,
         status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -230,9 +252,12 @@ def read_reference_details(
     },
 )
 def search_keywords(
-    profile_id: PositivePathIdentifier,
     steam_app_id: PositivePathIdentifier,
     query: RequiredSearchQuery,
+    access_session: Annotated[
+        ActiveAccessSession,
+        Depends(require_access_session),
+    ],
     database_session: Annotated[
         Session,
         Depends(get_database_session),
@@ -242,7 +267,7 @@ def search_keywords(
     try:
         keywords = search_reference_keywords(
             database_session,
-            profile_id,
+            access_session.profile_id,
             steam_app_id,
             query,
         )
@@ -266,6 +291,7 @@ def search_keywords(
     "/references/{steam_app_id}/keywords/browse",
     response_model=KeywordBrowseResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: SESSION_REQUIRED_RESPONSE,
         status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -274,8 +300,11 @@ def search_keywords(
     },
 )
 def browse_keywords(
-    profile_id: PositivePathIdentifier,
     steam_app_id: PositivePathIdentifier,
+    access_session: Annotated[
+        ActiveAccessSession,
+        Depends(require_access_session),
+    ],
     database_session: Annotated[
         Session,
         Depends(get_database_session),
@@ -285,7 +314,7 @@ def browse_keywords(
     try:
         keyword_browse = browse_reference_keywords(
             database_session,
-            profile_id,
+            access_session.profile_id,
             steam_app_id,
         )
     except (
@@ -308,6 +337,7 @@ def browse_keywords(
     "/preferences/validate",
     response_model=RecommendationPreference,
     responses={
+        status.HTTP_401_UNAUTHORIZED: SESSION_REQUIRED_RESPONSE,
         status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
         status.HTTP_409_CONFLICT: CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: (
@@ -316,8 +346,11 @@ def browse_keywords(
     },
 )
 def validate_submitted_preference(
-    profile_id: PositivePathIdentifier,
     preference: RecommendationPreference,
+    access_session: Annotated[
+        ActiveAccessSession,
+        Depends(require_access_session),
+    ],
     database_session: Annotated[
         Session,
         Depends(get_database_session),
@@ -327,7 +360,7 @@ def validate_submitted_preference(
     try:
         validated = validate_preference(
             database_session,
-            profile_id,
+            access_session.profile_id,
             preference,
         )
     except PreferenceValidationError as error:

@@ -1,7 +1,9 @@
 from collections.abc import Generator
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from hashlib import sha256
+from typing import Any, Callable
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +11,11 @@ from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.access_session_http import (
+    ACCESS_SESSION_COOKIE_NAME,
+    require_access_session,
+)
+from app.access_sessions import ActiveAccessSession
 from app.database import Base, get_database_session
 from app.main import app
 from app.models import (
@@ -17,6 +24,7 @@ from app.models import (
     IGDBMetadataTerm,
     Profile,
     ProfileGame,
+    SteamAccessSession,
 )
 from app.recommendations.routes import router
 
@@ -28,6 +36,7 @@ class RecommendationAPI:
     client: TestClient
     database_session: Session
     engine: Engine
+    access_session_override: Callable[[], ActiveAccessSession]
 
 
 @pytest.fixture
@@ -52,6 +61,17 @@ def recommendation_api() -> Generator[RecommendationAPI, None, None]:
         get_database_session
     ] = override_database_session
 
+    def override_access_session() -> ActiveAccessSession:
+        return ActiveAccessSession(
+            profile_id=1,
+            created_at=datetime.now(UTC) - timedelta(days=1),
+            expires_at=datetime.now(UTC) + timedelta(days=6),
+        )
+
+    app.dependency_overrides[
+        require_access_session
+    ] = override_access_session
+
     try:
         with session_factory() as database_session:
             with TestClient(app) as client:
@@ -59,9 +79,11 @@ def recommendation_api() -> Generator[RecommendationAPI, None, None]:
                     client=client,
                     database_session=database_session,
                     engine=engine,
+                    access_session_override=override_access_session,
                 )
     finally:
         app.dependency_overrides.pop(get_database_session, None)
+        app.dependency_overrides.pop(require_access_session, None)
         engine.dispose()
 
 
@@ -166,9 +188,85 @@ def _assert_error(
     }
 
 
-def test_router_uses_confirmed_profile_scoped_prefix() -> None:
-    assert router.prefix == "/profiles/{profile_id}/recommendations"
+def test_router_uses_session_scoped_prefix() -> None:
+    assert router.prefix == "/recommendations"
     assert router.tags == ["recommendations"]
+
+
+def test_recommendation_routes_require_access_session(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    app.dependency_overrides.pop(require_access_session, None)
+    try:
+        response = recommendation_api.client.get(
+            "/recommendations/references",
+            params={"query": "game"},
+        )
+    finally:
+        app.dependency_overrides[
+            require_access_session
+        ] = recommendation_api.access_session_override
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Steam access session required."
+    }
+
+
+def test_real_cookie_cannot_select_another_profile_with_query_parameter(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    token = "authorized-browser"
+    selected_profile = _profile(1)
+    selected_profile.access_sessions.append(
+        SteamAccessSession(
+            token_digest=sha256(token.encode("utf-8")).digest(),
+            created_at=datetime.now(UTC) - timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(days=6),
+        )
+    )
+    other_profile = _profile(2)
+    recommendation_api.database_session.add_all(
+        [
+            _owned_game(selected_profile, 100, "Selected Game"),
+            _owned_game(other_profile, 200, "Other Secret Game"),
+        ]
+    )
+    recommendation_api.database_session.commit()
+    recommendation_api.client.cookies.set(
+        ACCESS_SESSION_COOKIE_NAME,
+        token,
+        domain="testserver.local",
+        path="/",
+    )
+
+    app.dependency_overrides.pop(require_access_session, None)
+    try:
+        response = recommendation_api.client.get(
+            "/recommendations/references",
+            params={"query": "other", "profile_id": 2},
+        )
+    finally:
+        app.dependency_overrides[
+            require_access_session
+        ] = recommendation_api.access_session_override
+
+    assert response.status_code == 200
+    assert response.json() == {"items": []}
+
+
+def test_legacy_profile_and_recommendation_routes_are_absent(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    paths = recommendation_api.client.get("/openapi.json").json()["paths"]
+
+    assert "/profiles" not in paths
+    assert "/profiles/{profile_id}" not in paths
+    assert "/profiles/{profile_id}/refresh" not in paths
+    assert all(
+        not path.startswith("/profiles/{profile_id}/recommendations")
+        for path in paths
+    )
 
 
 def test_search_owned_references_returns_items_envelope(
@@ -195,7 +293,7 @@ def test_search_owned_references_returns_items_envelope(
     recommendation_api.database_session.commit()
 
     response = recommendation_api.client.get(
-        "/profiles/1/recommendations/references",
+        "/recommendations/references",
         params={"query": "  alpha  "},
     )
 
@@ -228,7 +326,7 @@ def test_search_owned_references_returns_empty_items(
     recommendation_api.database_session.commit()
 
     response = recommendation_api.client.get(
-        "/profiles/1/recommendations/references",
+        "/recommendations/references",
         params={"query": "no match"},
     )
 
@@ -257,7 +355,7 @@ def test_get_reference_details_returns_direct_object(
     recommendation_api.database_session.commit()
 
     response = recommendation_api.client.get(
-        "/profiles/1/recommendations/references/100"
+        "/recommendations/references/100"
     )
 
     assert response.status_code == 200
@@ -298,7 +396,7 @@ def test_search_reference_keywords_returns_items_envelope(
     recommendation_api.database_session.commit()
 
     response = recommendation_api.client.get(
-        "/profiles/1/recommendations/references/100/keywords",
+        "/recommendations/references/100/keywords",
         params={"query": "explo"},
     )
 
@@ -330,7 +428,7 @@ def test_browse_reference_keywords_returns_bounded_envelope(
     recommendation_api.database_session.commit()
 
     response = recommendation_api.client.get(
-        "/profiles/1/recommendations/references/100/keywords/browse"
+        "/recommendations/references/100/keywords/browse"
     )
 
     assert response.status_code == 200
@@ -364,7 +462,7 @@ def test_validate_preference_returns_canonical_direct_object(
     )
 
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/preferences/validate",
+        "/recommendations/preferences/validate",
         json=request_body,
     )
 
@@ -438,7 +536,7 @@ def test_final_recommendation_endpoint_returns_every_success_outcome(
     _add_recommendation_library(recommendation_api, candidate_count)
 
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations",
+        "/recommendations",
         json=_valid_preference_body(),
     )
 
@@ -503,7 +601,7 @@ def test_refinement_endpoint_excludes_rejected_games(
     _add_recommendation_library(recommendation_api, 6)
 
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/refine",
+        "/recommendations/refine",
         json=_valid_refinement_body([201, 203]),
     )
 
@@ -526,7 +624,7 @@ def test_refinement_endpoint_accepts_an_empty_exclusion_set(
     _add_recommendation_library(recommendation_api, 2)
 
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/refine",
+        "/recommendations/refine",
         json=_valid_refinement_body(),
     )
 
@@ -540,7 +638,7 @@ def test_refinement_endpoint_accepts_exactly_thirty_exclusions(
     _add_recommendation_library(recommendation_api, 2)
 
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/refine",
+        "/recommendations/refine",
         json=_valid_refinement_body(list(range(1_000, 1_030))),
     )
 
@@ -590,7 +688,7 @@ def test_refinement_rejects_invalid_exclusion_lists(
     expected_message: str,
 ) -> None:
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/refine",
+        "/recommendations/refine",
         json=_valid_refinement_body(rejected_steam_app_ids),
     )
 
@@ -607,7 +705,7 @@ def test_refinement_requires_the_bounded_exclusion_field(
     recommendation_api: RecommendationAPI,
 ) -> None:
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/refine",
+        "/recommendations/refine",
         json={"preference": _valid_preference_body()},
     )
 
@@ -624,7 +722,7 @@ def test_final_recommendation_endpoint_maps_preference_failure(
     recommendation_api: RecommendationAPI,
 ) -> None:
     response = recommendation_api.client.post(
-        "/profiles/999/recommendations",
+        "/recommendations",
         json=_valid_preference_body(),
     )
 
@@ -640,9 +738,9 @@ def test_final_recommendation_endpoint_maps_preference_failure(
 @pytest.mark.parametrize(
     ("path", "body"),
     [
-        ("/profiles/1/recommendations", _valid_preference_body()),
+        ("/recommendations", _valid_preference_body()),
         (
-            "/profiles/1/recommendations/refine",
+            "/recommendations/refine",
             _valid_refinement_body([201]),
         ),
     ],
@@ -706,7 +804,7 @@ def test_search_rejects_unknown_profile(
     recommendation_api: RecommendationAPI,
 ) -> None:
     response = recommendation_api.client.get(
-        "/profiles/999/recommendations/references",
+        "/recommendations/references",
         params={"query": "game"},
     )
 
@@ -723,7 +821,7 @@ def test_search_rejects_invalid_normalized_query(
     recommendation_api: RecommendationAPI,
 ) -> None:
     response = recommendation_api.client.get(
-        "/profiles/1/recommendations/references",
+        "/recommendations/references",
         params={"query": "   \t  "},
     )
 
@@ -756,7 +854,7 @@ def test_reference_detail_hides_unknown_and_unowned_identically(
 
     for steam_app_id in (200, 999):
         response = recommendation_api.client.get(
-            "/profiles/1/recommendations/references/"
+            "/recommendations/references/"
             f"{steam_app_id}"
         )
 
@@ -775,13 +873,13 @@ def test_reference_detail_hides_unknown_and_unowned_identically(
 @pytest.mark.parametrize(
     "endpoint",
     [
-        "/profiles/1/recommendations/references/100",
+        "/recommendations/references/100",
         (
-            "/profiles/1/recommendations/references/100/keywords"
+            "/recommendations/references/100/keywords"
             "?query=game"
         ),
         (
-            "/profiles/1/recommendations/references/100/"
+            "/recommendations/references/100/"
             "keywords/browse"
         ),
     ],
@@ -818,7 +916,7 @@ def test_validation_maps_unknown_profile_to_not_found(
     recommendation_api: RecommendationAPI,
 ) -> None:
     response = recommendation_api.client.post(
-        "/profiles/999/recommendations/preferences/validate",
+        "/recommendations/preferences/validate",
         json=_valid_preference_body(),
     )
 
@@ -838,7 +936,7 @@ def test_validation_maps_unowned_reference_to_not_found(
     recommendation_api.database_session.commit()
 
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/preferences/validate",
+        "/recommendations/preferences/validate",
         json=_valid_preference_body(),
     )
 
@@ -868,7 +966,7 @@ def test_validation_maps_unavailable_metadata_to_conflict(
     recommendation_api.database_session.commit()
 
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/preferences/validate",
+        "/recommendations/preferences/validate",
         json=_valid_preference_body(),
     )
 
@@ -893,7 +991,7 @@ def test_validation_maps_invalid_membership_to_unprocessable(
     recommendation_api.database_session.commit()
 
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/preferences/validate",
+        "/recommendations/preferences/validate",
         json=_valid_preference_body(),
     )
 
@@ -917,25 +1015,13 @@ def test_validation_maps_invalid_membership_to_unprocessable(
     ),
     [
         (
-            "/profiles/not-an-id/recommendations/references?query=a",
-            "invalid_type",
-            "profile_id",
-            "This field has an invalid type.",
-        ),
-        (
-            "/profiles/0/recommendations/references?query=a",
-            "invalid_value",
-            "profile_id",
-            "IDs must be positive integers.",
-        ),
-        (
-            "/profiles/1/recommendations/references/not-an-id",
+            "/recommendations/references/not-an-id",
             "invalid_type",
             "steam_app_id",
             "This field has an invalid type.",
         ),
         (
-            "/profiles/1/recommendations/references/-1",
+            "/recommendations/references/-1",
             "invalid_value",
             "steam_app_id",
             "IDs must be positive integers.",
@@ -989,9 +1075,9 @@ def test_rejects_invalid_path_identifiers_without_querying(
 @pytest.mark.parametrize(
     "path",
     [
-        "/profiles/1/recommendations/references",
+        "/recommendations/references",
         (
-            "/profiles/1/recommendations/references/100/keywords"
+            "/recommendations/references/100/keywords"
         ),
     ],
 )
@@ -1207,7 +1293,7 @@ def test_validation_translates_structural_request_failures(
     expected_message: str,
 ) -> None:
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/preferences/validate",
+        "/recommendations/preferences/validate",
         json=_structural_request_case(case_name),
     )
 
@@ -1224,7 +1310,7 @@ def test_validation_rejects_missing_body(
     recommendation_api: RecommendationAPI,
 ) -> None:
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/preferences/validate"
+        "/recommendations/preferences/validate"
     )
 
     _assert_error(
@@ -1240,7 +1326,7 @@ def test_validation_rejects_invalid_json(
     recommendation_api: RecommendationAPI,
 ) -> None:
     response = recommendation_api.client.post(
-        "/profiles/1/recommendations/preferences/validate",
+        "/recommendations/preferences/validate",
         content=b'{"references": [}',
         headers={"content-type": "application/json"},
     )
@@ -1293,28 +1379,28 @@ def test_routes_are_read_only(
     try:
         responses = [
             recommendation_api.client.get(
-                "/profiles/1/recommendations/references",
+                "/recommendations/references",
                 params={"query": "reference"},
             ),
             recommendation_api.client.get(
-                "/profiles/1/recommendations/references/100"
+                "/recommendations/references/100"
             ),
             recommendation_api.client.get(
                 (
-                    "/profiles/1/recommendations/references/100/"
+                    "/recommendations/references/100/"
                     "keywords"
                 ),
                 params={"query": "explore"},
             ),
             recommendation_api.client.get(
                 (
-                    "/profiles/1/recommendations/references/100/"
+                    "/recommendations/references/100/"
                     "keywords/browse"
                 )
             ),
             recommendation_api.client.post(
                 (
-                    "/profiles/1/recommendations/preferences/"
+                    "/recommendations/preferences/"
                     "validate"
                 ),
                 json=_valid_preference_body(),
@@ -1341,64 +1427,77 @@ def test_openapi_declares_recommendation_contracts(
     schema = recommendation_api.client.get("/openapi.json").json()
     paths = schema["paths"]
 
+    recommendation = paths["/recommendations"]["post"]
     search = paths[
-        "/profiles/{profile_id}/recommendations/references"
+        "/recommendations/references"
     ]["get"]
     detail = paths[
         (
-            "/profiles/{profile_id}/recommendations/references/"
+            "/recommendations/references/"
             "{steam_app_id}"
         )
     ]["get"]
     keywords = paths[
         (
-            "/profiles/{profile_id}/recommendations/references/"
+            "/recommendations/references/"
             "{steam_app_id}/keywords"
         )
     ]["get"]
     keyword_browse = paths[
         (
-            "/profiles/{profile_id}/recommendations/references/"
+            "/recommendations/references/"
             "{steam_app_id}/keywords/browse"
         )
     ]["get"]
     validation = paths[
         (
-            "/profiles/{profile_id}/recommendations/preferences/"
+            "/recommendations/preferences/"
             "validate"
         )
     ]["post"]
     refinement = paths[
-        "/profiles/{profile_id}/recommendations/refine"
+        "/recommendations/refine"
     ]["post"]
 
-    assert set(search["responses"]) == {"200", "404", "422"}
+    assert set(recommendation["responses"]) == {
+        "200",
+        "401",
+        "404",
+        "409",
+        "422",
+    }
+    assert set(search["responses"]) == {"200", "401", "404", "422"}
     assert set(detail["responses"]) == {
         "200",
+        "401",
         "404",
         "409",
         "422",
     }
     assert set(keywords["responses"]) == {
         "200",
+        "401",
         "404",
         "409",
         "422",
     }
     assert set(keyword_browse["responses"]) == {
         "200",
+        "401",
         "404",
         "409",
         "422",
     }
     assert set(validation["responses"]) == {
         "200",
+        "401",
         "404",
         "409",
         "422",
     }
     assert set(refinement["responses"]) == {
         "200",
+        "401",
         "404",
         "409",
         "422",
@@ -1435,12 +1534,16 @@ def test_openapi_declares_recommendation_contracts(
             "$ref"
         ].endswith("/RecommendationErrorResponse")
         for operation in (
+            recommendation,
             search,
             detail,
             keywords,
+            keyword_browse,
             validation,
             refinement,
         )
         for status_code, response in operation["responses"].items()
-        if status_code != "200"
+        if status_code not in {"200", "401"}
     )
+from app.access_session_http import require_access_session
+from app.access_sessions import ActiveAccessSession
