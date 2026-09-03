@@ -2,7 +2,8 @@ from collections.abc import Generator
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.database import Base
@@ -243,3 +244,79 @@ def test_failed_refresh_preserves_cached_profile(
     assert stored_profile.display_name == "Cached Name"
     assert stored_profile.last_synced_at == cached_sync_time
     assert len(stored_profile.owned_games) == 1
+
+
+def test_failed_profile_write_rolls_back_the_complete_snapshot(
+    database_session: Session,
+) -> None:
+    client = make_steam_client(
+        steam_id="76561198000000000",
+        display_name="Cached Name",
+        games=[make_game(440, "Team Fortress 2", 120)],
+    )
+    cached_profile = sync_profile(
+        database_session,
+        client,
+        "76561198000000000",
+    )
+    cached_sync_time = cached_profile.last_synced_at
+
+    client.get_profile.return_value = SteamProfile(
+        steam_id="76561198000000000",
+        display_name="Partial Name",
+        profile_url="https://example.com/partial",
+        avatar_url="https://example.com/partial-avatar.jpg",
+    )
+    client.get_owned_games.return_value = [
+        make_game(440, "Changed Team Fortress 2", 999),
+        make_game(730, "Counter-Strike 2", 30),
+    ]
+
+    engine = database_session.get_bind()
+
+    def fail_new_ownership(_, __, statement, ___, ____, _____) -> None:
+        if statement.lstrip().upper().startswith(
+            "INSERT INTO PROFILE_GAMES"
+        ):
+            raise OperationalError(
+                statement,
+                {},
+                RuntimeError("simulated profile write failure"),
+            )
+
+    event.listen(engine, "before_cursor_execute", fail_new_ownership)
+    try:
+        with pytest.raises(
+            OperationalError,
+            match="simulated profile write failure",
+        ):
+            sync_profile(
+                database_session,
+                client,
+                "76561198000000000",
+            )
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_new_ownership)
+
+    stored_profile = database_session.scalar(
+        select(Profile).where(
+            Profile.steam_id == "76561198000000000"
+        )
+    )
+    ownership = database_session.scalar(
+        select(ProfileGame).where(ProfileGame.steam_app_id == 440)
+    )
+
+    assert stored_profile is not None
+    assert stored_profile.display_name == "Cached Name"
+    assert stored_profile.last_synced_at.replace(
+        tzinfo=None
+    ) == cached_sync_time.replace(tzinfo=None)
+    assert ownership is not None
+    assert ownership.playtime_minutes == 120
+    assert database_session.scalar(
+        select(func.count()).select_from(Game)
+    ) == 1
+    assert database_session.scalar(
+        select(func.count()).select_from(ProfileGame)
+    ) == 1

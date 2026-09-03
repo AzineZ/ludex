@@ -4,13 +4,14 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.session_routes as session_routes_module
 from app.access_session_http import ACCESS_SESSION_COOKIE_NAME
+from app.access_sessions import IssuedAccessSession, issue_access_session
 from app.database import Base, get_database_session
 from app.dependencies import get_steam_client
 from app.main import app
@@ -256,6 +257,74 @@ def test_successful_session_replacement_revokes_only_current_cookie(
         assert stored[1].revoked_at is None
 
 
+def test_failed_session_replacement_write_preserves_current_session(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client, session_factory = session_api
+    first_profile_id = _store_cached_profile(session_factory)
+    second_profile_id = _store_cached_profile(
+        session_factory,
+        steam_id=SECOND_STEAM_ID,
+        display_name="Second Player",
+    )
+    assert client.post(
+        "/session",
+        json={"identifier": FIRST_STEAM_ID},
+    ).status_code == 201
+    current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
+
+    with session_factory() as database_session:
+        issue_access_session(
+            database_session,
+            second_profile_id,
+            token_generator=lambda: "collision-token",
+        )
+
+    def issue_colliding_replacement(
+        database_session: Session,
+        profile_id: int,
+        *,
+        current_token: str | None = None,
+    ) -> IssuedAccessSession:
+        return issue_access_session(
+            database_session,
+            profile_id,
+            current_token=current_token,
+            token_generator=lambda: "collision-token",
+        )
+
+    monkeypatch.setattr(
+        session_routes_module,
+        "issue_access_session",
+        issue_colliding_replacement,
+    )
+
+    response = client.post(
+        "/session",
+        json={"identifier": SECOND_STEAM_ID},
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Ludex is temporarily unavailable."
+    }
+    assert "set-cookie" not in response.headers
+    assert client.cookies[ACCESS_SESSION_COOKIE_NAME] == current_token
+    with session_factory() as database_session:
+        current_session = database_session.scalar(
+            select(SteamAccessSession).where(
+                SteamAccessSession.token_digest
+                == sha256(current_token.encode("utf-8")).digest()
+            )
+        )
+        assert current_session is not None
+        assert current_session.profile_id == first_profile_id
+        assert current_session.revoked_at is None
+
+    assert client.get("/session/profile").status_code == 200
+
+
 def test_current_profile_uses_cookie_and_never_returns_internal_id(
     session_api: tuple[TestClient, sessionmaker[Session]],
     steam_client: MagicMock,
@@ -380,3 +449,52 @@ def test_delete_session_revokes_cookie_and_returns_to_unauthorized_state(
         stored = database_session.scalar(select(SteamAccessSession))
         assert stored is not None
         assert stored.revoked_at is not None
+
+
+def test_failed_session_revocation_write_preserves_current_session(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    client, session_factory = session_api
+    _store_cached_profile(session_factory)
+    assert client.post(
+        "/session",
+        json={"identifier": FIRST_STEAM_ID},
+    ).status_code == 201
+    current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
+
+    with session_factory() as database_session:
+        engine = database_session.get_bind()
+
+    def fail_revocation(_, __, statement, ___, ____, _____) -> None:
+        if statement.lstrip().upper().startswith(
+            "UPDATE STEAM_ACCESS_SESSIONS"
+        ):
+            raise OperationalError(
+                statement,
+                {},
+                RuntimeError("simulated revocation failure"),
+            )
+
+    event.listen(engine, "before_cursor_execute", fail_revocation)
+    try:
+        response = client.delete("/session")
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_revocation)
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Ludex is temporarily unavailable."
+    }
+    assert "set-cookie" not in response.headers
+    assert client.cookies[ACCESS_SESSION_COOKIE_NAME] == current_token
+    with session_factory() as database_session:
+        stored = database_session.scalar(
+            select(SteamAccessSession).where(
+                SteamAccessSession.token_digest
+                == sha256(current_token.encode("utf-8")).digest()
+            )
+        )
+        assert stored is not None
+        assert stored.revoked_at is None
+
+    assert client.get("/session/profile").status_code == 200
