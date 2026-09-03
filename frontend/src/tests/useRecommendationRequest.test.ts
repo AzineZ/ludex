@@ -116,7 +116,7 @@ describe("useRecommendationRequest", () => {
          response: null,
          error: null,
       });
-      expect(mockedGetFinalRecommendations).toHaveBeenCalledWith(7, preference);
+      expect(mockedGetFinalRecommendations).toHaveBeenCalledWith(preference);
 
       await act(async () => {
          request.resolve(response);
@@ -163,7 +163,6 @@ describe("useRecommendationRequest", () => {
 
       expect(result.current.status).toBe("loading");
       expect(mockedRefineFinalRecommendations).toHaveBeenCalledWith(
-         7,
          preference,
          [201, 203]
       );

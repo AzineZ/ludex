@@ -80,7 +80,10 @@ export async function requestJson<ResponseType>(
    path: string,
    options?: RequestInit
 ): Promise<ResponseType> {
-   const response = await fetch(`${apiBaseUrl}${path}`, options);
+   const response = await fetch(`${apiBaseUrl}${path}`, {
+      ...options,
+      credentials: "include",
+   });
 
    if (!response.ok) {
       const error = await getErrorDetails(response);
@@ -94,4 +97,26 @@ export async function requestJson<ResponseType>(
    }
 
    return response.json() as Promise<ResponseType>;
+}
+
+/** Sends a request whose successful response intentionally has no body. */
+export async function requestNoContent(
+   path: string,
+   options?: RequestInit
+): Promise<void> {
+   const response = await fetch(`${apiBaseUrl}${path}`, {
+      ...options,
+      credentials: "include",
+   });
+
+   if (!response.ok) {
+      const error = await getErrorDetails(response);
+
+      throw new ApiError(
+         response.status,
+         error.message,
+         error.code,
+         error.field
+      );
+   }
 }

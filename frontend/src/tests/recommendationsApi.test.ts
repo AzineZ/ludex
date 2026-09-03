@@ -5,7 +5,7 @@ import {
    getFinalRecommendations,
    getReferenceKeywords,
    getReferenceDetails,
-   listProfiles,
+   getCurrentSessionProfile,
    refineFinalRecommendations,
    searchReferenceGames,
    searchReferenceKeywords,
@@ -170,31 +170,31 @@ describe("recommendation API", () => {
       fetchMock.mockResolvedValue(jsonResponse(ownedGameSearch));
 
       await expect(
-         searchReferenceGames(1, "co-op 100%_")
+         searchReferenceGames("co-op 100%_")
       ).resolves.toEqual(ownedGameSearch);
 
       expect(fetchMock).toHaveBeenCalledWith(
          (
-            "http://localhost:8000/profiles/1/recommendations/"
+            "http://localhost:8000/recommendations/"
             + "references?query=co-op+100%25_"
          ),
-         undefined
+         { credentials: "include" }
       );
    });
 
    it("requests ready factual details for one reference", async () => {
       fetchMock.mockResolvedValue(jsonResponse(referenceDetails));
 
-      await expect(getReferenceDetails(1, 100)).resolves.toEqual(
+      await expect(getReferenceDetails(100)).resolves.toEqual(
          referenceDetails
       );
 
       expect(fetchMock).toHaveBeenCalledWith(
          (
-            "http://localhost:8000/profiles/1/recommendations/"
+            "http://localhost:8000/recommendations/"
             + "references/100"
          ),
-         undefined
+         { credentials: "include" }
       );
    });
 
@@ -207,15 +207,15 @@ describe("recommendation API", () => {
       fetchMock.mockResolvedValue(jsonResponse(response));
 
       await expect(
-         searchReferenceKeywords(1, 100, "farming & life")
+         searchReferenceKeywords(100, "farming & life")
       ).resolves.toEqual(response);
 
       expect(fetchMock).toHaveBeenCalledWith(
          (
-            "http://localhost:8000/profiles/1/recommendations/"
+            "http://localhost:8000/recommendations/"
             + "references/100/keywords?query=farming+%26+life"
          ),
-         undefined
+         { credentials: "include" }
       );
    });
 
@@ -229,14 +229,14 @@ describe("recommendation API", () => {
       };
       fetchMock.mockResolvedValue(jsonResponse(response));
 
-      await expect(getReferenceKeywords(1, 100)).resolves.toEqual(response);
+      await expect(getReferenceKeywords(100)).resolves.toEqual(response);
 
       expect(fetchMock).toHaveBeenCalledWith(
          (
-            "http://localhost:8000/profiles/1/recommendations/"
+            "http://localhost:8000/recommendations/"
             + "references/100/keywords/browse"
          ),
-         undefined
+         { credentials: "include" }
       );
    });
 
@@ -244,12 +244,12 @@ describe("recommendation API", () => {
       fetchMock.mockResolvedValue(jsonResponse(preference));
 
       await expect(
-         validateRecommendationPreference(1, preference)
+         validateRecommendationPreference(preference)
       ).resolves.toEqual(preference);
 
       expect(fetchMock).toHaveBeenCalledWith(
          (
-            "http://localhost:8000/profiles/1/recommendations/"
+            "http://localhost:8000/recommendations/"
             + "preferences/validate"
          ),
          {
@@ -258,6 +258,7 @@ describe("recommendation API", () => {
                "Content-Type": "application/json",
             },
             body: JSON.stringify(preference),
+            credentials: "include",
          }
       );
    });
@@ -266,17 +267,18 @@ describe("recommendation API", () => {
       fetchMock.mockResolvedValue(jsonResponse(finalRecommendations));
 
       await expect(
-         getFinalRecommendations(1, preference)
+         getFinalRecommendations(preference)
       ).resolves.toEqual(finalRecommendations);
 
       expect(fetchMock).toHaveBeenCalledWith(
-         "http://localhost:8000/profiles/1/recommendations",
+         "http://localhost:8000/recommendations",
          {
             method: "POST",
             headers: {
                "Content-Type": "application/json",
             },
             body: JSON.stringify(preference),
+            credentials: "include",
          }
       );
    });
@@ -289,17 +291,18 @@ describe("recommendation API", () => {
       };
 
       await expect(
-         refineFinalRecommendations(1, preference, [201, 203])
+         refineFinalRecommendations(preference, [201, 203])
       ).resolves.toEqual(finalRecommendations);
 
       expect(fetchMock).toHaveBeenCalledWith(
-         "http://localhost:8000/profiles/1/recommendations/refine",
+         "http://localhost:8000/recommendations/refine",
          {
             method: "POST",
             headers: {
                "Content-Type": "application/json",
             },
             body: JSON.stringify(refinement),
+            credentials: "include",
          }
       );
    });
@@ -322,7 +325,7 @@ describe("recommendation API", () => {
       );
 
       await expect(
-         getFinalRecommendations(1, preference)
+         getFinalRecommendations(preference)
       ).rejects.toMatchObject({
          name: "ApiError",
          status: 422,
@@ -351,7 +354,7 @@ describe("recommendation API", () => {
          )
       );
 
-      const request = getReferenceDetails(1, 100);
+      const request = getReferenceDetails(100);
 
       await expect(request).rejects.toMatchObject({
          name: "ApiError",
@@ -375,7 +378,7 @@ describe("recommendation API", () => {
          )
       );
 
-      await expect(listProfiles()).rejects.toMatchObject({
+      await expect(getCurrentSessionProfile()).rejects.toMatchObject({
          name: "ApiError",
          status: 404,
          code: null,

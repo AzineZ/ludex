@@ -174,59 +174,52 @@ export type RecommendationRefinementRequest = {
    rejected_steam_app_ids: number[];
 };
 
-function recommendationPath(profileId: number): string {
-   return `/profiles/${profileId}/recommendations`;
-}
+const recommendationPath = "/recommendations";
 
 function queryString(query: string): string {
    return new URLSearchParams({ query }).toString();
 }
 
 export function searchReferenceGames(
-   profileId: number,
    query: string
 ): Promise<OwnedGameSearchResponse> {
    return requestJson<OwnedGameSearchResponse>(
-      `${recommendationPath(profileId)}/references?${queryString(query)}`
+      `${recommendationPath}/references?${queryString(query)}`
    );
 }
 
 export function getReferenceDetails(
-   profileId: number,
    steamAppId: number
 ): Promise<ReferenceDetailsResponse> {
    return requestJson<ReferenceDetailsResponse>(
-      `${recommendationPath(profileId)}/references/${steamAppId}`
+      `${recommendationPath}/references/${steamAppId}`
    );
 }
 
 export function searchReferenceKeywords(
-   profileId: number,
    steamAppId: number,
    query: string
 ): Promise<KeywordSearchResponse> {
    return requestJson<KeywordSearchResponse>(
-      `${recommendationPath(profileId)}/references/${steamAppId}` +
+      `${recommendationPath}/references/${steamAppId}` +
          `/keywords?${queryString(query)}`
    );
 }
 
 export function getReferenceKeywords(
-   profileId: number,
    steamAppId: number
 ): Promise<KeywordBrowseResponse> {
    return requestJson<KeywordBrowseResponse>(
-      `${recommendationPath(profileId)}/references/${steamAppId}` +
+      `${recommendationPath}/references/${steamAppId}` +
          "/keywords/browse"
    );
 }
 
 export function validateRecommendationPreference(
-   profileId: number,
    preference: RecommendationPreference
 ): Promise<RecommendationPreference> {
    return requestJson<RecommendationPreference>(
-      `${recommendationPath(profileId)}/preferences/validate`,
+      `${recommendationPath}/preferences/validate`,
       {
          method: "POST",
          headers: {
@@ -238,11 +231,10 @@ export function validateRecommendationPreference(
 }
 
 export function getFinalRecommendations(
-   profileId: number,
    preference: RecommendationPreference
 ): Promise<FinalRecommendationResponse> {
    return requestJson<FinalRecommendationResponse>(
-      recommendationPath(profileId),
+      recommendationPath,
       {
          method: "POST",
          headers: {
@@ -254,7 +246,6 @@ export function getFinalRecommendations(
 }
 
 export function refineFinalRecommendations(
-   profileId: number,
    preference: RecommendationPreference,
    rejectedSteamAppIds: readonly number[]
 ): Promise<FinalRecommendationResponse> {
@@ -263,7 +254,7 @@ export function refineFinalRecommendations(
       rejected_steam_app_ids: [...rejectedSteamAppIds],
    };
    return requestJson<FinalRecommendationResponse>(
-      `${recommendationPath(profileId)}/refine`,
+      `${recommendationPath}/refine`,
       {
          method: "POST",
          headers: {

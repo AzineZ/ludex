@@ -1,14 +1,5 @@
 import { requestJson } from "./client";
-
-/** Represents one owned Steam game returned for a profile. */
-export type OwnedGameResponse = {
-   steam_app_id: number;
-   name: string;
-   icon_url: string | null;
-   playtime_minutes: number;
-   recent_playtime_minutes: number | null;
-   last_played_at: string | null;
-};
+import type { OwnedGameResponse } from "./session";
 
 /** Represents a saved profile without its game library. */
 export type ProfileSummaryResponse = {

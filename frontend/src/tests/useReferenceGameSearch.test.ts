@@ -136,7 +136,7 @@ describe("useReferenceGameSearch", () => {
       });
 
       expect(mockedSearchReferenceGames).toHaveBeenCalledOnce();
-      expect(mockedSearchReferenceGames).toHaveBeenCalledWith(1, "  alpha  ");
+      expect(mockedSearchReferenceGames).toHaveBeenCalledWith("  alpha  ");
       expect(result.current).toEqual({
          status: "loading",
          items: [],

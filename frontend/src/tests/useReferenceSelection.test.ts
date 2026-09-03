@@ -133,7 +133,7 @@ describe("useReferenceSelection", () => {
       ).resolves.toBe(true);
 
       expect(mockedGetReferenceDetails).toHaveBeenCalledOnce();
-      expect(mockedGetReferenceDetails).toHaveBeenCalledWith(1, 100);
+      expect(mockedGetReferenceDetails).toHaveBeenCalledWith(100);
       expect(result.current).toMatchObject({
          references: [
             {
@@ -153,7 +153,7 @@ describe("useReferenceSelection", () => {
 
    it("preserves selection order and rejects a duplicate", async () => {
       mockedGetReferenceDetails.mockImplementation(
-         async (_profileId, steamAppId) => {
+         async (steamAppId) => {
             const suggestion = suggestions.find(
                (item) => item.steam_app_id === steamAppId
             );
@@ -185,7 +185,7 @@ describe("useReferenceSelection", () => {
 
    it("rejects a fourth reference without another request", async () => {
       mockedGetReferenceDetails.mockImplementation(
-         async (_profileId, steamAppId) => {
+         async (steamAppId) => {
             const suggestion = suggestions.find(
                (item) => item.steam_app_id === steamAppId
             );
@@ -262,7 +262,7 @@ describe("useReferenceSelection", () => {
 
    it("removes one reference immediately", async () => {
       mockedGetReferenceDetails.mockImplementation(
-         async (_profileId, steamAppId) => {
+         async (steamAppId) => {
             const suggestion = suggestions.find(
                (item) => item.steam_app_id === steamAppId
             );

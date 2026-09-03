@@ -67,7 +67,7 @@ export function usePreferenceValidation(
          errorField: null,
       });
 
-      return validateRecommendationPreference(profileId, preference).then(
+      return validateRecommendationPreference(preference).then(
          (validatedPreference) => {
             setState({
                key: requestKey,

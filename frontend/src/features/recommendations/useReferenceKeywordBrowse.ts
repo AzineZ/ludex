@@ -53,7 +53,7 @@ export function useReferenceKeywordBrowse(
       const requestProfileId = profileId;
       const requestSteamAppId = steamAppId;
 
-      getReferenceKeywords(requestProfileId, requestSteamAppId)
+      getReferenceKeywords(requestSteamAppId)
          .then((response) => {
             if (!isCurrentRequest) {
                return;

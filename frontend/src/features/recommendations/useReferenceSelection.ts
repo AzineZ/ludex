@@ -169,7 +169,6 @@ export function useReferenceSelection(
 
       try {
          const details = await getReferenceDetails(
-            requestProfileId,
             suggestion.steam_app_id
          );
 

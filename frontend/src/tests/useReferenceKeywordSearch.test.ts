@@ -78,7 +78,6 @@ describe("useReferenceKeywordSearch", () => {
       expect(mockedSearchReferenceKeywords).not.toHaveBeenCalled();
       act(() => vi.advanceTimersByTime(1));
       expect(mockedSearchReferenceKeywords).toHaveBeenCalledWith(
-         1,
          100,
          "  explore  "
       );

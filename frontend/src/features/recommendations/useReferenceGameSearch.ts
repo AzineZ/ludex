@@ -74,7 +74,7 @@ export function useReferenceGameSearch(
             result: emptyResult("loading"),
          });
 
-         searchReferenceGames(requestProfileId, requestQuery)
+         searchReferenceGames(requestQuery)
             .then((response) => {
                if (!isCurrentRequest) {
                   return;

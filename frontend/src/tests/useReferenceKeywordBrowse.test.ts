@@ -65,7 +65,7 @@ describe("useReferenceKeywordBrowse", () => {
       );
 
       expect(result.current.status).toBe("loading");
-      expect(mockedGetReferenceKeywords).toHaveBeenCalledWith(1, 100);
+      expect(mockedGetReferenceKeywords).toHaveBeenCalledWith(100);
       await act(async () => {
          await Promise.resolve();
       });

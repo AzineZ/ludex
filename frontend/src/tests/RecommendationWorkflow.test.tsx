@@ -182,10 +182,9 @@ describe("preference recommendation workflow", () => {
 
       await completeWorkflow();
 
-      expect(mockedValidate).toHaveBeenCalledWith(7, draft);
+      expect(mockedValidate).toHaveBeenCalledWith(draft);
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
       expect(mockedGetRecommendations).toHaveBeenCalledWith(
-         7,
          canonicalPreference
       );
       expect(screen.getByText("1 recommendation found.")).toBeInTheDocument();
@@ -348,7 +347,6 @@ describe("preference recommendation workflow", () => {
       await screen.findByRole("article", { name: "Refined Game 1" });
       expect(mockedRefineRecommendations).toHaveBeenCalledOnce();
       expect(mockedRefineRecommendations).toHaveBeenCalledWith(
-         7,
          refinedCanonicalPreference,
          [620]
       );
@@ -427,13 +425,11 @@ describe("preference recommendation workflow", () => {
       expect(mockedRefineRecommendations).toHaveBeenCalledTimes(2);
       expect(mockedRefineRecommendations).toHaveBeenNthCalledWith(
          1,
-         7,
          refinedCanonicalPreference,
          [620]
       );
       expect(mockedRefineRecommendations).toHaveBeenNthCalledWith(
          2,
-         7,
          refinedCanonicalPreference,
          [620]
       );
@@ -494,7 +490,6 @@ describe("preference recommendation workflow", () => {
 
       await screen.findByRole("article", { name: "Refined Game 1" });
       expect(mockedRefineRecommendations).toHaveBeenCalledWith(
-         7,
          refinedCanonicalPreference,
          [620, 623, 624]
       );

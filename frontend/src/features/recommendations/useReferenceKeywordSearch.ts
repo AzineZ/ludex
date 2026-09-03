@@ -71,7 +71,6 @@ export function useReferenceKeywordSearch(
          });
 
          searchReferenceKeywords(
-            requestProfileId,
             requestSteamAppId,
             requestQuery
          )

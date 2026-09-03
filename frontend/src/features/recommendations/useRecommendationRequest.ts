@@ -155,10 +155,7 @@ export function useRecommendationRequest(
 
       startRequest(
          JSON.stringify({ key, kind: "initial" }),
-         () => getFinalRecommendations(
-            profileId,
-            validatedPreference
-         )
+         () => getFinalRecommendations(validatedPreference)
       );
    }
 
@@ -171,7 +168,6 @@ export function useRecommendationRequest(
       startRequest(
          JSON.stringify({ key, kind: "refinement", rejectedIds }),
          () => refineFinalRecommendations(
-            profileId,
             validatedPreference,
             rejectedIds
          )

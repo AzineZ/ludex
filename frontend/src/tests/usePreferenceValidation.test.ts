@@ -61,7 +61,7 @@ describe("usePreferenceValidation", () => {
          validation = result.current.validate();
       });
       expect(result.current.status).toBe("validating");
-      expect(mockedValidate).toHaveBeenCalledWith(7, preference);
+      expect(mockedValidate).toHaveBeenCalledWith(preference);
 
       await act(async () => {
          resolve(preference);

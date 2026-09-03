@@ -5,10 +5,17 @@ export {
    getProfile,
    listProfiles,
    refreshProfile,
-   type OwnedGameResponse,
    type ProfileDetailResponse,
    type ProfileSummaryResponse,
 } from "./profiles";
+export {
+   createAccessSession,
+   deleteAccessSession,
+   getCurrentSessionProfile,
+   refreshCurrentSessionProfile,
+   type OwnedGameResponse,
+   type SessionProfileResponse,
+} from "./session";
 export {
    getFinalRecommendations,
    getReferenceKeywords,
