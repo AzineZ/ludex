@@ -86,6 +86,11 @@
    opacity: 0.55;
 }
 
+.reference-game-suggestions span {
+   min-width: 0;
+   overflow-wrap: anywhere;
+}
+
 .reference-selection__cards {
    display: grid;
    gap: 1.5rem;

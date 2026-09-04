@@ -111,6 +111,7 @@
 
 .app__selection strong {
    color: var(--color-alarm-red);
+   overflow-wrap: anywhere;
 }
 
 .app [role="alert"] {
@@ -174,6 +175,7 @@
    min-width: 0;
    color: var(--color-bone-cream);
    font-weight: 800;
+   overflow-wrap: anywhere;
 }
 
 .app__playtime {

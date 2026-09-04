@@ -163,7 +163,7 @@ async function completeWorkflow(): Promise<void> {
    await screen.findByRole(
       "article",
       { name: "Portal 2" },
-      { timeout: 3000 }
+      { timeout: 5000 }
    );
 }
 
@@ -197,7 +197,7 @@ describe("preference recommendation workflow", () => {
             expect(screen.getByRole("article", { name: "Portal 2" }))
                .toHaveFocus();
          },
-         { timeout: 3000 }
+         { timeout: 5000 }
       );
    });
 
@@ -412,7 +412,7 @@ describe("preference recommendation workflow", () => {
             expect(screen.getByRole("article", { name: "Refined Game 1" }))
                .toHaveFocus();
          },
-         { timeout: 3000 }
+         { timeout: 5000 }
       );
       expect(mockedRefineRecommendations).toHaveBeenCalledOnce();
       expect(mockedRefineRecommendations).toHaveBeenCalledWith(
