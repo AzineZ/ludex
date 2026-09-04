@@ -218,15 +218,18 @@ describe("RecommendationResultsPanel", () => {
       );
 
       const gameTwo = screen.getByRole("article", { name: "Game 2" });
+      expect(screen.getByRole("status")).toHaveTextContent(
+         "3 alternatives remaining."
+      );
       fireEvent.click(
          within(gameTwo).getByRole("button", {
-            name: "Show another instead of Game 2",
+            name: "Show another instead of Game 2. 3 alternatives remaining.",
          })
       );
       fireEvent.click(
-         within(gameTwo).getByRole("button", { name: "Play Game 2" })
+         within(gameTwo).getByRole("button", { name: "Choose Game 2" })
       );
-      fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+      fireEvent.click(screen.getByRole("button", { name: "Reset recommendations" }));
 
       expect(onShowAnother).toHaveBeenCalledWith(1002);
       expect(onPlayThis).toHaveBeenCalledWith(1002);
@@ -234,7 +237,7 @@ describe("RecommendationResultsPanel", () => {
       expect(screen.queryByText("Game 4")).not.toBeInTheDocument();
    });
 
-   it("keeps Play this available and explains an exhausted bounded queue", () => {
+   it("keeps choosing available and explains an exhausted bounded queue", () => {
       const response = recommendationResponse("complete", 3);
       const session = createRecommendationSession(preference, response.items);
 
@@ -257,16 +260,16 @@ describe("RecommendationResultsPanel", () => {
       })) {
          expect(button).toBeDisabled();
       }
-      expect(screen.getAllByRole("button", { name: /^Play / }))
+      expect(screen.getAllByRole("button", { name: /^Choose / }))
          .toHaveLength(3);
       expect(screen.getByRole("status")).toHaveTextContent(
          "You’ve seen every recommendation in this bounded queue. "
-         + "Choose a game, refine your preferences, or start over."
+         + "Choose a game, refine your preferences, or reset recommendations."
       );
       expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
    });
 
-   it("shows only the accepted game as the terminal Play this state", () => {
+   it("shows only the accepted game as the terminal chosen state", () => {
       const response = recommendationResponse("sparse", 2);
       const activeSession = createRecommendationSession(
          preference,
@@ -294,11 +297,11 @@ describe("RecommendationResultsPanel", () => {
       expect(screen.getByRole("article", { name: "Game 2" }))
          .toBeInTheDocument();
       expect(screen.queryByText("Game 1")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /^Play / }))
+      expect(screen.queryByRole("button", { name: /^Choose / }))
          .not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /^Show another instead of/ }))
          .not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Start over" }))
+      expect(screen.getByRole("button", { name: "Reset recommendations" }))
          .toBeEnabled();
    });
 });

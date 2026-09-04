@@ -98,7 +98,7 @@ function RecommendationResultsPanel({
                      type="button"
                      onClick={onStartOver}
                   >
-                     Start over
+                     Reset recommendations
                   </button>
                )}
             </div>
@@ -122,6 +122,7 @@ function RecommendationResultsPanel({
       activeSession !== null
       && activeSession.visibleItems.length > 0
       && activeSession.waitingItems.length === 0;
+   const remainingAlternatives = activeSession?.waitingItems.length ?? null;
    const countMessage = resultCountMessage(response);
 
    return (
@@ -144,11 +145,20 @@ function RecommendationResultsPanel({
                ) : (
                   <>
                      <span>{countMessage}</span>
+                     {remainingAlternatives !== null && (
+                        <>
+                           {` ${remainingAlternatives} ${
+                              remainingAlternatives === 1
+                                 ? "alternative"
+                                 : "alternatives"
+                           } remaining.`}
+                        </>
+                     )}
                      {queueExhausted && (
                         <>
                            {" You’ve seen every recommendation in this bounded "}
                            queue. Choose a game, refine your preferences, or
-                           start over.
+                           reset recommendations.
                         </>
                      )}
                   </>
@@ -160,7 +170,7 @@ function RecommendationResultsPanel({
                   type="button"
                   onClick={onStartOver}
                >
-                  Start over
+                  Reset recommendations
                </button>
             )}
          </header>
@@ -181,6 +191,7 @@ function RecommendationResultsPanel({
                         : undefined
                   }
                   showAnotherDisabled={queueExhausted}
+                  remainingAlternatives={remainingAlternatives ?? undefined}
                   focusRequestId={
                      focusRequest?.steamAppId === item.steam_app_id
                         ? focusRequest.requestId

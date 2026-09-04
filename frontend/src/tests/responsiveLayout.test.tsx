@@ -65,4 +65,19 @@ describe("responsive layout contract", () => {
       expect(recommendationCss).toMatch(/@media \(max-width:\s*36rem\)[\s\S]*\.recommendation-result-card__facts[\s\S]*grid-template-columns:\s*1fr/);
       expect(recommendationCss).toMatch(/@media \(max-width:\s*36rem\)[\s\S]*\.recommendation-evidence__list li[\s\S]*grid-template-columns:\s*1fr/);
    });
+
+   it("shortens the hero when a Steam session is ready", () => {
+      expect(appCss).toMatch(
+         /\.app:has\(\.app__current-profile\) \.app__hero\s*\{[^}]*min-height:\s*clamp\(/
+      );
+      expect(appCss).toMatch(
+         /\.app:has\(\.app__current-profile\) \.app__session\s*\{[^}]*margin-top:/
+      );
+      expect(appCss).toMatch(
+         /\.app:has\(\.app__current-profile\) \.app__logo-heading\s*\{[^}]*width:\s*min\(100%,\s*22rem\)/
+      );
+      expect(appCss).toMatch(
+         /\.app:has\(\.app__current-profile\) \.app__session h2\s*\{[^}]*font-size:\s*clamp\(/
+      );
+   });
 });

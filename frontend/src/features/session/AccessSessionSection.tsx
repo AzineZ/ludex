@@ -11,7 +11,11 @@ function AccessSessionSection() {
 
    return (
       <section className="app__session" aria-labelledby="steam-session-heading">
-         <h2 id="steam-session-heading">Your Steam library</h2>
+         <h2 id="steam-session-heading">
+            {currentProfile === null
+               ? "Connect your Steam library"
+               : "What should you play next?"}
+         </h2>
 
          {session.status === "loading" && (
             <p role="status">Checking your Steam session…</p>
@@ -45,6 +49,7 @@ function AccessSessionSection() {
             <>
                <div className="app__current-profile">
                   <div className="app__profile-summary">
+                     <p className="app__step-label">Step 1 of 3 · Steam connected</p>
                      <p className="app__selection">
                         Current Steam profile: <strong>{currentProfile.display_name}</strong>
                      </p>

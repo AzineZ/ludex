@@ -310,7 +310,7 @@ describe("preference recommendation workflow", () => {
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
    });
 
-   it("owns Show another, Play this, and Start over without another request", async () => {
+   it("owns Show another, Choose this game, and reset without another request", async () => {
       mockedGetRecommendations.mockResolvedValue(completeResponse);
       render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
       await completeWorkflow();
@@ -325,6 +325,9 @@ describe("preference recommendation workflow", () => {
       expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
       const replacementCard = screen.getByRole("article", { name: "Game 4" });
       expect(replacementCard).toHaveFocus();
+      expect(screen.getByRole("status")).toHaveTextContent(
+         "0 alternatives remaining."
+      );
       for (const button of screen.getAllByRole("button", {
          name: /^Show another instead of/,
       })) {
@@ -334,7 +337,7 @@ describe("preference recommendation workflow", () => {
 
       const gameTwoCard = screen.getByRole("article", { name: "Game 2" });
       const playThisButton = within(gameTwoCard).getByRole("button", {
-         name: "Play Game 2",
+         name: "Choose Game 2",
       });
       playThisButton.focus();
       fireEvent.click(playThisButton);
@@ -347,7 +350,9 @@ describe("preference recommendation workflow", () => {
       expect(acceptedCard).toHaveFocus();
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
 
-      fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+      fireEvent.click(
+         screen.getByRole("button", { name: "Reset recommendations" })
+      );
 
       expect(screen.queryByRole("article")).not.toBeInTheDocument();
       expect(
@@ -366,7 +371,7 @@ describe("preference recommendation workflow", () => {
       const portalCard = screen.getByRole("article", { name: "Portal 2" });
       fireEvent.click(
          within(portalCard).getByRole("button", {
-            name: "Show another instead of Portal 2",
+            name: "Show another instead of Portal 2. 1 alternative remaining.",
          })
       );
       expect(screen.getByRole("article", { name: "Game 4" }))

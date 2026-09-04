@@ -111,6 +111,10 @@ describe("ReferenceSelectionSection", () => {
       );
       expect(selection.addReference).toHaveBeenCalledWith(suggestion);
       expect(screen.getByText("1 of 3 reference games selected")).toBeInTheDocument();
+      expect(screen.getByText("Step 2 of 3")).toBeInTheDocument();
+      expect(screen.getByText(
+         "Choose 1 to 3 games you own. For each game, select at least one trait you want Ludex to match."
+      )).toBeInTheDocument();
    });
 
    it("renders selected cards and connects facet toggling and removal", () => {

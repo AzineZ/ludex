@@ -9,6 +9,7 @@ type RecommendationResultCardProps = {
    onPlayThis?: () => void;
    onShowAnother?: () => void;
    showAnotherDisabled?: boolean;
+   remainingAlternatives?: number;
    focusRequestId?: number;
 };
 
@@ -30,6 +31,7 @@ function RecommendationResultCard({
    onPlayThis,
    onShowAnother,
    showAnotherDisabled = false,
+   remainingAlternatives,
    focusRequestId,
 }: RecommendationResultCardProps) {
    const headingId = useId();
@@ -42,6 +44,18 @@ function RecommendationResultCard({
       item.normal_completion_seconds === null
          ? "Unavailable"
          : formatMinutes(Math.round(item.normal_completion_seconds / 60));
+   const alternativeCountText = remainingAlternatives === undefined
+      ? null
+      : remainingAlternatives === 0
+         ? "No alternatives remaining"
+      : remainingAlternatives === 1
+         ? "1 alternative remaining"
+         : `${remainingAlternatives} alternatives remaining`;
+   const showAnotherText = remainingAlternatives === 0
+      ? "No alternatives left"
+      : remainingAlternatives === undefined
+         ? "Show another"
+         : `Show another · ${remainingAlternatives} left`;
 
    useEffect(() => {
       if (focusRequestId !== undefined) {
@@ -116,21 +130,26 @@ function RecommendationResultCard({
                      <button
                         className="app__primary-button"
                         type="button"
-                        aria-label={`Play ${item.title}`}
+                        aria-label={`Choose ${item.title}`}
                         onClick={onPlayThis}
                      >
-                        Play this
+                        Choose this game
                      </button>
                   )}
                   {onShowAnother !== undefined && (
                      <button
                         className="app__secondary-button"
                         type="button"
-                        aria-label={`Show another instead of ${item.title}`}
+                        aria-label={
+                           `Show another instead of ${item.title}`
+                           + (alternativeCountText === null
+                              ? ""
+                              : `. ${alternativeCountText}.`)
+                        }
                         onClick={onShowAnother}
                         disabled={showAnotherDisabled}
                      >
-                        Show another
+                        {showAnotherText}
                      </button>
                   )}
                </div>

@@ -40,10 +40,11 @@ function ReferenceSelectionSession({
          aria-labelledby="reference-selection-heading"
       >
          <header className="reference-selection__heading">
+            <p className="app__step-label">Step 2 of 3</p>
             <h3 id="reference-selection-heading">Choose reference games</h3>
             <p>
-               Select up to three owned games, then choose the factual traits
-               you want Ludex to use.
+               Choose 1 to 3 games you own. For each game, select at least one
+               trait you want Ludex to match.
             </p>
             <p className="reference-selection__count">
                {selection.references.length} of 3 reference games selected

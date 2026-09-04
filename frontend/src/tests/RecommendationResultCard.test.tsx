@@ -153,7 +153,7 @@ describe("RecommendationResultCard", () => {
       expect(screen.queryByRole("link")).not.toBeInTheDocument();
    });
 
-   it("offers explicit Play this and Show another session actions", () => {
+   it("offers explicit Choose this game and Show another session actions", () => {
       const onPlayThis = vi.fn();
       const onShowAnother = vi.fn();
 
@@ -162,12 +162,13 @@ describe("RecommendationResultCard", () => {
             item={recommendation}
             onPlayThis={onPlayThis}
             onShowAnother={onShowAnother}
+            remainingAlternatives={3}
          />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Play Portal 2" }));
+      fireEvent.click(screen.getByRole("button", { name: "Choose Portal 2" }));
       fireEvent.click(screen.getByRole("button", {
-         name: "Show another instead of Portal 2",
+         name: "Show another instead of Portal 2. 3 alternatives remaining.",
       }));
 
       expect(onPlayThis).toHaveBeenCalledOnce();
@@ -180,14 +181,15 @@ describe("RecommendationResultCard", () => {
             item={recommendation}
             onPlayThis={vi.fn()}
             onShowAnother={vi.fn()}
+            remainingAlternatives={1}
          />
       );
 
-      expect(screen.getByRole("button", { name: "Play Portal 2" }))
-         .toHaveTextContent("Play this");
+      expect(screen.getByRole("button", { name: "Choose Portal 2" }))
+         .toHaveTextContent("Choose this game");
       expect(screen.getByRole("button", {
-         name: "Show another instead of Portal 2",
-      })).toHaveTextContent("Show another");
+         name: "Show another instead of Portal 2. 1 alternative remaining.",
+      })).toHaveTextContent("Show another · 1 left");
    });
 
    it("disables Show another when the bounded waiting queue is exhausted", () => {
@@ -197,15 +199,16 @@ describe("RecommendationResultCard", () => {
             onPlayThis={vi.fn()}
             onShowAnother={vi.fn()}
             showAnotherDisabled
+            remainingAlternatives={0}
          />
       );
 
       expect(
          screen.getByRole("button", {
-            name: "Show another instead of Portal 2",
+            name: "Show another instead of Portal 2. No alternatives remaining.",
          })
       ).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Play Portal 2" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Choose Portal 2" })).toBeEnabled();
    });
 
    it("discloses authoritative contribution labels and states in backend order", () => {

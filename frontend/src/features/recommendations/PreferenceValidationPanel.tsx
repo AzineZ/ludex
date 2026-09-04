@@ -14,6 +14,12 @@ type PreferenceValidationPanelProps = {
    preference: RecommendationPreference;
 };
 
+function hasSelectedFacet(
+   reference: RecommendationPreference["references"][number]
+): boolean {
+   return Object.values(reference.facets).some((ids) => ids.length > 0);
+}
+
 function PreferenceValidationPanel({
    sessionEpoch,
    preference,
@@ -151,10 +157,16 @@ function PreferenceValidationPanel({
    const isLoadingRecommendations = recommendation.status === "loading";
    const canSubmitForSession =
       sessionState.phase === "idle" || sessionState.phase === "editing";
+   const localRequirementMessage = preference.references.length === 0
+      ? "Choose at least one reference game to continue."
+      : preference.references.some((reference) => !hasSelectedFacet(reference))
+         ? "Select at least one trait from every reference game to continue."
+         : null;
    const canRequestRecommendations =
       sessionEpoch !== null &&
       !isValidating &&
       !isLoadingRecommendations &&
+      localRequirementMessage === null &&
       canSubmitForSession;
    const hasRetainedSession =
       sessionState.phase !== "idle" && retainedResponse !== null;
@@ -192,6 +204,7 @@ function PreferenceValidationPanel({
          className="preference-validation"
          aria-labelledby="preference-validation-heading"
       >
+         <p className="app__step-label">Step 3 of 3</p>
          <h3 id="preference-validation-heading">Find your next game</h3>
          <p>
             Ludex will check your choices and search your cached library.
@@ -203,11 +216,24 @@ function PreferenceValidationPanel({
          {validation.status === "invalid" && validation.error !== null && (
             <p role="alert">{validation.error}</p>
          )}
+         {localRequirementMessage !== null && (
+            <p
+               className="preference-validation__requirement"
+               id="recommendation-requirement"
+            >
+               {localRequirementMessage}
+            </p>
+         )}
 
          <div className="preference-validation__recommendation-action">
             <button
                ref={recommendationActionRef}
                type="button"
+               aria-describedby={
+                  localRequirementMessage === null
+                     ? undefined
+                     : "recommendation-requirement"
+               }
                disabled={!canRequestRecommendations}
                onClick={submitRecommendation}
             >

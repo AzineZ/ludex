@@ -64,10 +64,54 @@ describe("PreferenceValidationPanel", () => {
       expect(mockedUseValidation).toHaveBeenCalledWith(7, preference);
       expect(screen.getByRole("heading", { name: "Find your next game" }))
          .toBeInTheDocument();
+      expect(screen.getByText("Step 3 of 3")).toBeInTheDocument();
       expect(container.querySelector("pre")).toBeNull();
       expect(screen.queryByText(/steam_app_id/)).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Get recommendations" }));
       expect(validation.validate).toHaveBeenCalledOnce();
+   });
+
+   it("explains and enforces the minimum local preference before validation", () => {
+      const validation = validationResult();
+      mockedUseValidation.mockReturnValue(validation);
+      const emptyPreference: RecommendationPreference = {
+         ...preference,
+         references: [],
+      };
+      const { rerender } = render(
+         <PreferenceValidationPanel
+            sessionEpoch={7}
+            preference={emptyPreference}
+         />
+      );
+
+      expect(screen.getByText("Choose at least one reference game to continue."))
+         .toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Get recommendations" }))
+         .toBeDisabled();
+
+      rerender(
+         <PreferenceValidationPanel
+            sessionEpoch={7}
+            preference={{
+               ...preference,
+               references: [{
+                  ...preference.references[0],
+                  facets: {
+                     genre_ids: [],
+                     theme_ids: [],
+                     keyword_ids: [],
+                     game_mode_ids: [],
+                  },
+               }],
+            }}
+         />
+      );
+
+      expect(screen.getByText(
+         "Select at least one trait from every reference game to continue."
+      )).toBeInTheDocument();
+      expect(validation.validate).not.toHaveBeenCalled();
    });
 
    it("disables repeated validation while the request is running", () => {
