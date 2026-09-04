@@ -107,4 +107,44 @@ describe("usePreferenceValidation", () => {
       expect(result.current.status).toBe("idle");
       expect(result.current.validatedPreference).toBeNull();
    });
+
+   it("does not let older validation replace a newer successful result", async () => {
+      let resolveFirst!: (value: RecommendationPreference) => void;
+      let resolveSecond!: (value: RecommendationPreference) => void;
+      const firstRequest = new Promise<RecommendationPreference>((resolve) => {
+         resolveFirst = resolve;
+      });
+      const secondRequest = new Promise<RecommendationPreference>((resolve) => {
+         resolveSecond = resolve;
+      });
+      const newerPreference: RecommendationPreference = {
+         ...preference,
+         constraints: { ...preference.constraints, play_status: "unplayed" },
+      };
+      mockedValidate
+         .mockReturnValueOnce(firstRequest)
+         .mockReturnValueOnce(secondRequest);
+      const { result, rerender } = renderHook(
+         ({ value }) => usePreferenceValidation(7, value),
+         { initialProps: { value: preference } }
+      );
+
+      act(() => void result.current.validate());
+      rerender({ value: newerPreference });
+      act(() => void result.current.validate());
+      await act(async () => {
+         resolveSecond(newerPreference);
+         await secondRequest;
+      });
+      expect(result.current.validatedPreference).toEqual(newerPreference);
+
+      await act(async () => {
+         resolveFirst(preference);
+         await firstRequest;
+      });
+      expect(result.current).toMatchObject({
+         status: "valid",
+         validatedPreference: newerPreference,
+      });
+   });
 });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
    validateRecommendationPreference,
@@ -50,8 +50,13 @@ export function usePreferenceValidation(
    preference: RecommendationPreference
 ): PreferenceValidationResult {
    const [state, setState] = useState<ValidationState | null>(null);
+   const generationRef = useRef(0);
    const key = JSON.stringify({ sessionEpoch, preference });
    const visibleState = state?.key === key ? state : null;
+
+   useEffect(() => {
+      generationRef.current += 1;
+   }, [key]);
 
    function validate(): Promise<boolean> {
       if (sessionEpoch === null) {
@@ -59,6 +64,8 @@ export function usePreferenceValidation(
       }
 
       const requestKey = key;
+      const requestGeneration = generationRef.current + 1;
+      generationRef.current = requestGeneration;
       setState({
          key: requestKey,
          status: "validating",
@@ -69,6 +76,7 @@ export function usePreferenceValidation(
 
       return validateRecommendationPreference(preference).then(
          (validatedPreference) => {
+            if (generationRef.current !== requestGeneration) return false;
             setState({
                key: requestKey,
                status: "valid",
@@ -79,6 +87,7 @@ export function usePreferenceValidation(
             return true;
          },
          (error: unknown) => {
+            if (generationRef.current !== requestGeneration) return false;
             const details = preferenceValidationError(error);
             setState({
                key: requestKey,

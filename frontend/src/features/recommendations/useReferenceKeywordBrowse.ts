@@ -16,17 +16,23 @@ export type ReferenceKeywordBrowseResult = {
    items: FacetOptionResponse[];
    truncated: boolean;
    error: string | null;
+   retry: () => void;
 };
+
+type ReferenceKeywordBrowseState = Omit<
+   ReferenceKeywordBrowseResult,
+   "retry"
+>;
 
 type StoredKeywordBrowse = {
    sessionEpoch: number;
    steamAppId: number;
-   result: ReferenceKeywordBrowseResult;
+   result: ReferenceKeywordBrowseState;
 };
 
 function emptyResult(
    status: ReferenceKeywordBrowseStatus
-): ReferenceKeywordBrowseResult {
+): ReferenceKeywordBrowseState {
    return { status, items: [], truncated: false, error: null };
 }
 
@@ -42,6 +48,7 @@ export function useReferenceKeywordBrowse(
 ): ReferenceKeywordBrowseResult {
    const [storedBrowse, setStoredBrowse] =
       useState<StoredKeywordBrowse | null>(null);
+   const [requestVersion, setRequestVersion] = useState(0);
    const hasReference = sessionEpoch !== null && steamAppId !== null;
 
    useEffect(() => {
@@ -86,17 +93,23 @@ export function useReferenceKeywordBrowse(
       return () => {
          isCurrentRequest = false;
       };
-   }, [sessionEpoch, steamAppId]);
+   }, [requestVersion, sessionEpoch, steamAppId]);
+
+   function retry(): void {
+      if (!hasReference) return;
+      setStoredBrowse(null);
+      setRequestVersion((currentVersion) => currentVersion + 1);
+   }
 
    if (!hasReference) {
-      return emptyResult("idle");
+      return { ...emptyResult("idle"), retry };
    }
    if (
       storedBrowse === null ||
       storedBrowse.sessionEpoch !== sessionEpoch ||
       storedBrowse.steamAppId !== steamAppId
    ) {
-      return emptyResult("loading");
+      return { ...emptyResult("loading"), retry };
    }
-   return storedBrowse.result;
+   return { ...storedBrowse.result, retry };
 }

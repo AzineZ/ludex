@@ -28,6 +28,7 @@ const ready: ReferenceKeywordBrowseResult = {
    items,
    truncated: false,
    error: null,
+   retry: vi.fn(),
 };
 const mockedBrowse = vi.mocked(useReferenceKeywordBrowse);
 
@@ -135,6 +136,7 @@ describe("ReferenceKeywordAutocomplete", () => {
          items: [],
          truncated: false,
          error: status === "unavailable" ? message : null,
+         retry: vi.fn(),
       });
       render(
          <ReferenceKeywordAutocomplete
@@ -145,6 +147,34 @@ describe("ReferenceKeywordAutocomplete", () => {
          />
       );
       expect(screen.getByText(message)).toBeInTheDocument();
+   });
+
+   it("preserves selected keywords and explicitly retries a failed browse", () => {
+      const retry = vi.fn();
+      mockedBrowse.mockReturnValue({
+         status: "unavailable",
+         items: [],
+         truncated: false,
+         error: "Keywords are temporarily unavailable.",
+         retry,
+      });
+
+      render(
+         <ReferenceKeywordAutocomplete
+            sessionEpoch={1}
+            steamAppId={100}
+            selectedKeywords={[items[0]]}
+            onToggle={vi.fn()}
+         />
+      );
+
+      expect(
+         screen.getByRole("button", { name: "Remove keyword Exploration" })
+      ).toBeEnabled();
+      fireEvent.click(
+         screen.getByRole("button", { name: "Try loading keywords again" })
+      );
+      expect(retry).toHaveBeenCalledOnce();
    });
 
    it("shows filtered-empty and bounded-list guidance", () => {

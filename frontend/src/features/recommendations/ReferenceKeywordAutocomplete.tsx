@@ -58,7 +58,12 @@ function ReferenceKeywordAutocomplete({
             <p role="status">Loading keywords…</p>
          )}
          {browse.status === "unavailable" && browse.error !== null && (
-            <p role="alert">{browse.error}</p>
+            <div className="reference-keywords__recovery">
+               <p role="alert">{browse.error}</p>
+               <button type="button" onClick={browse.retry}>
+                  Try loading keywords again
+               </button>
+            </div>
          )}
          {browse.status === "ready" && browse.items.length === 0 && (
             <p role="status">No cached keywords are available for this game.</p>

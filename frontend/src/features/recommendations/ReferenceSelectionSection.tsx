@@ -63,7 +63,17 @@ function ReferenceSelectionSession({
          )}
 
          {selection.error !== null && (
-            <p role="alert">{selection.error}</p>
+            <div className="reference-selection__recovery">
+               <p role="alert">{selection.error}</p>
+               {selection.failedSuggestion !== null && (
+                  <button
+                     type="button"
+                     onClick={() => void selection.retryReference()}
+                  >
+                     Try loading {selection.failedSuggestion.name} again
+                  </button>
+               )}
+            </div>
          )}
 
          {selection.references.length > 0 && (

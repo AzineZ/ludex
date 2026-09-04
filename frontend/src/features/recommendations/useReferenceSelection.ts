@@ -25,7 +25,9 @@ export type ReferenceSelectionResult = {
    references: SelectedReference[];
    pendingSteamAppId: number | null;
    error: string | null;
+   failedSuggestion: OwnedGameSuggestionResponse | null;
    addReference: (suggestion: OwnedGameSuggestionResponse) => Promise<boolean>;
+   retryReference: () => Promise<boolean>;
    toggleDirectFacet: (
       steamAppId: number,
       facetKey: DirectFacetKey,
@@ -43,6 +45,7 @@ type ReferenceSelectionState = {
    references: SelectedReference[];
    pendingSteamAppId: number | null;
    error: string | null;
+   failedSuggestion: OwnedGameSuggestionResponse | null;
 };
 
 type StoredReferences = {
@@ -86,6 +89,7 @@ function emptySelectionState(
       references: [],
       pendingSteamAppId: null,
       error: null,
+      failedSuggestion: null,
    };
 }
 
@@ -165,6 +169,7 @@ export function useReferenceSelection(
          references: currentReferences,
          pendingSteamAppId: suggestion.steam_app_id,
          error: null,
+         failedSuggestion: null,
       });
 
       try {
@@ -195,6 +200,7 @@ export function useReferenceSelection(
             references: nextReferences,
             pendingSteamAppId: suggestion.steam_app_id,
             error: null,
+            failedSuggestion: null,
          });
 
          return true;
@@ -213,6 +219,7 @@ export function useReferenceSelection(
             references: currentProfileReferences,
             pendingSteamAppId: suggestion.steam_app_id,
             error: errorMessage(requestError),
+            failedSuggestion: suggestion,
          });
 
          return false;
@@ -296,6 +303,7 @@ export function useReferenceSelection(
          references: nextReferences,
          pendingSteamAppId: currentPending?.steamAppId ?? null,
          error: visibleState.error,
+         failedSuggestion: visibleState.failedSuggestion,
       });
 
       return true;
@@ -316,6 +324,7 @@ export function useReferenceSelection(
          references: nextReferences,
          pendingSteamAppId: currentPending?.steamAppId ?? null,
          error: visibleState.error,
+         failedSuggestion: visibleState.failedSuggestion,
       });
    }
 
@@ -363,6 +372,7 @@ export function useReferenceSelection(
          references: nextReferences,
          pendingSteamAppId: currentPending?.steamAppId ?? null,
          error: visibleState.error,
+         failedSuggestion: visibleState.failedSuggestion,
       });
       return true;
    }
@@ -371,7 +381,12 @@ export function useReferenceSelection(
       references: visibleState.references,
       pendingSteamAppId: visibleState.pendingSteamAppId,
       error: visibleState.error,
+      failedSuggestion: visibleState.failedSuggestion,
       addReference,
+      retryReference: () =>
+         visibleState.failedSuggestion === null
+            ? Promise.resolve(false)
+            : addReference(visibleState.failedSuggestion),
       toggleDirectFacet,
       toggleKeyword,
       removeReference,

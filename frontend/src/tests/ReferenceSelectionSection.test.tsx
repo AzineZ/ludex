@@ -80,7 +80,9 @@ function selectionResult(
       references: [],
       pendingSteamAppId: null,
       error: null,
+      failedSuggestion: null,
       addReference: vi.fn().mockResolvedValue(true),
+      retryReference: vi.fn().mockResolvedValue(true),
       toggleDirectFacet: vi.fn().mockReturnValue(true),
       toggleKeyword: vi.fn().mockReturnValue(true),
       removeReference: vi.fn(),
@@ -131,22 +133,32 @@ describe("ReferenceSelectionSection", () => {
    });
 
    it("shows pending detail loading and the latest selection error", () => {
+      const retryReference = vi.fn().mockResolvedValue(true);
       mockedUseReferenceSelection.mockReturnValue(
          selectionResult({
+            references: [selectedReference],
             pendingSteamAppId: 100,
             error: "Reference details are unavailable.",
+            failedSuggestion: suggestion,
+            retryReference,
          })
       );
 
       render(<ReferenceSelectionSection sessionEpoch={7} />);
 
-      expect(screen.getByRole("status")).toHaveTextContent(
+      expect(screen.getByText(
          "Loading reference game details…"
-      );
+      )).toHaveAttribute("role", "status");
       expect(screen.getByRole("alert")).toHaveTextContent(
          "Reference details are unavailable."
       );
-      expect(screen.getByText("0 of 3 reference games selected")).toBeInTheDocument();
+      expect(screen.getByText("1 of 3 reference games selected")).toBeInTheDocument();
+      expect(screen.getByRole("article", { name: "First Game" }))
+         .toBeInTheDocument();
+      fireEvent.click(
+         screen.getByRole("button", { name: "Try loading First Game again" })
+      );
+      expect(retryReference).toHaveBeenCalledOnce();
    });
 
    it("connects reference-scoped keyword removal to selection state", () => {

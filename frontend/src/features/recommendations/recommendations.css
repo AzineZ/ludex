@@ -128,6 +128,7 @@
 
 .reference-game-card__remove,
 .reference-game-card__facet,
+.reference-selection__recovery button,
 .reference-keywords button,
 .preference-validation button {
    min-height: 2.75rem;
@@ -139,6 +140,16 @@
    font: inherit;
    font-weight: 800;
    cursor: pointer;
+}
+
+.reference-selection__recovery,
+.reference-keywords__recovery {
+   margin-top: 1rem;
+}
+
+.reference-selection__recovery button,
+.reference-keywords__recovery button {
+   margin-top: 0.5rem;
 }
 
 .reference-game-card__remove {

@@ -260,6 +260,34 @@ describe("useReferenceSelection", () => {
       });
    });
 
+   it("retries failed details without replacing existing reference choices", async () => {
+      mockedGetReferenceDetails
+         .mockResolvedValueOnce(detailsFor(suggestions[0]))
+         .mockRejectedValueOnce(new ApiError(503, "Details unavailable."))
+         .mockResolvedValueOnce(detailsFor(suggestions[1]));
+      const { result } = renderHook(() => useReferenceSelection(1));
+      await addReference(result, suggestions[0]);
+      act(() => {
+         result.current.toggleDirectFacet(
+            100,
+            "genres",
+            detailsFor(suggestions[0]).facets.genres[0]
+         );
+      });
+
+      await expect(addReference(result, suggestions[1])).resolves.toBe(false);
+      expect(result.current.references[0].selectedFacets.genres).toHaveLength(1);
+
+      await act(async () => {
+         await expect(result.current.retryReference()).resolves.toBe(true);
+      });
+
+      expect(result.current.references.map((item) => item.details.steam_app_id))
+         .toEqual([100, 200]);
+      expect(result.current.references[0].selectedFacets.genres).toHaveLength(1);
+      expect(mockedGetReferenceDetails).toHaveBeenCalledTimes(3);
+   });
+
    it("removes one reference immediately", async () => {
       mockedGetReferenceDetails.mockImplementation(
          async (steamAppId) => {

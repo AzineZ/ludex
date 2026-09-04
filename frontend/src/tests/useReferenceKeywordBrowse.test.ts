@@ -74,6 +74,7 @@ describe("useReferenceKeywordBrowse", () => {
          items: response.items,
          truncated: true,
          error: null,
+         retry: expect.any(Function),
       });
    });
 
@@ -94,6 +95,7 @@ describe("useReferenceKeywordBrowse", () => {
          items: [],
          truncated: false,
          error: null,
+         retry: expect.any(Function),
       });
    });
 
@@ -113,7 +115,25 @@ describe("useReferenceKeywordBrowse", () => {
          items: [],
          truncated: false,
          error: "Reference game not found.",
+         retry: expect.any(Function),
       });
+   });
+
+   it("retries the same cached keyword browse after failure", async () => {
+      mockedGetReferenceKeywords
+         .mockRejectedValueOnce(new ApiError(503, "Temporarily unavailable."))
+         .mockResolvedValueOnce(response);
+      const { result } = renderHook(() => useReferenceKeywordBrowse(1, 100));
+
+      await act(async () => Promise.resolve());
+      expect(result.current.status).toBe("unavailable");
+
+      act(() => result.current.retry());
+      expect(result.current.status).toBe("loading");
+      await act(async () => Promise.resolve());
+
+      expect(result.current.items).toEqual(response.items);
+      expect(mockedGetReferenceKeywords).toHaveBeenCalledTimes(2);
    });
 
    it("ignores stale profile and reference responses", async () => {

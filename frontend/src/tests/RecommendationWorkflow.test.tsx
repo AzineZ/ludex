@@ -190,6 +190,55 @@ describe("preference recommendation workflow", () => {
       expect(screen.getByText("1 recommendation found.")).toBeInTheDocument();
    });
 
+   it("preserves the draft and retries preference validation", async () => {
+      mockedValidate
+         .mockRejectedValueOnce(new Error("Validation temporarily unavailable."))
+         .mockResolvedValueOnce(canonicalPreference);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
+
+      fireEvent.click(
+         screen.getByRole("button", { name: "Validate preferences" })
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+         "Validation temporarily unavailable."
+      );
+      expect(screen.getByTestId("preference-draft")).toHaveTextContent(
+         '"steam_app_id": 100'
+      );
+
+      fireEvent.click(
+         screen.getByRole("button", { name: "Validate preferences" })
+      );
+      await screen.findByText("Preference is valid.");
+      expect(mockedValidate).toHaveBeenCalledTimes(2);
+   });
+
+   it("preserves preference controls and retries an initial recommendation failure", async () => {
+      mockedGetRecommendations
+         .mockRejectedValueOnce(new Error("Recommendations are temporarily unavailable."))
+         .mockResolvedValueOnce(response);
+      render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
+
+      fireEvent.click(
+         screen.getByRole("button", { name: "Validate preferences" })
+      );
+      await screen.findByText("Preference is valid.");
+      fireEvent.click(screen.getByRole("button", { name: "Get recommendations" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+         "Recommendations are temporarily unavailable."
+      );
+      expect(screen.getByTestId("preference-draft")).toHaveTextContent(
+         '"steam_app_id": 100'
+      );
+      fireEvent.click(
+         screen.getByRole("button", { name: "Try recommendations again" })
+      );
+
+      await screen.findByRole("article", { name: "Portal 2" });
+      expect(mockedGetRecommendations).toHaveBeenCalledTimes(2);
+   });
+
    it("locks and announces recommendation submission while it is pending", async () => {
       const pendingRequest = deferred<FinalRecommendationResponse>();
       mockedGetRecommendations.mockReturnValue(pendingRequest.promise);
