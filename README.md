@@ -110,7 +110,20 @@ cache-only, and Gemini is neither constructed nor required.
 
 ## Verify the installation
 
-Validate Compose from the project root:
+With the normal database running, execute the complete provider-free release
+verification from the project root:
+
+```bash
+./scripts/verify_release_candidate.sh
+```
+
+The script validates Compose; runs the complete backend tests, compilation, and
+migration checks; runs the frontend tests, lint, and production build; and checks
+the working diff for whitespace errors. It does not start or stop containers,
+apply IGDB enrichment, contact a provider, or alter volumes.
+
+To run the same gates individually, first validate Compose from the project
+root:
 
 ```bash
 docker compose config --quiet
