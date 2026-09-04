@@ -81,7 +81,8 @@ def test_setup_guide_documents_the_supported_data_workflow() -> None:
     assert "Enter a Steam ID or public Steam profile URL" in normalized_readme
     assert "Refresh Steam library" in normalized_readme
     assert (
-        "no supported enrichment command, endpoint, or background worker"
+        "no supported provider-applying enrichment command, endpoint, or "
+        "background worker"
         in normalized_readme
     )
     assert "existing factual IGDB cache" in normalized_readme

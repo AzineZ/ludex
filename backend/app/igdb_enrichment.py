@@ -2,6 +2,7 @@ from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 import time
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.igdb_client import IGDBAPIError, IGDBClient
@@ -15,10 +16,25 @@ from app.igdb_persistence import (
     persist_metadata_batch,
     record_metadata_failure,
 )
+from app.models import Game
 
 
 ENRICHMENT_BATCH_SIZE = 100
 ENRICHMENT_BATCH_PAUSE_SECONDS = 1.0
+
+
+def get_pending_owned_steam_app_ids(session: Session) -> list[int]:
+    """Return uniquely owned pending games in stable Steam App ID order."""
+    return list(
+        session.scalars(
+            select(Game.steam_app_id)
+            .where(
+                Game.profile_games.any(),
+                Game.igdb_status == "pending",
+            )
+            .order_by(Game.steam_app_id)
+        )
+    )
 
 
 def _utc_now() -> datetime:
