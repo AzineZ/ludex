@@ -39,7 +39,18 @@ To run tests directly on the host:
 
 ## Start the application
 
-From the project root, run:
+First create the ignored backend environment file from its safe example:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Before starting Ludex, replace the placeholder values for `STEAM_API_KEY`,
+`IGDB_CLIENT_ID`, and `IGDB_CLIENT_SECRET` in `backend/.env`. These credentials
+remain backend-only. Leave `GEMINI_API_KEY` commented out; Gemini is optional and
+is not used by the active application.
+
+Then, from the project root, run:
 
 ```bash
 docker compose up --build
@@ -49,9 +60,10 @@ Compose will:
 
 1. Start PostgreSQL.
 2. Wait for PostgreSQL to become healthy.
-3. Start the FastAPI backend.
-4. Wait for the backend health check to pass.
-5. Start the React frontend.
+3. Apply all Alembic migrations to the database.
+4. Start the FastAPI backend only after migrations succeed.
+5. Wait for the backend health check to pass.
+6. Start the React frontend.
 
 Once startup completes, open:
 
@@ -65,6 +77,82 @@ The frontend should display:
 Backend: connected
 ```
 
+## First-run data workflow
+
+Open http://localhost:5173. Enter a Steam ID or public Steam profile URL.
+When that profile is not already cached, Ludex imports its public Steam library
+and creates one browser access session. Returning with that session reads only
+the cache. Use **Refresh Steam library** when you explicitly want to contact
+Steam and update ownership or playtime.
+
+Preference validation and recommendation requests use cached database facts and
+never call Steam, IGDB, Gemini, or another provider. A new Steam import does not
+populate IGDB facts: Ludex currently has no supported enrichment command,
+endpoint, or background worker. Useful recommendations therefore require an
+existing factual IGDB cache. The reusable internal enrichment service remains
+covered by tests, but provider-running enrichment is not part of routine local
+setup. This is a known release-candidate limitation, not a reason to enable
+Gemini.
+
+## Verify the installation
+
+Validate Compose from the project root:
+
+```bash
+docker compose config --quiet
+```
+
+With the database running, verify the backend from `backend/`:
+
+```bash
+uv run pytest
+uv run python -m compileall app
+uv run alembic check
+```
+
+The tests replace provider transports and do not consume real Steam, IGDB, or
+Gemini quota. `alembic check` compares the models with the running PostgreSQL
+schema.
+
+Install and verify the frontend from `frontend/`:
+
+```bash
+npm ci
+npm test
+npm run lint
+npm run build
+```
+
+The backend health endpoint should return:
+
+```json
+{
+   "status": "healthy",
+   "database": "connected"
+}
+```
+
+## Back up the database
+
+Choose an existing host directory outside the repository and a new destination
+name. The commands below refuse an existing destination before creating a
+compressed custom-format PostgreSQL backup:
+
+```bash
+ludex_backup_dir="/absolute/path/to/ludex-backups"
+mkdir -p "$ludex_backup_dir"
+ludex_backup_path="$ludex_backup_dir/ludex-$(date +%Y%m%d-%H%M%S).dump"
+test ! -e "$ludex_backup_path"
+docker compose exec -T database pg_dump -U ludex -d ludex -Fc > "$ludex_backup_path"
+test -s "$ludex_backup_path"
+docker run --rm --volume "$ludex_backup_dir:/backups:ro" postgres:18-alpine pg_restore --list "/backups/$(basename "$ludex_backup_path")"
+```
+
+Keep backups outside the Docker volume. Listing the archive verifies that it is
+readable; it is not a restore test. Practice restoration only into a separate
+database. Do not use destructive `pg_restore --clean` options against the only
+copy of Ludex data.
+
 ## Stop the application
 
 If Compose is running in the foreground, press **Control+C**.
@@ -77,17 +165,9 @@ docker compose down
 
 The PostgreSQL data remains in the `postgres_data` Docker volume.
 
-Do not add `--volumes` unless you intentionally want to delete the local database data.
-
-## Run backend tests
-
-From the `backend` directory, run:
-
-```bash
-uv run pytest
-```
-
-The health-endpoint test uses a controlled database-session replacement and does not require a running PostgreSQL instance.
+`docker compose down --volumes` permanently deletes the Compose-managed database
+volume. It is not part of normal shutdown. Use it only when you explicitly
+intend to erase local Ludex data and have confirmed any needed backup.
 
 ## Run profile-retention maintenance
 
@@ -110,48 +190,29 @@ profile, access-session, and profile-ownership rows, and retains shared game and
 IGDB facts. This command is manual maintenance; recommendation and session
 requests never trigger it.
 
-## Run frontend checks
-
-Install the locked frontend dependencies:
-
-```bash
-cd frontend
-npm ci
-```
-
-Run the component tests:
-
-```bash
-npm test
-```
-
-Run linting:
-
-```bash
-npm run lint
-```
-
-Verify the production build:
-
-```bash
-npm run build
-```
-
 ## Environment variables
 
-The standard Docker Compose workflow supplies the required environment variables automatically.
+The standard Docker Compose workflow supplies local database, origin, and cookie
+settings. It reads private Steam and IGDB credentials from the ignored
+`backend/.env` created during setup.
 
-Example files are provided for running services directly on the host:
+Example files document the complete configuration surface:
 
 -  `backend/.env.example`
 -  `frontend/.env.example`
 
-Copy an example to `.env` only when you need local overrides. Real `.env` files are excluded from Git and Docker build contexts.
+The backend example is copied during the standard Compose setup. The frontend
+example is needed only when running Vite directly with a local override. Real
+`.env` files are excluded from Git and Docker build contexts.
 
 Backend configuration:
 
 -  `DATABASE_URL` specifies the PostgreSQL connection.
 -  `FRONTEND_ORIGIN` specifies the browser origin permitted by CORS.
+-  `ACCESS_SESSION_COOKIE_SECURE` is `false` only for local HTTP development.
+-  `STEAM_API_KEY` enables Steam profile and library imports.
+-  `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` enable factual enrichment.
+-  `GEMINI_API_KEY` is optional and unused by the active application.
 
 Frontend configuration:
 
@@ -169,19 +230,30 @@ Browser code reaches the backend through `http://localhost:8000`, even when the 
 
 ## Troubleshooting
 
-If a service cannot start, check whether ports `5173`, `8000`, or `5432` are already in use.
+**Ports 5173, 8000, or 5432 are unavailable:** stop the conflicting local
+process, or use the documented `LUDEX_FRONTEND_PORT`, `LUDEX_BACKEND_PORT`, and
+`LUDEX_DATABASE_PORT` overrides together with matching `LUDEX_API_BASE_URL` and
+`LUDEX_FRONTEND_ORIGIN` values.
+
+**Compose reports that `backend/.env` is missing:** copy
+`backend/.env.example` as described above and replace the required Steam and
+IGDB placeholders. Do not put secrets in the frontend environment.
+
+**The backend does not become healthy:** inspect `docker compose logs backend`.
+The migration must complete before FastAPI starts. Compare `uv run alembic
+current` with `uv run alembic heads`; do not bypass a failed migration with
+`create_all`, stamping, or deletion of the database volume.
+
+**The health response is unavailable:** inspect `docker compose ps`, then check
+database health before backend health. A healthy response has `"status":
+"healthy"` and `"database": "connected"`.
+
+**A Steam profile cannot be imported:** confirm that it is a public profile with
+a public game library and that the Steam key is valid. A private Steam library
+cannot be imported. A failed import or refresh must not erase an existing cache.
 
 To rebuild after dependency or container configuration changes, run:
 
 ```bash
 docker compose up --build
-```
-
-The backend health endpoint should return:
-
-```json
-{
-   "status": "healthy",
-   "database": "connected"
-}
 ```
