@@ -160,7 +160,11 @@ async function completeWorkflow(): Promise<void> {
    fireEvent.click(
       screen.getByRole("button", { name: "Get recommendations" })
    );
-   await screen.findByRole("article", { name: "Portal 2" });
+   await screen.findByRole(
+      "article",
+      { name: "Portal 2" },
+      { timeout: 3000 }
+   );
 }
 
 describe("preference recommendation workflow", () => {
@@ -188,6 +192,13 @@ describe("preference recommendation workflow", () => {
          canonicalPreference
       );
       expect(screen.getByText("1 recommendation found.")).toBeInTheDocument();
+      await waitFor(
+         () => {
+            expect(screen.getByRole("article", { name: "Portal 2" }))
+               .toHaveFocus();
+         },
+         { timeout: 3000 }
+      );
    });
 
    it("preserves the draft and retries preference validation", async () => {
@@ -323,7 +334,7 @@ describe("preference recommendation workflow", () => {
 
       const portalCard = screen.getByRole("article", { name: "Portal 2" });
       const showAnotherButton = within(portalCard).getByRole("button", {
-         name: "Show another",
+         name: /^Show another instead of/,
       });
       showAnotherButton.focus();
       fireEvent.click(showAnotherButton);
@@ -332,7 +343,7 @@ describe("preference recommendation workflow", () => {
       const replacementCard = screen.getByRole("article", { name: "Game 4" });
       expect(replacementCard).toHaveFocus();
       for (const button of screen.getAllByRole("button", {
-         name: "Show another",
+         name: /^Show another instead of/,
       })) {
          expect(button).toBeDisabled();
       }
@@ -340,7 +351,7 @@ describe("preference recommendation workflow", () => {
 
       const gameTwoCard = screen.getByRole("article", { name: "Game 2" });
       const playThisButton = within(gameTwoCard).getByRole("button", {
-         name: "Play this",
+         name: "Play Game 2",
       });
       playThisButton.focus();
       fireEvent.click(playThisButton);
@@ -371,7 +382,9 @@ describe("preference recommendation workflow", () => {
 
       const portalCard = screen.getByRole("article", { name: "Portal 2" });
       fireEvent.click(
-         within(portalCard).getByRole("button", { name: "Show another" })
+         within(portalCard).getByRole("button", {
+            name: "Show another instead of Portal 2",
+         })
       );
       expect(screen.getByRole("article", { name: "Game 4" }))
          .toBeInTheDocument();
@@ -394,6 +407,13 @@ describe("preference recommendation workflow", () => {
       );
 
       await screen.findByRole("article", { name: "Refined Game 1" });
+      await waitFor(
+         () => {
+            expect(screen.getByRole("article", { name: "Refined Game 1" }))
+               .toHaveFocus();
+         },
+         { timeout: 3000 }
+      );
       expect(mockedRefineRecommendations).toHaveBeenCalledOnce();
       expect(mockedRefineRecommendations).toHaveBeenCalledWith(
          refinedCanonicalPreference,
@@ -411,7 +431,7 @@ describe("preference recommendation workflow", () => {
       await completeWorkflow();
       fireEvent.click(
          within(screen.getByRole("article", { name: "Portal 2" }))
-            .getByRole("button", { name: "Show another" })
+            .getByRole("button", { name: /^Show another instead of/ })
       );
 
       rerender(
@@ -441,7 +461,7 @@ describe("preference recommendation workflow", () => {
       await completeWorkflow();
       fireEvent.click(
          within(screen.getByRole("article", { name: "Portal 2" }))
-            .getByRole("button", { name: "Show another" })
+            .getByRole("button", { name: /^Show another instead of/ })
       );
       rerender(
          <PreferenceValidationPanel sessionEpoch={7} preference={refinedDraft} />
@@ -502,7 +522,7 @@ describe("preference recommendation workflow", () => {
          });
          fireEvent.click(
             within(rejectedCard).getByRole("button", {
-               name: "Show another",
+               name: /^Show another instead of/,
             })
          );
 
@@ -516,7 +536,7 @@ describe("preference recommendation workflow", () => {
          within(card).getByRole("heading", { level: 3 }).textContent
       ))).toEqual(["Game 6", "Game 2", "Game 3"]);
       for (const button of screen.getAllByRole("button", {
-         name: "Show another",
+         name: /^Show another instead of/,
       })) {
          expect(button).toBeDisabled();
       }
@@ -555,7 +575,7 @@ describe("preference recommendation workflow", () => {
       await completeWorkflow();
       fireEvent.click(
          within(screen.getByRole("article", { name: "Portal 2" }))
-            .getByRole("button", { name: "Show another" })
+            .getByRole("button", { name: /^Show another instead of/ })
       );
       expect(screen.queryByRole("article", { name: "Portal 2" }))
          .not.toBeInTheDocument();

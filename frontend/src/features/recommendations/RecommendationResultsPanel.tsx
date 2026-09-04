@@ -52,7 +52,11 @@ function RecommendationResultsPanel({
 
    if (status === "loading") {
       return (
-         <p className="recommendation-results__state" role="status">
+         <p
+            className="recommendation-results__state"
+            role="status"
+            aria-atomic="true"
+         >
             Finding recommendations in your cached library…
          </p>
       );
@@ -82,7 +86,7 @@ function RecommendationResultsPanel({
             aria-labelledby={headingId}
             aria-live="polite"
          >
-            <div role="status">
+            <div role="status" aria-atomic="true">
                <h3 id={headingId}>No recommendations found.</h3>
                <p>
                   No owned games match these preferences. Try changing your
@@ -132,7 +136,7 @@ function RecommendationResultsPanel({
                   ? "Your recommendations"
                   : "Your choice"}
             </h3>
-            <p role="status">
+            <p role="status" aria-atomic="true">
                {acceptedSession !== null ? (
                   `You chose ${acceptedSession.acceptedItem.title}.`
                ) : session?.phase === "refining" ? (

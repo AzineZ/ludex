@@ -116,6 +116,7 @@ function RecommendationResultCard({
                      <button
                         className="app__primary-button"
                         type="button"
+                        aria-label={`Play ${item.title}`}
                         onClick={onPlayThis}
                      >
                         Play this
@@ -125,6 +126,7 @@ function RecommendationResultCard({
                      <button
                         className="app__secondary-button"
                         type="button"
+                        aria-label={`Show another instead of ${item.title}`}
                         onClick={onShowAnother}
                         disabled={showAnotherDisabled}
                      >

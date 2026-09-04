@@ -129,6 +129,7 @@ describe("RecommendationResultsPanel", () => {
       expect(screen.getByRole("status")).toHaveTextContent(
          "2 recommendations found."
       );
+      expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
       expect(screen.getAllByRole("article")).toHaveLength(2);
    });
 
@@ -218,10 +219,12 @@ describe("RecommendationResultsPanel", () => {
 
       const gameTwo = screen.getByRole("article", { name: "Game 2" });
       fireEvent.click(
-         within(gameTwo).getByRole("button", { name: "Show another" })
+         within(gameTwo).getByRole("button", {
+            name: "Show another instead of Game 2",
+         })
       );
       fireEvent.click(
-         within(gameTwo).getByRole("button", { name: "Play this" })
+         within(gameTwo).getByRole("button", { name: "Play Game 2" })
       );
       fireEvent.click(screen.getByRole("button", { name: "Start over" }));
 
@@ -247,19 +250,20 @@ describe("RecommendationResultsPanel", () => {
          />
       );
 
-      expect(screen.getAllByRole("button", { name: "Show another" }))
+      expect(screen.getAllByRole("button", { name: /^Show another instead of/ }))
          .toHaveLength(3);
       for (const button of screen.getAllByRole("button", {
-         name: "Show another",
+         name: /^Show another instead of/,
       })) {
          expect(button).toBeDisabled();
       }
-      expect(screen.getAllByRole("button", { name: "Play this" }))
+      expect(screen.getAllByRole("button", { name: /^Play / }))
          .toHaveLength(3);
       expect(screen.getByRole("status")).toHaveTextContent(
          "You’ve seen every recommendation in this bounded queue. "
          + "Choose a game, refine your preferences, or start over."
       );
+      expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
    });
 
    it("shows only the accepted game as the terminal Play this state", () => {
@@ -285,13 +289,14 @@ describe("RecommendationResultsPanel", () => {
       expect(screen.getByRole("status")).toHaveTextContent(
          "You chose Game 2."
       );
+      expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
       expect(screen.getAllByRole("article")).toHaveLength(1);
       expect(screen.getByRole("article", { name: "Game 2" }))
          .toBeInTheDocument();
       expect(screen.queryByText("Game 1")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Play this" }))
+      expect(screen.queryByRole("button", { name: /^Play / }))
          .not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Show another" }))
+      expect(screen.queryByRole("button", { name: /^Show another instead of/ }))
          .not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Start over" }))
          .toBeEnabled();

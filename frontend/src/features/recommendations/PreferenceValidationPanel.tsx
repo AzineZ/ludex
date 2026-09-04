@@ -61,6 +61,18 @@ function PreferenceValidationPanel({
 
       processedResponseRef.current = recommendation.response;
       setRetainedResponse(recommendation.response);
+      const firstItem = recommendation.response.items[0];
+      if (firstItem !== undefined) {
+         const responseForFocus = recommendation.response;
+         queueMicrotask(() => {
+            if (processedResponseRef.current === responseForFocus) {
+               setFocusRequest((current) => ({
+                  steamAppId: firstItem.steam_app_id,
+                  requestId: (current?.requestId ?? 0) + 1,
+               }));
+            }
+         });
+      }
       if (sessionState.phase === "refining") {
          completeRefinement(recommendation.response.items);
       } else if (sessionState.phase === "idle") {

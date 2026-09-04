@@ -165,11 +165,29 @@ describe("RecommendationResultCard", () => {
          />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Play this" }));
-      fireEvent.click(screen.getByRole("button", { name: "Show another" }));
+      fireEvent.click(screen.getByRole("button", { name: "Play Portal 2" }));
+      fireEvent.click(screen.getByRole("button", {
+         name: "Show another instead of Portal 2",
+      }));
 
       expect(onPlayThis).toHaveBeenCalledOnce();
       expect(onShowAnother).toHaveBeenCalledOnce();
+   });
+
+   it("gives repeated recommendation actions game-specific accessible names", () => {
+      render(
+         <RecommendationResultCard
+            item={recommendation}
+            onPlayThis={vi.fn()}
+            onShowAnother={vi.fn()}
+         />
+      );
+
+      expect(screen.getByRole("button", { name: "Play Portal 2" }))
+         .toHaveTextContent("Play this");
+      expect(screen.getByRole("button", {
+         name: "Show another instead of Portal 2",
+      })).toHaveTextContent("Show another");
    });
 
    it("disables Show another when the bounded waiting queue is exhausted", () => {
@@ -183,9 +201,11 @@ describe("RecommendationResultCard", () => {
       );
 
       expect(
-         screen.getByRole("button", { name: "Show another" })
+         screen.getByRole("button", {
+            name: "Show another instead of Portal 2",
+         })
       ).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Play this" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Play Portal 2" })).toBeEnabled();
    });
 
    it("discloses authoritative contribution labels and states in backend order", () => {
