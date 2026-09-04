@@ -72,6 +72,7 @@ def _store_cached_profile(
     *,
     steam_id: str = FIRST_STEAM_ID,
     display_name: str = "Cached Player",
+    cover_image_id: str | None = None,
 ) -> int:
     with session_factory.begin() as database_session:
         profile = Profile(
@@ -84,6 +85,7 @@ def _store_cached_profile(
             steam_app_id=int(steam_id[-2:]) + 10,
             name=f"{display_name} Game",
             icon_url=None,
+            cover_image_id=cover_image_id,
         )
         profile.owned_games.append(
             ProfileGame(
@@ -124,7 +126,10 @@ def test_create_session_reuses_cached_numeric_profile_without_provider_calls(
     steam_client: MagicMock,
 ) -> None:
     client, session_factory = session_api
-    _store_cached_profile(session_factory)
+    _store_cached_profile(
+        session_factory,
+        cover_image_id="cached-cover",
+    )
 
     response = client.post(
         "/session",
@@ -136,6 +141,10 @@ def test_create_session_reuses_cached_numeric_profile_without_provider_calls(
     assert response.json()["display_name"] == "Cached Player"
     assert "id" not in response.json()
     assert response.json()["games"][0]["name"] == "Cached Player Game"
+    assert response.json()["games"][0]["cover_url"] == (
+        "https://images.igdb.com/igdb/image/upload/"
+        "t_cover_big/cached-cover.jpg"
+    )
     assert ACCESS_SESSION_COOKIE_NAME in client.cookies
     steam_client.resolve_steam_id.assert_not_called()
     steam_client.get_profile.assert_not_called()
@@ -182,6 +191,7 @@ def test_create_session_imports_uncached_profile_and_sets_cookie(
     assert response.json()["display_name"] == "Imported Player"
     assert "id" not in response.json()
     assert response.json()["games"][0]["name"] == "Imported Game"
+    assert response.json()["games"][0]["cover_url"] is None
     assert response.headers["set-cookie"].startswith(
         f"{ACCESS_SESSION_COOKIE_NAME}="
     )

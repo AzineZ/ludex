@@ -248,19 +248,6 @@
    border: 1px dashed var(--color-alarm-red);
 }
 
-.preference-validation pre {
-   max-width: 100%;
-   max-height: 20rem;
-   padding: 1rem;
-   overflow: auto;
-   color: var(--color-bone-cream);
-   background: #151515;
-   font-size: 0.75rem;
-   text-align: left;
-   white-space: pre-wrap;
-   overflow-wrap: anywhere;
-}
-
 .preference-validation__recommendation-action {
    margin-top: 1rem;
    padding-top: 1rem;

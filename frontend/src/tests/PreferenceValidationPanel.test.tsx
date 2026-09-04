@@ -54,16 +54,19 @@ function validationResult(
 describe("PreferenceValidationPanel", () => {
    beforeEach(() => mockedUseValidation.mockReset());
 
-   it("shows the outgoing draft and starts validation on request", () => {
+   it("hides the technical payload and validates from the recommendation action", () => {
       const validation = validationResult();
       mockedUseValidation.mockReturnValue(validation);
-      render(<PreferenceValidationPanel sessionEpoch={7} preference={preference} />);
+      const { container } = render(
+         <PreferenceValidationPanel sessionEpoch={7} preference={preference} />
+      );
 
       expect(mockedUseValidation).toHaveBeenCalledWith(7, preference);
-      expect(screen.getByTestId("preference-draft")).toHaveTextContent(
-         '"steam_app_id": 100'
-      );
-      fireEvent.click(screen.getByRole("button", { name: "Validate preferences" }));
+      expect(screen.getByRole("heading", { name: "Find your next game" }))
+         .toBeInTheDocument();
+      expect(container.querySelector("pre")).toBeNull();
+      expect(screen.queryByText(/steam_app_id/)).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Get recommendations" }));
       expect(validation.validate).toHaveBeenCalledOnce();
    });
 
@@ -73,27 +76,25 @@ describe("PreferenceValidationPanel", () => {
       );
       render(<PreferenceValidationPanel sessionEpoch={7} preference={preference} />);
 
-      expect(screen.getByRole("button", { name: "Validating preferences…" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Checking preferences…" })).toBeDisabled();
       expect(screen.getByRole("status")).toHaveTextContent(
          "Checking this preference with Ludex…"
       );
    });
 
-   it("shows the canonical validated preference", () => {
+   it("does not expose the canonical validated preference", () => {
       mockedUseValidation.mockReturnValue(
          validationResult({
             status: "valid",
             validatedPreference: preference,
          })
       );
-      render(<PreferenceValidationPanel sessionEpoch={7} preference={preference} />);
+      const { container } = render(
+         <PreferenceValidationPanel sessionEpoch={7} preference={preference} />
+      );
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "Preference is valid."
-      );
-      expect(screen.getByTestId("validated-preference")).toHaveTextContent(
-         '"genre_ids"'
-      );
+      expect(container.querySelector("pre")).toBeNull();
+      expect(screen.queryByText(/genre_ids/)).toBeNull();
    });
 
    it("shows the backend field and message for an invalid preference", () => {
@@ -107,7 +108,10 @@ describe("PreferenceValidationPanel", () => {
       render(<PreferenceValidationPanel sessionEpoch={7} preference={preference} />);
 
       expect(screen.getByRole("alert")).toHaveTextContent(
-         "references.0.facets: Choose at least one factual facet."
+         "Choose at least one factual facet."
+      );
+      expect(screen.getByRole("alert")).not.toHaveTextContent(
+         "references.0.facets"
       );
    });
 });

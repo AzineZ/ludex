@@ -60,5 +60,14 @@ describe("visual accessibility contract", () => {
       expect(recommendationCss).toContain("scroll-behavior: auto");
       expect(sessionCss).toContain("prefers-reduced-motion: reduce");
       expect(sessionCss).toContain("transition: none");
+      expect(sessionCss).toMatch(
+         /prefers-reduced-motion:\s*reduce[\s\S]*\.app__library-track[\s\S]*animation:\s*none/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__library-backdrop--paused[\s\S]*animation-play-state:\s*paused/
+      );
+      expect(sessionCss).not.toMatch(
+         /\.app__library-(?:wall|backdrop):(?:hover|focus-within)[\s\S]*animation-play-state:\s*paused/
+      );
    });
 });

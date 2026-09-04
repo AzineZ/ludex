@@ -184,14 +184,14 @@ describe("ReferenceSelectionSection", () => {
       expect(selection.toggleKeyword).toHaveBeenCalledWith(100, keyword);
    });
 
-   it("serializes controlled constraints into the inspectable draft", () => {
+   it("keeps controlled constraints user-facing without exposing JSON", () => {
       mockedUseReferenceSelection.mockReturnValue(selectionResult());
-      render(<ReferenceSelectionSection sessionEpoch={7} />);
+      const { container } = render(<ReferenceSelectionSection sessionEpoch={7} />);
 
-      const preview = screen.getByTestId("preference-draft");
-      expect(preview).toHaveTextContent('"play_status": "either"');
+      expect(screen.getByRole("radio", { name: "Either" })).toBeChecked();
       fireEvent.click(screen.getByRole("radio", { name: "Unplayed" }));
-      expect(preview).toHaveTextContent('"play_status": "unplayed"');
+      expect(screen.getByRole("radio", { name: "Unplayed" })).toBeChecked();
+      expect(container.querySelector("pre")).toBeNull();
    });
 
    it("resets recommendation constraints when the profile changes", () => {

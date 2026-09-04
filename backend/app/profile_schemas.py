@@ -20,6 +20,7 @@ class OwnedGameResponse(BaseModel):
     steam_app_id: int
     name: str
     icon_url: str | None
+    cover_url: str | None
     playtime_minutes: int
     recent_playtime_minutes: int | None
     last_played_at: datetime | None

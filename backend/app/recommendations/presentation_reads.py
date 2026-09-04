@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
+from app.igdb_images import igdb_cover_url
 from app.models import Game, IGDBMetadataTerm, ProfileGame
 from app.recommendations.factual_scoring import FacetKind
 from app.recommendations.final_results import (
@@ -10,7 +11,6 @@ from app.recommendations.final_results import (
     CandidatePresentationFacts,
     FacetLabel,
 )
-from app.recommendations.reference_reads import IGDB_COVER_URL_PREFIX
 
 _FACET_KIND_ORDER = {
     FacetKind.GENRE: 0,
@@ -26,13 +26,6 @@ class FinalResultPresentationProjection:
 
     presentations: tuple[CandidatePresentationFacts, ...]
     facet_labels: tuple[FacetLabel, ...]
-
-
-def _cover_url(cover_image_id: str | None) -> str | None:
-    """Build an IGDB cover URL only when its cached ID is known."""
-    if cover_image_id is None:
-        return None
-    return f"{IGDB_COVER_URL_PREFIX}{cover_image_id}.jpg"
 
 
 def load_final_result_presentation(
@@ -73,7 +66,7 @@ def load_final_result_presentation(
             CandidatePresentationFacts(
                 steam_app_id=row.steam_app_id,
                 title=row.name,
-                cover_url=_cover_url(row.cover_image_id),
+                cover_url=igdb_cover_url(row.cover_image_id),
                 profile_playtime_minutes=row.playtime_minutes,
                 normal_completion_seconds=(
                     row.time_to_beat_normally_seconds

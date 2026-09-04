@@ -44,27 +44,44 @@ function AccessSessionSection() {
          {currentProfile !== null && (
             <>
                <div className="app__current-profile">
-                  <p className="app__selection">
-                     Current Steam profile: <strong>{currentProfile.display_name}</strong>
-                  </p>
-                  <button
-                     className="app__secondary-button"
-                     type="button"
-                     onClick={() => void session.endSession()}
-                     disabled={session.isEnding}
-                  >
-                     {session.isEnding ? "Ending session…" : "Use another Steam ID"}
-                  </button>
+                  <div className="app__profile-summary">
+                     <p className="app__selection">
+                        Current Steam profile: <strong>{currentProfile.display_name}</strong>
+                     </p>
+                     {currentProfile.games.length === 0 ? (
+                        <p className="app__game-count">This Steam library is empty.</p>
+                     ) : (
+                        <p className="app__game-count">
+                           {currentProfile.games.length}{" "}
+                           {currentProfile.games.length === 1 ? "game" : "games"}{" "}
+                           in your library
+                        </p>
+                     )}
+                  </div>
+
+                  <div className="app__profile-actions">
+                     <button
+                        className="app__secondary-button"
+                        type="button"
+                        onClick={() => void session.endSession()}
+                        disabled={session.isEnding}
+                     >
+                        {session.isEnding
+                           ? "Ending session…"
+                           : "Use another Steam ID"}
+                     </button>
+
+                     <SessionGameLibrary
+                        key={currentProfile.steam_id}
+                        profile={currentProfile}
+                        isRefreshing={session.isRefreshing}
+                        refreshError={session.refreshError}
+                        refreshSucceeded={session.refreshSucceeded}
+                        onRefresh={session.refreshSessionProfile}
+                     />
+                  </div>
                   {session.endError !== null && <p role="alert">{session.endError}</p>}
                </div>
-
-               <SessionGameLibrary
-                  profile={currentProfile}
-                  isRefreshing={session.isRefreshing}
-                  refreshError={session.refreshError}
-                  refreshSucceeded={session.refreshSucceeded}
-                  onRefresh={session.refreshSessionProfile}
-               />
 
                <ReferenceSelectionSection sessionEpoch={session.sessionEpoch} />
             </>

@@ -17,7 +17,15 @@ const sessionProfile: SessionProfileResponse = {
    avatar_url: null,
    created_at: "2026-08-01T12:00:00Z",
    last_synced_at: "2026-08-01T12:00:00Z",
-   games: [],
+   games: [{
+      steam_app_id: 620,
+      name: "Portal 2",
+      icon_url: null,
+      cover_url: "https://images.igdb.com/igdb/image/upload/t_cover_big/co1abc.jpg",
+      playtime_minutes: 120,
+      recent_playtime_minutes: null,
+      last_played_at: null,
+   }],
 };
 
 const fetchMock = vi.fn<typeof fetch>();

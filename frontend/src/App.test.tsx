@@ -38,6 +38,7 @@ const sessionProfile: SessionProfileResponse = {
          steam_app_id: 10,
          name: "Alpha Game",
          icon_url: null,
+         cover_url: null,
          playtime_minutes: 120,
          recent_playtime_minutes: 30,
          last_played_at: null,
@@ -46,6 +47,7 @@ const sessionProfile: SessionProfileResponse = {
          steam_app_id: 20,
          name: "Beta Game",
          icon_url: null,
+         cover_url: null,
          playtime_minutes: 0,
          recent_playtime_minutes: null,
          last_played_at: null,
@@ -108,9 +110,18 @@ describe("App session experience", () => {
       mockedGetCurrent.mockResolvedValue(sessionProfile);
       render(<App />);
       expect(await screen.findByText("Session Player")).toBeInTheDocument();
-      expect(screen.getByText("2 games")).toBeInTheDocument();
-      expect(screen.getByText("Alpha Game")).toBeInTheDocument();
-      expect(screen.getByText("120 minutes played")).toBeInTheDocument();
+      expect(screen.getByText("2 games in your library")).toBeInTheDocument();
+      expect(screen.getAllByText("Alpha Game").length).toBeGreaterThan(0);
+      expect(screen.queryByText("120 minutes played")).toBeNull();
+      const profileActions = screen.getByRole("button", {
+         name: "Use another Steam ID",
+      }).closest(".app__profile-actions");
+      expect(profileActions).toContainElement(
+         screen.getByRole("button", { name: "Refresh library" })
+      );
+      expect(profileActions).toContainElement(
+         screen.getByRole("button", { name: "Pause background" })
+      );
       expect(screen.getByRole("heading", { name: "Choose reference games" }))
          .toBeInTheDocument();
       expect(screen.queryByText(/saved profiles/i)).not.toBeInTheDocument();
@@ -167,6 +178,7 @@ describe("App session experience", () => {
                steam_app_id: 30,
                name: "Gamma Game",
                icon_url: null,
+               cover_url: null,
                playtime_minutes: 45,
                recent_playtime_minutes: null,
                last_played_at: null,
@@ -177,8 +189,8 @@ describe("App session experience", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Refresh library" }));
       expect(await screen.findByRole("status", { name: "refresh-result" }))
          .toHaveTextContent("Steam library refreshed.");
-      expect(screen.getByText("3 games")).toBeInTheDocument();
-      expect(screen.getByText("Gamma Game")).toBeInTheDocument();
+      expect(screen.getByText("3 games in your library")).toBeInTheDocument();
+      expect(screen.getAllByText("Gamma Game").length).toBeGreaterThan(0);
    });
 
    it("preserves the current profile when refresh fails", async () => {
@@ -189,7 +201,7 @@ describe("App session experience", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(
          "Steam unavailable."
       );
-      expect(screen.getByText("Alpha Game")).toBeInTheDocument();
+      expect(screen.getAllByText("Alpha Game").length).toBeGreaterThan(0);
    });
 
    it("revokes the current session before showing another-ID entry", async () => {

@@ -4,6 +4,7 @@ export type OwnedGameResponse = {
    steam_app_id: number;
    name: string;
    icon_url: string | null;
+   cover_url: string | null;
    playtime_minutes: number;
    recent_playtime_minutes: number | null;
    last_played_at: string | null;

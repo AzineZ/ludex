@@ -154,10 +154,6 @@ function deferred<Value>(): Deferred<Value> {
 
 async function completeWorkflow(): Promise<void> {
    fireEvent.click(
-      screen.getByRole("button", { name: "Validate preferences" })
-   );
-   await screen.findByText("Preference is valid.");
-   fireEvent.click(
       screen.getByRole("button", { name: "Get recommendations" })
    );
    await screen.findByRole(
@@ -182,7 +178,7 @@ describe("preference recommendation workflow", () => {
 
       expect(
          screen.getByRole("button", { name: "Get recommendations" })
-      ).toBeDisabled();
+      ).toBeEnabled();
 
       await completeWorkflow();
 
@@ -208,19 +204,17 @@ describe("preference recommendation workflow", () => {
       render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
 
       fireEvent.click(
-         screen.getByRole("button", { name: "Validate preferences" })
+         screen.getByRole("button", { name: "Get recommendations" })
       );
       expect(await screen.findByRole("alert")).toHaveTextContent(
          "Validation temporarily unavailable."
       );
-      expect(screen.getByTestId("preference-draft")).toHaveTextContent(
-         '"steam_app_id": 100'
-      );
+      expect(screen.queryByText(/steam_app_id/)).toBeNull();
 
       fireEvent.click(
-         screen.getByRole("button", { name: "Validate preferences" })
+         screen.getByRole("button", { name: "Get recommendations" })
       );
-      await screen.findByText("Preference is valid.");
+      await screen.findByRole("article", { name: "Portal 2" });
       expect(mockedValidate).toHaveBeenCalledTimes(2);
    });
 
@@ -230,18 +224,12 @@ describe("preference recommendation workflow", () => {
          .mockResolvedValueOnce(response);
       render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
 
-      fireEvent.click(
-         screen.getByRole("button", { name: "Validate preferences" })
-      );
-      await screen.findByText("Preference is valid.");
       fireEvent.click(screen.getByRole("button", { name: "Get recommendations" }));
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
          "Recommendations are temporarily unavailable."
       );
-      expect(screen.getByTestId("preference-draft")).toHaveTextContent(
-         '"steam_app_id": 100'
-      );
+      expect(screen.queryByText(/steam_app_id/)).toBeNull();
       fireEvent.click(
          screen.getByRole("button", { name: "Try recommendations again" })
       );
@@ -256,15 +244,14 @@ describe("preference recommendation workflow", () => {
       render(<PreferenceValidationPanel sessionEpoch={7} preference={draft} />);
 
       fireEvent.click(
-         screen.getByRole("button", { name: "Validate preferences" })
-      );
-      await screen.findByText("Preference is valid.");
-      fireEvent.click(
          screen.getByRole("button", { name: "Get recommendations" })
       );
 
       expect(
-         screen.getByRole("button", { name: "Finding recommendations…" })
+         screen.getByRole("button", { name: "Checking preferences…" })
+      ).toBeDisabled();
+      expect(
+         await screen.findByRole("button", { name: "Finding recommendations…" })
       ).toBeDisabled();
       expect(
          screen.getByText("Finding recommendations in your cached library…")
@@ -294,15 +281,12 @@ describe("preference recommendation workflow", () => {
          />
       );
 
-      await waitFor(() => {
-         expect(screen.queryByText("Preference is valid.")).not.toBeInTheDocument();
-      });
       expect(screen.getByRole("article", { name: "Portal 2" }))
          .toBeInTheDocument();
       await waitFor(() => {
          expect(
             screen.getByRole("button", { name: "Refine recommendations" })
-         ).toBeDisabled();
+         ).toBeEnabled();
       });
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
    });
@@ -320,10 +304,9 @@ describe("preference recommendation workflow", () => {
       await waitFor(() => {
          expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
       });
-      expect(screen.queryByText("Preference is valid.")).not.toBeInTheDocument();
       expect(
          screen.getByRole("button", { name: "Get recommendations" })
-      ).toBeDisabled();
+      ).toBeEnabled();
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
    });
 
@@ -399,10 +382,6 @@ describe("preference recommendation workflow", () => {
 
       mockedValidate.mockResolvedValueOnce(refinedCanonicalPreference);
       fireEvent.click(
-         screen.getByRole("button", { name: "Validate preferences" })
-      );
-      await screen.findByText("Preference is valid.");
-      fireEvent.click(
          screen.getByRole("button", { name: "Refine recommendations" })
       );
 
@@ -441,7 +420,7 @@ describe("preference recommendation workflow", () => {
          new Error("The edited preference is invalid.")
       );
       fireEvent.click(
-         screen.getByRole("button", { name: "Validate preferences" })
+         screen.getByRole("button", { name: "Refine recommendations" })
       );
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -467,10 +446,6 @@ describe("preference recommendation workflow", () => {
          <PreferenceValidationPanel sessionEpoch={7} preference={refinedDraft} />
       );
       mockedValidate.mockResolvedValueOnce(refinedCanonicalPreference);
-      fireEvent.click(
-         screen.getByRole("button", { name: "Validate preferences" })
-      );
-      await screen.findByText("Preference is valid.");
       mockedRefineRecommendations.mockRejectedValueOnce(
          new Error("Refinement temporarily unavailable.")
       );
@@ -550,10 +525,6 @@ describe("preference recommendation workflow", () => {
       );
       mockedValidate.mockResolvedValueOnce(refinedCanonicalPreference);
       fireEvent.click(
-         screen.getByRole("button", { name: "Validate preferences" })
-      );
-      await screen.findByText("Preference is valid.");
-      fireEvent.click(
          screen.getByRole("button", { name: "Refine recommendations" })
       );
 
@@ -586,7 +557,7 @@ describe("preference recommendation workflow", () => {
       expect(screen.queryByRole("article")).not.toBeInTheDocument();
       expect(
          screen.getByRole("button", { name: "Get recommendations" })
-      ).toBeDisabled();
+      ).toBeEnabled();
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
 
       await completeWorkflow();

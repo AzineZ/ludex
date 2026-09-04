@@ -17,6 +17,7 @@ from app.access_sessions import (
 )
 from app.database import get_database_session
 from app.dependencies import get_steam_client
+from app.igdb_images import igdb_cover_url
 from app.models import Profile, ProfileGame
 from app.profile_schemas import (
     OwnedGameResponse,
@@ -166,6 +167,9 @@ def _session_profile_response(profile: Profile) -> SessionProfileResponse:
                 steam_app_id=ownership.steam_app_id,
                 name=ownership.game.name,
                 icon_url=ownership.game.icon_url,
+                cover_url=igdb_cover_url(
+                    ownership.game.cover_image_id
+                ),
                 playtime_minutes=ownership.playtime_minutes,
                 recent_playtime_minutes=(
                     ownership.recent_playtime_minutes

@@ -34,6 +34,7 @@ const originalProfile: SessionProfileResponse = {
       steam_app_id: 620,
       name: "Portal 2",
       icon_url: null,
+      cover_url: null,
       playtime_minutes: 120,
       recent_playtime_minutes: null,
       last_played_at: null,
@@ -88,16 +89,16 @@ describe("AccessSessionSection action recovery", () => {
          .mockResolvedValueOnce(refreshedProfile);
       render(<AccessSessionSection />);
 
-      await screen.findByText("Portal 2");
+      await screen.findAllByText("Portal 2");
       fireEvent.click(screen.getByRole("button", { name: "Refresh library" }));
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
          "Steam is temporarily unavailable."
       );
-      expect(screen.getByText("Portal 2")).toBeInTheDocument();
+      expect(screen.getAllByText("Portal 2").length).toBeGreaterThan(0);
       fireEvent.click(screen.getByRole("button", { name: "Refresh library" }));
 
-      expect(await screen.findByText("Portal")).toBeInTheDocument();
+      expect((await screen.findAllByText("Portal")).length).toBeGreaterThan(0);
       expect(screen.queryByText("Portal 2")).not.toBeInTheDocument();
       expect(mockedRefresh).toHaveBeenCalledTimes(2);
    });

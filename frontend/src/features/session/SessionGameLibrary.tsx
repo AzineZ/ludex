@@ -1,4 +1,6 @@
-import type { SessionProfileResponse } from "../../api";
+import { useState } from "react";
+
+import type { OwnedGameResponse, SessionProfileResponse } from "../../api";
 
 type SessionGameLibraryProps = {
    profile: SessionProfileResponse;
@@ -8,7 +10,72 @@ type SessionGameLibraryProps = {
    onRefresh: () => Promise<boolean>;
 };
 
-/** Displays the current session's cached Steam library. */
+const LIBRARY_WALL_GAME_LIMIT = 24;
+const MINIMUM_GAMES_PER_ROW = 8;
+const LIBRARY_WALL_ROW_COUNT = 3;
+
+function fillLibraryRow(games: readonly OwnedGameResponse[]): OwnedGameResponse[] {
+   if (games.length === 0) return [];
+   const rowLength = Math.max(MINIMUM_GAMES_PER_ROW, games.length);
+   return Array.from(
+      { length: rowLength },
+      (_, index) => games[index % games.length]
+   );
+}
+
+function LibraryCard({ game }: { game: OwnedGameResponse }) {
+   return (
+      <span
+         className="app__library-card"
+         data-steam-app-id={game.steam_app_id}
+      >
+         <span className="app__library-card-fallback">{game.name}</span>
+         {game.cover_url !== null && (
+            <img
+               src={game.cover_url}
+               alt=""
+               loading="lazy"
+               decoding="async"
+               onError={(event) => {
+                  event.currentTarget.hidden = true;
+               }}
+            />
+         )}
+      </span>
+   );
+}
+
+function LibraryTrack({
+   games,
+   reverse = false,
+   slow = false,
+}: {
+   games: readonly OwnedGameResponse[];
+   reverse?: boolean;
+   slow?: boolean;
+}) {
+   const modifierClasses = [
+      reverse ? "app__library-track--reverse" : "",
+      slow ? "app__library-track--slow" : "",
+   ].filter(Boolean).join(" ");
+
+   return (
+      <div className={`app__library-track ${modifierClasses}`.trim()}>
+         {["original", "duplicate"].map((group) => (
+            <div className="app__library-track-group" key={group}>
+               {games.map((game, index) => (
+                  <LibraryCard
+                     game={game}
+                     key={`${group}-${game.steam_app_id}-${index}`}
+                  />
+               ))}
+            </div>
+         ))}
+      </div>
+   );
+}
+
+/** Shows cached library covers as a bounded page backdrop with local controls. */
 function SessionGameLibrary({
    profile,
    isRefreshing,
@@ -16,9 +83,32 @@ function SessionGameLibrary({
    refreshSucceeded,
    onRefresh,
 }: SessionGameLibraryProps) {
+   const [isPaused, setIsPaused] = useState(false);
+   const wallGames = profile.games.slice(0, LIBRARY_WALL_GAME_LIMIT);
+   const gamesPerRow = Math.ceil(wallGames.length / LIBRARY_WALL_ROW_COUNT);
+   const rows = Array.from({ length: LIBRARY_WALL_ROW_COUNT }, (_, index) => {
+      const rowGames = wallGames.slice(
+         index * gamesPerRow,
+         (index + 1) * gamesPerRow
+      );
+      return fillLibraryRow(rowGames.length === 0 ? wallGames : rowGames);
+   });
+
    return (
-      <section className="app__library" aria-labelledby="library-heading">
-         <h3 id="library-heading">Game library</h3>
+      <>
+         {wallGames.length > 0 && (
+            <div
+               className={`app__library-backdrop${
+                  isPaused ? " app__library-backdrop--paused" : ""
+               }`}
+               aria-hidden="true"
+            >
+               <LibraryTrack games={rows[0]} />
+               <LibraryTrack games={rows[1]} reverse />
+               <LibraryTrack games={rows[2]} slow />
+            </div>
+         )}
+
          <button
             className="app__secondary-button"
             type="button"
@@ -28,30 +118,26 @@ function SessionGameLibrary({
             {isRefreshing ? "Refreshing library…" : "Refresh library"}
          </button>
 
+         {wallGames.length > 0 && (
+            <button
+               className="app__secondary-button"
+               type="button"
+               aria-pressed={isPaused}
+               onClick={() => setIsPaused((paused) => !paused)}
+            >
+               {isPaused ? "Resume background" : "Pause background"}
+            </button>
+         )}
+
          {refreshSucceeded && (
-            <p role="status" aria-label="refresh-result">
+            <p className="app__profile-feedback" role="status" aria-label="refresh-result">
                Steam library refreshed.
             </p>
          )}
-         {refreshError !== null && <p role="alert">{refreshError}</p>}
-
-         <p className="app__game-count">
-            {profile.games.length} {profile.games.length === 1 ? "game" : "games"}
-         </p>
-         {profile.games.length === 0 && <p>This Steam library is empty.</p>}
-         {profile.games.length > 0 && (
-            <ul className="app__game-list">
-               {profile.games.map((game) => (
-                  <li className="app__game" key={game.steam_app_id}>
-                     <span className="app__game-name">{game.name}</span>
-                     <span className="app__playtime">
-                        {game.playtime_minutes} minutes played
-                     </span>
-                  </li>
-               ))}
-            </ul>
+         {refreshError !== null && (
+            <p className="app__profile-feedback" role="alert">{refreshError}</p>
          )}
-      </section>
+      </>
    );
 }
 

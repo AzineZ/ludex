@@ -39,6 +39,7 @@ function PreferenceValidationPanel({
    );
    const recommendationActionRef = useRef<HTMLButtonElement>(null);
    const focusStartOverRef = useRef(false);
+   const pendingSubmissionRef = useRef<"initial" | "refinement" | null>(null);
    const [focusRequest, setFocusRequest] = useState<{
       steamAppId: number;
       requestId: number;
@@ -119,13 +120,40 @@ function PreferenceValidationPanel({
          recommendationActionRef.current?.focus();
       }
    }, [sessionState.phase]);
+
+   useEffect(() => {
+      if (
+         validation.status !== "valid"
+         || validation.validatedPreference === null
+         || pendingSubmissionRef.current === null
+      ) {
+         return;
+      }
+
+      const submission = pendingSubmissionRef.current;
+      pendingSubmissionRef.current = null;
+      if (submission === "refinement" && sessionState.phase === "editing") {
+         beginRefinement(validation.validatedPreference);
+         recommendation.refine(sessionState.rejectedSteamAppIds);
+      } else if (submission === "initial" && sessionState.phase === "idle") {
+         recommendation.request();
+      }
+   }, [
+      beginRefinement,
+      recommendation,
+      sessionState.phase,
+      sessionState.rejectedSteamAppIds,
+      validation.status,
+      validation.validatedPreference,
+   ]);
+
    const isValidating = validation.status === "validating";
    const isLoadingRecommendations = recommendation.status === "loading";
    const canSubmitForSession =
       sessionState.phase === "idle" || sessionState.phase === "editing";
    const canRequestRecommendations =
-      validation.status === "valid" &&
-      validation.validatedPreference !== null &&
+      sessionEpoch !== null &&
+      !isValidating &&
       !isLoadingRecommendations &&
       canSubmitForSession;
    const hasRetainedSession =
@@ -139,44 +167,41 @@ function PreferenceValidationPanel({
       ? retainedResponse
       : recommendation.response;
 
+   function submitRecommendation(): void {
+      const submission = sessionState.phase === "editing"
+         ? "refinement"
+         : "initial";
+      if (validation.validatedPreference !== null) {
+         if (submission === "refinement") {
+            beginRefinement(validation.validatedPreference);
+            recommendation.refine(sessionState.rejectedSteamAppIds);
+         } else {
+            recommendation.request();
+         }
+         return;
+      }
+
+      pendingSubmissionRef.current = submission;
+      void validation.validate().then((isValid) => {
+         if (!isValid) pendingSubmissionRef.current = null;
+      });
+   }
+
    return (
       <section
          className="preference-validation"
          aria-labelledby="preference-validation-heading"
       >
-         <h3 id="preference-validation-heading">Preference preview</h3>
-         <p>This is the exact preference Ludex will validate.</p>
-         <pre data-testid="preference-draft">
-            {JSON.stringify(preference, null, 2)}
-         </pre>
-
-         <button
-            type="button"
-            disabled={sessionEpoch === null || isValidating}
-            onClick={() => {
-               void validation.validate();
-            }}
-         >
-            {isValidating ? "Validating preferences…" : "Validate preferences"}
-         </button>
+         <h3 id="preference-validation-heading">Find your next game</h3>
+         <p>
+            Ludex will check your choices and search your cached library.
+         </p>
 
          {isValidating && (
             <p role="status">Checking this preference with Ludex…</p>
          )}
-         {validation.status === "valid" && (
-            <>
-               <p role="status">Preference is valid.</p>
-               <pre data-testid="validated-preference">
-                  {JSON.stringify(validation.validatedPreference, null, 2)}
-               </pre>
-            </>
-         )}
          {validation.status === "invalid" && validation.error !== null && (
-            <p role="alert">
-               {validation.errorField === null
-                  ? validation.error
-                  : `${validation.errorField}: ${validation.error}`}
-            </p>
+            <p role="alert">{validation.error}</p>
          )}
 
          <div className="preference-validation__recommendation-action">
@@ -184,21 +209,11 @@ function PreferenceValidationPanel({
                ref={recommendationActionRef}
                type="button"
                disabled={!canRequestRecommendations}
-               onClick={() => {
-                  if (
-                     sessionState.phase === "editing"
-                     && validation.validatedPreference !== null
-                  ) {
-                     beginRefinement(validation.validatedPreference);
-                     recommendation.refine(
-                        sessionState.rejectedSteamAppIds
-                     );
-                  } else {
-                     recommendation.request();
-                  }
-               }}
+               onClick={submitRecommendation}
             >
-               {sessionState.phase === "refining"
+               {isValidating
+                  ? "Checking preferences…"
+                  : sessionState.phase === "refining"
                   ? "Refining recommendations…"
                   : isLoadingRecommendations
                     ? "Finding recommendations…"

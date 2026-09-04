@@ -4,16 +4,13 @@ from enum import StrEnum
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from app.igdb_images import igdb_cover_url
 from app.models import (
     Game,
     GameIGDBMetadataTerm,
     IGDBMetadataTerm,
     Profile,
     ProfileGame,
-)
-
-IGDB_COVER_URL_PREFIX = (
-    "https://images.igdb.com/igdb/image/upload/t_cover_big/"
 )
 
 SEARCH_RESULT_LIMIT = 10
@@ -140,14 +137,6 @@ def normalize_search_query(query: str) -> str:
         )
 
     return normalized_query
-
-
-def _cover_url(cover_image_id: str | None) -> str | None:
-    """Build the public IGDB cover URL when an image ID is known."""
-    if cover_image_id is None:
-        return None
-
-    return f"{IGDB_COVER_URL_PREFIX}{cover_image_id}.jpg"
 
 
 def _require_profile(
@@ -280,7 +269,7 @@ def search_owned_games(
         OwnedGameSuggestion(
             steam_app_id=row.steam_app_id,
             name=row.name,
-            cover_url=_cover_url(row.cover_image_id),
+            cover_url=igdb_cover_url(row.cover_image_id),
             metadata_status=MetadataStatus(row.igdb_status),
         )
         for row in rows
@@ -353,7 +342,7 @@ def load_reference_details(
     return ReferenceDetails(
         steam_app_id=reference.steam_app_id,
         name=reference.name,
-        cover_url=_cover_url(reference.cover_image_id),
+        cover_url=igdb_cover_url(reference.cover_image_id),
         metadata_status=reference.metadata_status,
         facets=ReferenceFacets(
             genres=tuple(grouped_facets["genre"]),
