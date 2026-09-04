@@ -100,6 +100,15 @@
    margin: 2rem 0;
 }
 
+.app__session-recovery {
+   margin-bottom: 2rem;
+   text-align: center;
+}
+
+.app__session-recovery .app__secondary-button {
+   margin-top: 0.5rem;
+}
+
 .app__selection strong {
    color: var(--color-alarm-red);
 }

@@ -27,6 +27,7 @@ function sessionResult(
       handleSessionUnauthorized: vi.fn(),
       isEnding: false,
       isRefreshing: false,
+      isRestoringSession: false,
       isStarting: false,
       profile: status === "ready" ? {
          steam_id: "76561198000000001",
@@ -40,6 +41,7 @@ function sessionResult(
       refreshError: null,
       refreshSucceeded: false,
       refreshSessionProfile: vi.fn(),
+      retrySessionRestore: vi.fn(),
       sessionEpoch,
       startError: null,
       startSession: vi.fn(),

@@ -20,7 +20,17 @@ function AccessSessionSection() {
          {(session.status === "signed_out" || session.status === "unavailable") && (
             <>
                {session.startupError !== null && (
-                  <p role="alert">{session.startupError}</p>
+                  <div className="app__session-recovery">
+                     <p role="alert">{session.startupError}</p>
+                     <button
+                        className="app__secondary-button"
+                        type="button"
+                        onClick={() => void session.retrySessionRestore()}
+                        disabled={session.isRestoringSession}
+                     >
+                        {session.isRestoringSession ? "Checking…" : "Try again"}
+                     </button>
+                  </div>
                )}
                <p>Enter a Steam ID or profile URL to use Ludex on this browser.</p>
                <SteamSessionForm

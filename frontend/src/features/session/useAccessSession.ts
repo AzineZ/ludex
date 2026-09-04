@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
    ApiError,
@@ -26,6 +26,7 @@ export function useAccessSession() {
    const [profile, setProfile] = useState<SessionProfileResponse | null>(null);
    const [sessionEpoch, setSessionEpoch] = useState(0);
    const [startupError, setStartupError] = useState<string | null>(null);
+   const [isRestoringSession, setIsRestoringSession] = useState(false);
    const [isStarting, setIsStarting] = useState(false);
    const [startError, setStartError] = useState<string | null>(null);
    const [isRefreshing, setIsRefreshing] = useState(false);
@@ -34,13 +35,63 @@ export function useAccessSession() {
    const [isEnding, setIsEnding] = useState(false);
    const [endError, setEndError] = useState<string | null>(null);
    const statusRef = useRef<AccessSessionStatus>(status);
+   const restorationRequestRef = useRef(0);
+   const restorationIsPendingRef = useRef(false);
 
    useEffect(() => {
       statusRef.current = status;
    }, [status]);
 
+   const invalidateSessionRestoration = useCallback((): void => {
+      restorationRequestRef.current += 1;
+      restorationIsPendingRef.current = false;
+      setIsRestoringSession(false);
+   }, []);
+
+   const handleSessionUnauthorized = useCallback((): void => {
+      invalidateSessionRestoration();
+      setProfile(null);
+      setStatus("signed_out");
+      setSessionEpoch((currentEpoch) => currentEpoch + 1);
+   }, [invalidateSessionRestoration]);
+
+   const restoreSession = useCallback(async (): Promise<boolean> => {
+      if (restorationIsPendingRef.current) return false;
+
+      const requestId = restorationRequestRef.current + 1;
+      restorationRequestRef.current = requestId;
+      restorationIsPendingRef.current = true;
+      setIsRestoringSession(true);
+      setStartupError(null);
+
+      try {
+         const currentProfile = await getCurrentSessionProfile();
+         if (restorationRequestRef.current !== requestId) return false;
+         setProfile(currentProfile);
+         setStatus("ready");
+         return true;
+      } catch (error: unknown) {
+         if (restorationRequestRef.current !== requestId) return false;
+         setProfile(null);
+         if (error instanceof ApiError && error.status === 401) {
+            setStatus("signed_out");
+            return true;
+         }
+         setStatus("unavailable");
+         setStartupError(
+            errorMessage(error, "Your saved session could not be checked.")
+         );
+         return false;
+      } finally {
+         if (restorationRequestRef.current === requestId) {
+            restorationIsPendingRef.current = false;
+            setIsRestoringSession(false);
+         }
+      }
+   }, []);
+
    useEffect(() => {
-      let requestIsCurrent = true;
+      let effectIsActive = true;
       const handleUnauthorizedEvent = () => {
          if (statusRef.current === "ready") handleSessionUnauthorized();
       };
@@ -49,46 +100,28 @@ export function useAccessSession() {
          handleUnauthorizedEvent
       );
 
-      getCurrentSessionProfile()
-         .then((currentProfile) => {
-            if (!requestIsCurrent) return;
-            setProfile(currentProfile);
-            setStatus("ready");
-         })
-         .catch((error: unknown) => {
-            if (!requestIsCurrent) return;
-            setProfile(null);
-            if (error instanceof ApiError && error.status === 401) {
-               setStatus("signed_out");
-               setStartupError(null);
-               return;
-            }
-            setStatus("unavailable");
-            setStartupError(
-               errorMessage(error, "Your saved session could not be checked.")
-            );
-         });
+      queueMicrotask(() => {
+         if (effectIsActive) void restoreSession();
+      });
 
       return () => {
-         requestIsCurrent = false;
+         effectIsActive = false;
+         restorationRequestRef.current += 1;
+         restorationIsPendingRef.current = false;
          window.removeEventListener(
             SESSION_UNAUTHORIZED_EVENT,
             handleUnauthorizedEvent
          );
       };
-   }, []);
-
-   function handleSessionUnauthorized(): void {
-      setProfile(null);
-      setStatus("signed_out");
-      setSessionEpoch((currentEpoch) => currentEpoch + 1);
-   }
+   }, [handleSessionUnauthorized, restoreSession]);
 
    async function startSession(identifier: string): Promise<boolean> {
       const normalizedIdentifier = identifier.trim();
       if (!normalizedIdentifier || isStarting) return false;
 
+      invalidateSessionRestoration();
       setIsStarting(true);
+      setStartupError(null);
       setStartError(null);
       try {
          const nextProfile = await createAccessSession(normalizedIdentifier);
@@ -156,11 +189,13 @@ export function useAccessSession() {
       handleSessionUnauthorized,
       isEnding,
       isRefreshing,
+      isRestoringSession,
       isStarting,
       profile,
       refreshError,
       refreshSucceeded,
       refreshSessionProfile,
+      retrySessionRestore: restoreSession,
       sessionEpoch,
       startError,
       startSession,
