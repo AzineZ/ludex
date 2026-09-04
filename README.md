@@ -87,19 +87,26 @@ Steam and update ownership or playtime.
 
 Preference validation and recommendation requests use cached database facts and
 never call Steam, IGDB, Gemini, or another provider. A new Steam import does not
-populate IGDB facts. This report-only command shows aggregate readiness without
-provider calls or writes:
+populate IGDB facts. The default command is report-only: it shows aggregate
+readiness without provider calls or writes.
 
 ```bash
 cd backend
 uv run python -m app.igdb_enrichment_command
 ```
 
-Ludex currently has no supported provider-applying enrichment command, endpoint,
-or background worker. Useful recommendations therefore require an existing
-factual IGDB cache. The reusable internal enrichment service remains covered by
-tests, but provider-running enrichment is not yet part of routine local setup.
-This is a known release-candidate limitation, not a reason to enable Gemini.
+After reviewing that report, explicitly enrich the uniquely owned pending games
+with the configured backend IGDB credentials:
+
+```bash
+uv run python -m app.igdb_enrichment_command --apply
+```
+
+Only `--apply` contacts IGDB. It uses the bounded enrichment service, prints
+aggregate before/after coverage, and exits nonzero with a sanitized report when
+IGDB fails; successful earlier batches remain committed for a safe retry. No
+automatic endpoint or background worker exists. Recommendation requests remain
+cache-only, and Gemini is neither constructed nor required.
 
 ## Verify the installation
 

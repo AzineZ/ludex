@@ -80,12 +80,13 @@ def test_setup_guide_documents_the_supported_data_workflow() -> None:
     assert "## First-run data workflow" in readme
     assert "Enter a Steam ID or public Steam profile URL" in normalized_readme
     assert "Refresh Steam library" in normalized_readme
+    assert "uv run python -m app.igdb_enrichment_command" in readme
     assert (
-        "no supported provider-applying enrichment command, endpoint, or "
-        "background worker"
-        in normalized_readme
+        "uv run python -m app.igdb_enrichment_command --apply" in readme
     )
-    assert "existing factual IGDB cache" in normalized_readme
+    assert "The default command is report-only" in normalized_readme
+    assert "Only `--apply` contacts IGDB" in normalized_readme
+    assert "Recommendation requests remain cache-only" in normalized_readme
 
 
 def test_setup_guide_lists_complete_verification_commands() -> None:
