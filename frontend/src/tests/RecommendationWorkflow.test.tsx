@@ -382,7 +382,7 @@ describe("preference recommendation workflow", () => {
       playThisButton.focus();
       fireEvent.click(playThisButton);
 
-      expect(screen.getByText("You chose Game 2.")).toHaveAttribute(
+      expect(screen.getByText("You chose Game 2. Have fun!")).toHaveAttribute(
          "role",
          "status"
       );

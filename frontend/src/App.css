@@ -1,3 +1,5 @@
+@import "@fontsource/bebas-neue/400.css";
+
 :root {
    --color-void-black: #000;
    --color-bone-cream: #ebe4d8;
@@ -5,7 +7,7 @@
    --color-alarm-red: #ff4034;
    --color-status-connected: #55d187;
    --color-status-pending: #f2c94c;
-   --font-display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+   --font-display: "Bebas Neue", "Arial Narrow", sans-serif;
    --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 

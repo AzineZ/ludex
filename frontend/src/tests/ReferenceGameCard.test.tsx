@@ -153,6 +153,11 @@ describe("ReferenceGameCard", () => {
       );
 
       expect(screen.getByText("2 traits selected")).toBeInTheDocument();
+      const preferences = document.querySelector(
+         ".reference-game-card__preferences"
+      );
+      expect(preferences).not.toBeNull();
+      expect(preferences).toHaveAttribute("hidden");
       const editButton = screen.getByRole("button", {
          name: "Edit preferences for First Game",
       });

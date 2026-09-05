@@ -159,10 +159,10 @@ describe("responsive layout contract", () => {
          /\.recommendation-result-card:focus\s*\{[^}]*outline:\s*none/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-result-card:focus-within:not\(:focus\)\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*box-shadow:[^}]*transform:\s*translateY\(-0\.2rem\)/
+         /\.recommendation-result-card:focus-within:not\(:focus\)\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*box-shadow:/
       );
       expect(recommendationCss).toMatch(
-         /@media \(hover:\s*hover\)[\s\S]*\.recommendation-result-card:hover\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*box-shadow:[^}]*transform:\s*translateY\(-0\.2rem\)/
+         /@media \(hover:\s*hover\)[\s\S]*\.recommendation-result-card:hover\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*box-shadow:/
       );
       expect(recommendationCss).not.toMatch(
          /\.recommendation-result-card:(?:hover|focus-within(?::not\(:focus\))?)::before/
@@ -174,13 +174,16 @@ describe("responsive layout contract", () => {
          /\.recommendation-result-card\[data-selection-state="accepted"\]\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*box-shadow:/
       );
       expect(recommendationCss).not.toMatch(
+         /6px 6px 0 rgb\(195 189 179 \/ 55%\)/
+      );
+      expect(recommendationCss).not.toMatch(
          /\.recommendation-result-card\[data-selection-state="accepted"\]::before/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card\[data-selection-state="accepted"\] \.recommendation-result-card__cover\s*\{[^}]*filter:\s*brightness\(1\.08\) saturate\(1\.05\)/
       );
       expect(recommendationCss).toMatch(
-         /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.recommendation-result-card,\s*\.recommendation-result-card__cover\s*\{[^}]*transition:\s*none[^}]*\}[\s\S]*\.recommendation-result-card:hover,[\s\S]*\.recommendation-result-card:focus-within:not\(:focus\)\s*\{[^}]*transform:\s*none/
+         /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.recommendation-result-card,\s*\.recommendation-result-card__cover\s*\{[^}]*transition:\s*none/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__content h3\s*\{[^}]*min-height:\s*1\.9em/
@@ -219,7 +222,7 @@ describe("responsive layout contract", () => {
 
    it("keeps expanded recommendation details visually simple", () => {
       expect(recommendationCss).toMatch(
-         /\.recommendation-result-card__details > summary:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--color-alarm-red\)[^}]*outline-offset:\s*3px/
+         /\.recommendation-result-card__details > summary:focus-visible\s*\{[^}]*outline:\s*none[^}]*box-shadow:\s*inset 0 -3px 0 var\(--color-bone-cream\)/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__facts\s*\{[^}]*border-top:\s*1px solid var\(--color-ash-taupe\)/
@@ -264,7 +267,7 @@ describe("responsive layout contract", () => {
 
    it("keeps collapsed reference summaries compact and their actions usable", () => {
       expect(recommendationCss).toMatch(
-         /\.reference-game-card__header\s*\{[^}]*grid-template-columns:\s*5rem minmax\(0,\s*1fr\)/
+         /\.reference-game-card__header\s*\{[^}]*grid-template-columns:\s*6rem minmax\(0,\s*1fr\)/
       );
       expect(recommendationCss).toMatch(
          /\.reference-game-card__identity h3\s*\{[^}]*font-size:\s*clamp\(/

@@ -112,7 +112,11 @@ function ReferenceGameCard({
             </div>
          </header>
 
-         <div id={preferencesId} hidden={!isExpanded}>
+         <div
+            id={preferencesId}
+            className="reference-game-card__preferences"
+            hidden={!isExpanded}
+         >
             <div className="reference-game-card__facets">
                {FACET_GROUPS.map((group) => {
                   const options = group.options(reference);

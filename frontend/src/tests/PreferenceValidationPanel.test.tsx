@@ -67,7 +67,11 @@ describe("PreferenceValidationPanel", () => {
       expect(screen.queryByText(/step 3 of 3/i)).not.toBeInTheDocument();
       expect(container.querySelector("pre")).toBeNull();
       expect(screen.queryByText(/steam_app_id/)).toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: "Get recommendations" }));
+      const recommendationButton = screen.getByRole("button", {
+         name: "Get recommendations",
+      });
+      expect(recommendationButton).toHaveClass("app__primary-button");
+      fireEvent.click(recommendationButton);
       expect(validation.validate).toHaveBeenCalledOnce();
    });
 

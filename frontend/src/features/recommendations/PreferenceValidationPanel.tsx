@@ -280,6 +280,7 @@ function PreferenceValidationPanel({
          <div className="preference-validation__recommendation-action">
             <button
                ref={recommendationActionRef}
+               className="app__primary-button"
                type="button"
                aria-describedby={
                   localRequirementMessage === null

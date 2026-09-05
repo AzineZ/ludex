@@ -22,7 +22,7 @@
 }
 
 .app__session h3 {
-   font-size: clamp(2.5rem, 9vw, 4.5rem);
+   font-size: clamp(2.5rem, 7vw, 3.5rem);
 }
 
 .app__session-form {
@@ -65,18 +65,28 @@
    cursor: pointer;
 }
 
-.app__primary-button,
-.app__secondary-button {
+.app__primary-button {
    padding: 0.95rem 1.35rem;
    color: var(--color-void-black);
    background: var(--color-bone-cream);
    box-shadow: 0 4px 0 var(--color-ash-taupe);
 }
 
-.app__primary-button:hover:not(:disabled),
-.app__secondary-button:hover:not(:disabled) {
+.app__secondary-button {
+   padding: 0.85rem 1.2rem;
+   color: var(--color-bone-cream);
+   background: rgb(0 0 0 / 82%);
+   box-shadow: none;
+}
+
+.app__primary-button:hover:not(:disabled) {
    transform: translateY(2px);
    box-shadow: 0 2px 0 var(--color-ash-taupe);
+}
+
+.app__secondary-button:hover:not(:disabled) {
+   color: var(--color-void-black);
+   background: var(--color-bone-cream);
 }
 
 .app button:focus-visible {
@@ -141,14 +151,15 @@
 .app__workspace-nav {
    display: grid;
    grid-template-columns: repeat(2, minmax(0, 1fr));
-   gap: 0.5rem;
-   padding: 0.5rem;
-   border: 1px solid rgb(235 228 216 / 60%);
-   background: rgb(0 0 0 / 88%);
-   backdrop-filter: blur(10px);
+   gap: 0;
+   padding: 0;
+   border: 1px solid var(--color-bone-cream);
+   background: rgb(0 0 0 / 92%);
+   backdrop-filter: none;
 }
 
 .app__workspace-nav button {
+   position: relative;
    min-height: 2.75rem;
    padding: 0.65rem 1rem;
    border: 1px solid transparent;
@@ -159,9 +170,13 @@
    cursor: pointer;
 }
 
+.app__workspace-nav button + button {
+   border-left-color: rgb(235 228 216 / 55%);
+}
+
 .app__workspace-nav button[aria-current="page"] {
    color: var(--color-void-black);
-   background: var(--color-alarm-red);
+   background: var(--color-bone-cream);
 }
 
 .app__profile-summary {
