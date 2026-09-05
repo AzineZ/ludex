@@ -93,6 +93,12 @@ describe("retro visual theme contract", () => {
       );
    });
 
+   it("keeps recommendation heading feedback and reset controls aligned", () => {
+      expect(recommendationCss).toMatch(
+         /\.recommendation-results__header\s*\{[^}]*margin-bottom:\s*1\.5rem[^}]*text-align:\s*center/
+      );
+   });
+
    it("gives available game, facet, and keyword choices cream hover feedback", () => {
       expect(recommendationCss).toMatch(
          /@media \(hover:\s*hover\)[\s\S]*\.reference-game-suggestions \[role="option"\]:hover:not\(\[aria-disabled="true"\]\),[\s\S]*\.reference-game-card__facet:hover:not\(:disabled\),[\s\S]*\.reference-keywords__options button:hover:not\(:disabled\)\s*\{[^}]*color:\s*var\(--color-void-black\)[^}]*background:\s*var\(--color-bone-cream\)/

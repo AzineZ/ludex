@@ -786,6 +786,7 @@
 
 .recommendation-results__header {
    margin-bottom: 1.5rem;
+   text-align: center;
 }
 
 .recommendation-results__header h3,
