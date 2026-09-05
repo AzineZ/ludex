@@ -45,6 +45,20 @@ describe("retro visual theme contract", () => {
       );
    });
 
+   it("keeps page framing, text feedback, and input focus visually quiet", () => {
+      expect(appCss).not.toMatch(/\.app::after\s*\{/);
+      expect(sessionCss).toMatch(
+         /\.app \[role="status"\]\s*\{[^}]*color:\s*var\(--color-bone-cream\)/
+      );
+      expect(sessionCss).not.toMatch(
+         /\.app \[role="status"\]\s*\{[^}]*text-decoration/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__input:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--color-bone-cream\)/
+      );
+      expect(sessionCss).not.toMatch(/\.app__input:focus\s*\{/);
+   });
+
    it("separates filled primary actions from outlined secondary actions", () => {
       expect(sessionCss).toMatch(
          /\.app__primary-button\s*\{[^}]*background:\s*var\(--color-bone-cream\)[^}]*box-shadow:\s*0 4px 0 var\(--color-ash-taupe\)/
@@ -109,6 +123,27 @@ describe("retro visual theme contract", () => {
       );
       expect(recommendationCss).toMatch(
          /\.reference-keywords\s*\{[^}]*margin-top:\s*1rem[^}]*padding-top:\s*1rem[^}]*border-top:\s*1px solid rgb\(195 189 179 \/ 45%\)/
+      );
+   });
+
+   it("presents recommendation constraints as flat, selectable control groups", () => {
+      expect(recommendationCss).toMatch(
+         /\.recommendation-constraints__content\s*\{[^}]*display:\s*grid[^}]*gap:\s*1\.25rem[^}]*border-top:\s*1px solid var\(--color-ash-taupe\)/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-constraints__group\s*\{[^}]*margin:\s*0[^}]*padding:\s*0[^}]*border:\s*0/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-constraints__choices\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-constraints__choices button,\s*\.recommendation-constraints__clear\s*\{[^}]*min-height:\s*2\.5rem[^}]*border:\s*1px solid var\(--color-bone-cream\)[^}]*background:\s*transparent/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-constraints__choices button\[aria-pressed="true"\]\s*\{[^}]*color:\s*var\(--color-void-black\)[^}]*background:\s*var\(--color-bone-cream\)/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-constraints__unknown-note\s*\{[^}]*color:\s*var\(--color-ash-taupe\)/
       );
    });
 

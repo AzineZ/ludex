@@ -365,7 +365,8 @@ describe("preference recommendation workflow", () => {
       const replacementCard = screen.getByRole("article", { name: "Game 4" });
       expect(replacementCard).toHaveFocus();
       expect(screen.getByRole("status")).toHaveTextContent(
-         "You’ve seen every recommendation in this bounded queue."
+         "You’ve seen every recommendation for this set of games and preferences. " +
+            "Try new recommendations by selecting different games and preferences."
       );
       expect(screen.queryByText(/alternatives remaining/i)).not.toBeInTheDocument();
       for (const button of screen.getAllByRole("button", {
@@ -560,8 +561,12 @@ describe("preference recommendation workflow", () => {
       })) {
          expect(button).toBeDisabled();
       }
-      expect(screen.getByText(/seen every recommendation in this bounded/))
-         .toBeInTheDocument();
+      expect(
+         screen.getByText(
+            "You’ve seen every recommendation for this set of games and preferences. " +
+               "Try new recommendations by selecting different games and preferences."
+         )
+      ).toBeInTheDocument();
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
       expect(mockedRefineRecommendations).not.toHaveBeenCalled();
 

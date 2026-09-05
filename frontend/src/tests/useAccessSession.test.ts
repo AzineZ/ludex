@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
    ApiError,
@@ -44,6 +44,10 @@ describe("useAccessSession", () => {
       mockedDelete.mockReset();
       mockedGetCurrent.mockReset();
       mockedRefresh.mockReset();
+   });
+
+   afterEach(() => {
+      vi.useRealTimers();
    });
 
    it("restores the cookie-authorized profile on startup", async () => {
@@ -124,6 +128,22 @@ describe("useAccessSession", () => {
       expect(result.current.profile).toEqual(refreshedProfile);
       expect(result.current.sessionEpoch).toBe(0);
       expect(result.current.refreshError).toBeNull();
+   });
+
+   it("clears the successful refresh confirmation after one second", async () => {
+      mockedGetCurrent.mockResolvedValue(profile);
+      mockedRefresh.mockResolvedValue(refreshedProfile);
+      const { result } = renderHook(() => useAccessSession());
+      await waitFor(() => expect(result.current.status).toBe("ready"));
+      vi.useFakeTimers();
+
+      await act(async () => result.current.refreshSessionProfile());
+
+      expect(result.current.refreshSucceeded).toBe(true);
+      act(() => vi.advanceTimersByTime(999));
+      expect(result.current.refreshSucceeded).toBe(true);
+      act(() => vi.advanceTimersByTime(1));
+      expect(result.current.refreshSucceeded).toBe(false);
    });
 
    it("ends the session and advances the recommendation epoch", async () => {

@@ -12,7 +12,6 @@ import {
    createRecommendationSession,
 } from "../features/recommendations/recommendationSession";
 
-
 const preference: RecommendationPreference = {
    references: [
       {
@@ -63,9 +62,9 @@ function recommendationResponse(
       outcome,
       eligible_count: itemCount,
       returned_count: itemCount,
-      items: Array.from({ length: itemCount }, (_, index) => (
+      items: Array.from({ length: itemCount }, (_, index) =>
          recommendationItem(index + 1)
-      )),
+      ),
    };
 }
 
@@ -108,10 +107,16 @@ describe("RecommendationResultsPanel", () => {
       expect(
          screen.getByRole("region", { name: "Your recommendations" })
       ).toHaveAttribute("aria-live", "polite");
-      expect(screen.queryByText(/recommendations found/i)).not.toBeInTheDocument();
+      expect(
+         screen.queryByText(/recommendations found/i)
+      ).not.toBeInTheDocument();
       expect(screen.getAllByRole("article")).toHaveLength(3);
-      expect(screen.getByRole("article", { name: "Game 1" })).toBeInTheDocument();
-      expect(screen.getByRole("article", { name: "Game 3" })).toBeInTheDocument();
+      expect(
+         screen.getByRole("article", { name: "Game 1" })
+      ).toBeInTheDocument();
+      expect(
+         screen.getByRole("article", { name: "Game 3" })
+      ).toBeInTheDocument();
       expect(screen.queryByText("Game 4")).not.toBeInTheDocument();
    });
 
@@ -124,7 +129,9 @@ describe("RecommendationResultsPanel", () => {
          />
       );
 
-      expect(screen.queryByText(/recommendations found/i)).not.toBeInTheDocument();
+      expect(
+         screen.queryByText(/recommendations found/i)
+      ).not.toBeInTheDocument();
       expect(screen.getAllByRole("article")).toHaveLength(2);
    });
 
@@ -137,7 +144,9 @@ describe("RecommendationResultsPanel", () => {
          />
       );
 
-      expect(screen.queryByText(/recommendation found/i)).not.toBeInTheDocument();
+      expect(
+         screen.queryByText(/recommendation found/i)
+      ).not.toBeInTheDocument();
    });
 
    it("treats an empty outcome as success with refinement guidance", () => {
@@ -152,8 +161,8 @@ describe("RecommendationResultsPanel", () => {
       const status = screen.getByRole("status");
       expect(status).toHaveTextContent("No recommendations found.");
       expect(status).toHaveTextContent(
-         "No owned games match these preferences. Try changing your "
-         + "reference games, selected facets, or constraints."
+         "No owned games match these preferences. Try changing your " +
+            "reference games, selected facets, or constraints."
       );
       expect(screen.queryByRole("article")).not.toBeInTheDocument();
    });
@@ -211,7 +220,9 @@ describe("RecommendationResultsPanel", () => {
       );
 
       const gameTwo = screen.getByRole("article", { name: "Game 2" });
-      expect(screen.queryByText(/recommendations found/i)).not.toBeInTheDocument();
+      expect(
+         screen.queryByText(/recommendations found/i)
+      ).not.toBeInTheDocument();
       fireEvent.click(
          within(gameTwo).getByRole("button", {
             name: "Show another instead of Game 2. 3 alternatives remaining.",
@@ -248,18 +259,20 @@ describe("RecommendationResultsPanel", () => {
          />
       );
 
-      expect(screen.getAllByRole("button", { name: /^Show another instead of/ }))
-         .toHaveLength(3);
+      expect(
+         screen.getAllByRole("button", { name: /^Show another instead of/ })
+      ).toHaveLength(3);
       for (const button of screen.getAllByRole("button", {
          name: /^Show another instead of/,
       })) {
          expect(button).toBeDisabled();
       }
-      expect(screen.getAllByRole("button", { name: /^Choose / }))
-         .toHaveLength(3);
+      expect(screen.getAllByRole("button", { name: /^Choose / })).toHaveLength(
+         3
+      );
       expect(screen.getByRole("status")).toHaveTextContent(
-         "You’ve seen every recommendation in this bounded queue. "
-         + "Choose a game, refine your preferences, or reset recommendations."
+         "You’ve seen every recommendation for this set of games and preferences. " +
+            "Try new recommendations by selecting different games and preferences."
       );
       expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
    });
@@ -284,9 +297,7 @@ describe("RecommendationResultsPanel", () => {
          />
       );
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "You chose Game 2."
-      );
+      expect(screen.getByRole("status")).toHaveTextContent("You chose Game 2.");
       expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
       expect(screen.getAllByRole("article")).toHaveLength(1);
       const acceptedCard = screen.getByRole("article", { name: "Game 2" });
@@ -296,11 +307,14 @@ describe("RecommendationResultsPanel", () => {
       );
       expect(within(acceptedCard).getByText("Your pick")).toBeInTheDocument();
       expect(screen.queryByText("Game 1")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /^Choose / }))
-         .not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /^Show another instead of/ }))
-         .not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Reset recommendations" }))
-         .toBeEnabled();
+      expect(
+         screen.queryByRole("button", { name: /^Choose / })
+      ).not.toBeInTheDocument();
+      expect(
+         screen.queryByRole("button", { name: /^Show another instead of/ })
+      ).not.toBeInTheDocument();
+      expect(
+         screen.getByRole("button", { name: "Reset recommendations" })
+      ).toBeEnabled();
    });
 });

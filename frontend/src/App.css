@@ -37,45 +37,6 @@
    pointer-events: none;
 }
 
-.app::after {
-   position: absolute;
-   right: -2rem;
-   bottom: -3.5rem;
-   left: -2rem;
-   z-index: 0;
-   height: 7rem;
-   background: var(--color-alarm-red);
-   clip-path: polygon(
-      0 100%,
-      0 70%,
-      4% 42%,
-      7% 72%,
-      11% 20%,
-      15% 67%,
-      20% 34%,
-      24% 76%,
-      29% 12%,
-      33% 66%,
-      38% 38%,
-      43% 72%,
-      48% 18%,
-      52% 63%,
-      57% 30%,
-      62% 76%,
-      67% 8%,
-      71% 64%,
-      76% 36%,
-      81% 74%,
-      86% 17%,
-      90% 63%,
-      95% 29%,
-      100% 68%,
-      100% 100%
-   );
-   content: "";
-   pointer-events: none;
-}
-
 .app__content {
    position: relative;
    z-index: 1;
@@ -90,6 +51,22 @@
    align-items: center;
    justify-content: center;
    text-align: center;
+}
+
+.app:has(.app__session--access) {
+   padding-bottom: clamp(2rem, 5vw, 3rem);
+}
+
+.app:has(.app__session--access) .app__hero {
+   min-height: auto;
+}
+
+.app:has(.app__session--access) .app__logo-heading {
+   width: min(100%, 22rem);
+}
+
+.app:has(.app__session--access) .app__intro {
+   margin-top: 0.85rem;
 }
 
 .app:has(.app__current-profile) .app__hero {

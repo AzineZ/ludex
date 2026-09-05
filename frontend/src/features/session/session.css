@@ -25,6 +25,26 @@
    font-size: clamp(2.5rem, 7vw, 3.5rem);
 }
 
+.app__session--access {
+   margin-top: clamp(2rem, 5vh, 3.5rem);
+   padding: clamp(1.5rem, 4vw, 2rem);
+   border: 1px solid var(--color-bone-cream);
+   background: rgb(0 0 0 / 94%);
+}
+
+.app__session--access h2 {
+   margin-bottom: 1rem;
+   font-size: clamp(2.75rem, 7vw, 4.25rem);
+}
+
+.app__session--access > p {
+   margin: 0 0 1.5rem;
+}
+
+.app__session--access .app__session-form {
+   margin-bottom: 0;
+}
+
 .app__session-form {
    display: grid;
    grid-template-columns: minmax(0, 1fr) auto;
@@ -39,19 +59,34 @@
    font-weight: 800;
 }
 
+.app__session-form-help {
+   grid-column: 1 / -1;
+   margin: -0.4rem 0 0;
+   color: var(--color-ash-taupe);
+   font-size: 0.8rem;
+   line-height: 1.4;
+}
+
+.app__session-form-error {
+   grid-column: 1 / -1;
+   margin: 0;
+   padding-left: 0.75rem;
+   border-left: 3px solid var(--color-alarm-red);
+   line-height: 1.4;
+}
+
 .app__input {
    min-width: 0;
    padding: 1rem 1.2rem;
    border: 1px solid var(--color-bone-cream);
-   border-radius: 10px;
+   border-radius: 0;
    color: var(--color-bone-cream);
    background: var(--color-void-black);
    font: inherit;
 }
 
-.app__input:focus {
-   border-width: 2px;
-   outline: 2px solid var(--color-alarm-red);
+.app__input:focus-visible {
+   outline: 2px solid var(--color-bone-cream);
    outline-offset: 3px;
 }
 
@@ -111,8 +146,15 @@
 }
 
 .app__session-recovery {
-   margin-bottom: 2rem;
-   text-align: center;
+   margin-bottom: 1rem;
+   padding: 0.85rem 1rem;
+   border-left: 3px solid var(--color-alarm-red);
+   background: rgb(255 64 52 / 10%);
+   text-align: left;
+}
+
+.app__session-recovery p {
+   margin: 0;
 }
 
 .app__session-recovery .app__secondary-button {
@@ -130,10 +172,6 @@
 
 .app [role="status"] {
    color: var(--color-bone-cream);
-   text-decoration: underline;
-   text-decoration-color: var(--color-alarm-red);
-   text-decoration-thickness: 2px;
-   text-underline-offset: 0.25em;
 }
 
 .app__current-profile {
@@ -321,6 +359,11 @@
 }
 
 @media (max-width: 36rem) {
+   .app__session--access {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+   }
+
    .app__session-form {
       grid-template-columns: 1fr;
    }
@@ -331,6 +374,11 @@
 
    .app__primary-button {
       justify-self: start;
+   }
+
+   .app__session--access .app__primary-button {
+      width: 100%;
+      justify-self: stretch;
    }
 
    .app__profile-actions {

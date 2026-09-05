@@ -289,26 +289,29 @@ describe("ReferenceSelectionSection", () => {
       mockedUseReferenceSelection.mockReturnValue(selectionResult());
       const { container } = render(<ReferenceSelectionSection sessionEpoch={7} />);
 
-      fireEvent.click(screen.getByText("Optional constraints"));
-      expect(screen.getByRole("radio", { name: "Either" })).toBeChecked();
-      fireEvent.click(screen.getByRole("radio", { name: "Unplayed" }));
-      expect(screen.getByRole("radio", { name: "Unplayed" })).toBeChecked();
+      fireEvent.click(screen.getByText("Narrow your results"));
+      expect(screen.getByRole("button", { name: "Either" }))
+         .toHaveAttribute("aria-pressed", "true");
+      fireEvent.click(screen.getByRole("button", { name: "Not started" }));
+      expect(screen.getByRole("button", { name: "Not started" }))
+         .toHaveAttribute("aria-pressed", "true");
       expect(container.querySelector("pre")).toBeNull();
    });
 
    it("resets recommendation constraints when the profile changes", () => {
       mockedUseReferenceSelection.mockReturnValue(selectionResult());
       const { rerender } = render(<ReferenceSelectionSection sessionEpoch={7} />);
-      fireEvent.click(screen.getByText("Optional constraints"));
+      fireEvent.click(screen.getByText("Narrow your results"));
       fireEvent.click(
-         screen.getByRole("radio", { name: "Previously played" })
+         screen.getByRole("button", { name: "Played before" })
       );
       expect(
-         screen.getByRole("radio", { name: "Previously played" })
-      ).toBeChecked();
+         screen.getByRole("button", { name: "Played before" })
+      ).toHaveAttribute("aria-pressed", "true");
 
       rerender(<ReferenceSelectionSection sessionEpoch={8} />);
-      fireEvent.click(screen.getByText("Optional constraints"));
-      expect(screen.getByRole("radio", { name: "Either" })).toBeChecked();
+      fireEvent.click(screen.getByText("Narrow your results"));
+      expect(screen.getByRole("button", { name: "Either" }))
+         .toHaveAttribute("aria-pressed", "true");
    });
 });

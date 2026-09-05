@@ -81,6 +81,45 @@ describe("responsive layout contract", () => {
       );
    });
 
+   it("keeps Steam entry in a compact retro access surface", () => {
+      expect(appCss).toMatch(
+         /\.app:has\(\.app__session--access\)\s*\{[^}]*padding-bottom:\s*clamp\(2rem,\s*5vw,\s*3rem\)/
+      );
+      expect(appCss).toMatch(
+         /\.app:has\(\.app__session--access\) \.app__hero\s*\{[^}]*min-height:\s*auto/
+      );
+      expect(appCss).toMatch(
+         /\.app:has\(\.app__session--access\) \.app__logo-heading\s*\{[^}]*width:\s*min\(100%,\s*22rem\)/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__session--access\s*\{[^}]*margin-top:\s*clamp\(2rem,\s*5vh,\s*3\.5rem\)[^}]*border:\s*1px solid var\(--color-bone-cream\)[^}]*background:\s*rgb\(0 0 0 \/ 94%\)/
+      );
+      expect(sessionCss).not.toMatch(
+         /\.app__session--access\s*\{[^}]*border-top:/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__session--access h2\s*\{[^}]*font-size:\s*clamp\(2\.75rem,\s*7vw,\s*4\.25rem\)/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__session--access \.app__session-form\s*\{[^}]*margin-bottom:\s*0/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__input\s*\{[^}]*border-radius:\s*0/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__session-form-help\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*color:\s*var\(--color-ash-taupe\)/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__session-form-error\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*border-left:\s*3px solid var\(--color-alarm-red\)/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__session-recovery\s*\{[^}]*padding:\s*0\.85rem 1rem[^}]*border-left:\s*3px solid var\(--color-alarm-red\)[^}]*text-align:\s*left/
+      );
+      expect(sessionCss).toMatch(
+         /@media \(max-width:\s*36rem\)[\s\S]*\.app__session--access\s*\{[^}]*margin-top:\s*1\.5rem[^}]*padding:\s*1\.25rem[^}]*\}[\s\S]*\.app__session--access \.app__primary-button\s*\{[^}]*width:\s*100%[^}]*justify-self:\s*stretch/
+      );
+   });
+
    it("places a state-colored server indicator at the top right", () => {
       expect(appCss).toMatch(
          /\.app__status\s*\{[^}]*position:\s*absolute[^}]*top:[^}]*right:[^}]*margin:\s*0/

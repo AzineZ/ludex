@@ -48,6 +48,8 @@ function WorkspaceNavigation({
 function AccessSessionSection() {
    const session = useAccessSession();
    const currentProfile = session.status === "ready" ? session.profile : null;
+   const isAccessEntry =
+      session.status === "signed_out" || session.status === "unavailable";
    const [workspaceState, setWorkspaceState] = useState<{
       sessionEpoch: number | null;
       activeView: RecommendationWorkspaceView;
@@ -83,7 +85,10 @@ function AccessSessionSection() {
    }, [session.sessionEpoch]);
 
    return (
-      <section className="app__session" aria-labelledby="steam-session-heading">
+      <section
+         className={`app__session${isAccessEntry ? " app__session--access" : ""}`}
+         aria-labelledby="steam-session-heading"
+      >
          <h2 id="steam-session-heading">
             {currentProfile === null
                ? "Connect your Steam library"
@@ -109,7 +114,9 @@ function AccessSessionSection() {
                      </button>
                   </div>
                )}
-               <p>Enter a Steam ID or profile URL to use Ludex on this browser.</p>
+               <p>
+                  Use a public Steam profile to load your library on this browser.
+               </p>
                <SteamSessionForm
                   error={session.startError}
                   isStarting={session.isStarting}

@@ -75,16 +75,25 @@ describe("AccessSessionSection composition", () => {
    it("does not mount recommendations without an authorized session", () => {
       mockedUseAccessSession.mockReturnValue(sessionResult("signed_out"));
       render(<AccessSessionSection />);
-      expect(screen.getByRole("heading", { name: "Connect your Steam library" }))
-         .toBeInTheDocument();
+      const accessRegion = screen.getByRole("region", {
+         name: "Connect your Steam library",
+      });
+      expect(accessRegion).toHaveClass("app__session--access");
+      expect(
+         screen.getByText(
+            "Use a public Steam profile to load your library on this browser."
+         )
+      ).toBeInTheDocument();
       expect(screen.queryByText(/Recommendation epoch:/)).not.toBeInTheDocument();
    });
 
    it("passes the in-memory session epoch instead of a profile ID", () => {
       mockedUseAccessSession.mockReturnValue(sessionResult("ready", 4));
       render(<AccessSessionSection />);
-      expect(screen.getByRole("heading", { name: "What should you play next?" }))
-         .toBeInTheDocument();
+      const workspaceRegion = screen.getByRole("region", {
+         name: "What should you play next?",
+      });
+      expect(workspaceRegion).not.toHaveClass("app__session--access");
       expect(screen.queryByText(/step 1 of 3/i)).not.toBeInTheDocument();
       expect(screen.getByText("Recommendation epoch: 4")).toBeInTheDocument();
    });

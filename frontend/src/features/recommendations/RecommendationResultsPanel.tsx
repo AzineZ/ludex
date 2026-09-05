@@ -121,8 +121,8 @@ function RecommendationResultsPanel({
          "Refining recommendations while keeping your current queue.";
    } else if (queueExhausted) {
       statusMessage =
-         "You’ve seen every recommendation in this bounded queue. " +
-         "Choose a game, refine your preferences, or reset recommendations.";
+         "You’ve seen every recommendation for this set of games and preferences. " +
+         "Try new recommendations by selecting different games and preferences.";
    }
    const cardsClassName =
       acceptedSession === null

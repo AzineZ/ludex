@@ -42,6 +42,16 @@ export function useAccessSession() {
       statusRef.current = status;
    }, [status]);
 
+   useEffect(() => {
+      if (!refreshSucceeded) return;
+
+      const timeoutId = window.setTimeout(() => {
+         setRefreshSucceeded(false);
+      }, 1000);
+
+      return () => window.clearTimeout(timeoutId);
+   }, [refreshSucceeded]);
+
    const invalidateSessionRestoration = useCallback((): void => {
       restorationRequestRef.current += 1;
       restorationIsPendingRef.current = false;
