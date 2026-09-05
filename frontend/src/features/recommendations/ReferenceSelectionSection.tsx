@@ -71,7 +71,6 @@ function ReferenceSelectionSession({
             hidden={activeView !== "preferences"}
          >
             <header className="reference-selection__heading">
-               <p className="app__step-label">Step 2 of 3</p>
                <h3 id="reference-selection-heading">Choose reference games</h3>
                <p>
                   Choose 1 to 3 games you own. For each game, select at least one

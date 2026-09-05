@@ -256,7 +256,6 @@ function PreferenceValidationPanel({
             hidden={isControlledWorkspace && displayedView !== "preferences"}
          >
          <div className="preference-validation__summary">
-            <p className="app__step-label">Step 3 of 3</p>
             <h3 id="preference-validation-heading">Find your next game</h3>
             <p>
                Ludex will check your choices and search your cached library.

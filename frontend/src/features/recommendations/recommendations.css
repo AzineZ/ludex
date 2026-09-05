@@ -323,10 +323,6 @@
    text-align: left;
 }
 
-.preference-validation__summary .app__step-label {
-   text-align: left;
-}
-
 .preference-validation__summary > p:last-child {
    margin: 0.6rem 0 0;
 }
@@ -359,32 +355,35 @@
 }
 
 .recommendation-result-card {
-   --recommendation-card-stage-height: clamp(30rem, 70vw, 32rem);
+   --recommendation-card-height: clamp(30rem, 70vw, 32rem);
+   --recommendation-card-padding: clamp(1rem, 4vw, 1.5rem);
+   --recommendation-details-summary-height: 3.25rem;
 
    position: relative;
    isolation: isolate;
-   display: grid;
    box-sizing: border-box;
    min-width: 0;
-   min-height: var(--recommendation-card-stage-height);
-   grid-template-columns: minmax(0, 1fr);
-   gap: 1rem;
-   align-content: end;
-   padding: clamp(1rem, 4vw, 1.5rem);
-   padding-top: 5rem;
+   min-height: var(--recommendation-card-height);
    overflow: hidden;
    border: 1px solid var(--color-bone-cream);
    background: var(--color-void-black);
+   transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
 }
 
 .recommendation-result-card::after {
    position: absolute;
    z-index: 1;
-   inset: 0;
+   top: 0;
+   inset-inline: 0;
+   height: var(--recommendation-card-height);
    background: linear-gradient(
       to bottom,
-      rgb(0 0 0 / 8%) 0%,
-      rgb(0 0 0 / 18%) 30%,
+      rgb(0 0 0 / 68%) 0%,
+      rgb(0 0 0 / 38%) 18%,
+      rgb(0 0 0 / 18%) 34%,
       rgb(0 0 0 / 82%) 58%,
       rgb(0 0 0 / 98%) 100%
    );
@@ -393,8 +392,41 @@
 }
 
 .recommendation-result-card:focus {
-   outline: 2px solid var(--color-alarm-red);
-   outline-offset: 3px;
+   outline: none;
+}
+
+.recommendation-result-card:focus-within:not(:focus) {
+   border-color: var(--color-alarm-red);
+   box-shadow:
+      0 0 0 2px var(--color-alarm-red),
+      0 18px 42px rgb(0 0 0 / 58%);
+   transform: translateY(-0.2rem);
+}
+
+.recommendation-result-card[data-selection-state="accepted"] {
+   border-color: var(--color-alarm-red);
+   box-shadow:
+      0 0 0 2px var(--color-alarm-red),
+      0 18px 42px rgb(0 0 0 / 58%);
+}
+
+@media (hover: hover) {
+   .recommendation-result-card:hover {
+      border-color: var(--color-alarm-red);
+      box-shadow:
+         0 0 0 2px var(--color-alarm-red),
+         0 18px 42px rgb(0 0 0 / 58%);
+      transform: translateY(-0.2rem);
+   }
+}
+
+.recommendation-result-card:hover .recommendation-result-card__cover,
+.recommendation-result-card:focus-within:not(:focus) .recommendation-result-card__cover {
+   filter: brightness(1.08) saturate(1.05);
+}
+
+.recommendation-result-card[data-selection-state="accepted"] .recommendation-result-card__cover {
+   filter: brightness(1.08) saturate(1.05);
 }
 
 .recommendation-result-card__cover-frame {
@@ -402,9 +434,24 @@
    z-index: 0;
    top: 0;
    inset-inline: 0;
-   height: var(--recommendation-card-stage-height);
+   height: var(--recommendation-card-height);
    overflow: hidden;
    background: var(--color-void-black);
+}
+
+.recommendation-result-card__stage {
+   position: relative;
+   z-index: 2;
+   display: grid;
+   box-sizing: border-box;
+   height: calc(
+      var(--recommendation-card-height) - var(--recommendation-details-summary-height)
+   );
+   grid-template-columns: minmax(0, 1fr);
+   gap: 1rem;
+   align-content: end;
+   padding: var(--recommendation-card-padding);
+   padding-top: 5rem;
 }
 
 .recommendation-result-card__cover,
@@ -417,6 +464,7 @@
 .recommendation-result-card__cover {
    object-fit: cover;
    object-position: center;
+   transition: filter 180ms ease;
 }
 
 .recommendation-result-card__cover-fallback {
@@ -433,13 +481,14 @@
 }
 
 .recommendation-result-card__content {
-   position: relative;
-   z-index: 2;
    min-width: 0;
    text-shadow: 0 2px 8px rgb(0 0 0 / 90%);
 }
 
 .recommendation-result-card__content header {
+   position: absolute;
+   top: 4.25rem;
+   inset-inline: var(--recommendation-card-padding);
    display: grid;
    gap: 0.35rem;
 }
@@ -528,11 +577,13 @@
 }
 
 .recommendation-result-card__details {
+   margin-inline: var(--recommendation-card-padding);
    border-top: 1px solid var(--color-ash-taupe);
-   border-bottom: 1px solid var(--color-ash-taupe);
 }
 
 .recommendation-result-card__details > summary {
+   box-sizing: border-box;
+   min-height: var(--recommendation-details-summary-height);
    padding: 0.85rem 0;
    font-weight: 900;
    cursor: pointer;
@@ -652,12 +703,23 @@
 }
 
 .recommendation-results__start-over {
-   margin-top: 1rem;
+   display: block;
+   margin: 1rem auto 0;
 }
 
 .recommendation-results__cards {
    display: grid;
    gap: 1.5rem;
+}
+
+.recommendation-results__cards--accepted {
+   display: block;
+   width: min(100%, 24rem);
+   margin-inline: auto;
+}
+
+.recommendation-results__cards--accepted .recommendation-result-card__cover {
+   object-fit: contain;
 }
 
 @media (min-width: 64rem) {
@@ -756,5 +818,15 @@
 @media (prefers-reduced-motion: reduce) {
    .reference-selection * {
       scroll-behavior: auto;
+   }
+
+   .recommendation-result-card,
+   .recommendation-result-card__cover {
+      transition: none;
+   }
+
+   .recommendation-result-card:hover,
+   .recommendation-result-card:focus-within:not(:focus) {
+      transform: none;
    }
 }

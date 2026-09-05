@@ -61,7 +61,7 @@ describe("responsive layout contract", () => {
    it("switches forms, game rows, cards, facts, and evidence to narrow layouts", () => {
       expect(sessionCss).toMatch(/@media \(max-width:\s*36rem\)[\s\S]*\.app__session-form[\s\S]*grid-template-columns:\s*1fr/);
       expect(sessionCss).toMatch(/@media \(max-width:\s*36rem\)[\s\S]*\.app__profile-actions[\s\S]*flex-direction:\s*column/);
-      expect(recommendationCss).toMatch(/\.recommendation-result-card\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+      expect(recommendationCss).toMatch(/\.recommendation-result-card__stage\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
       expect(recommendationCss).toMatch(/@media \(max-width:\s*36rem\)[\s\S]*\.recommendation-result-card__facts[\s\S]*grid-template-columns:\s*1fr/);
       expect(recommendationCss).toMatch(/@media \(max-width:\s*36rem\)[\s\S]*\.recommendation-evidence__list li[\s\S]*grid-template-columns:\s*1fr/);
    });
@@ -79,6 +79,22 @@ describe("responsive layout contract", () => {
       expect(appCss).toMatch(
          /\.app:has\(\.app__current-profile\) \.app__session h2\s*\{[^}]*font-size:\s*clamp\(/
       );
+   });
+
+   it("places a state-colored server indicator at the top right", () => {
+      expect(appCss).toMatch(
+         /\.app__status\s*\{[^}]*position:\s*absolute[^}]*top:[^}]*right:[^}]*margin:\s*0/
+      );
+      expect(appCss).toMatch(
+         /\.app__status--connected::before\s*\{[^}]*background:\s*var\(--color-status-connected\)/
+      );
+      expect(appCss).toMatch(
+         /\.app__status--checking::before\s*\{[^}]*background:\s*var\(--color-status-pending\)/
+      );
+      expect(appCss).toMatch(
+         /\.app__status--unavailable::before\s*\{[^}]*background:\s*var\(--color-alarm-red\)/
+      );
+      expect(appCss).not.toMatch(/\.app__step-label\s*\{/);
    });
 
    it("keeps the workspace navigation in normal document flow", () => {
@@ -104,7 +120,10 @@ describe("responsive layout contract", () => {
          /@media \(min-width:\s*64rem\)[\s\S]*\.recommendation-results__cards\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(18rem,\s*1fr\)\)[^}]*align-items:\s*start/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-result-card\s*\{[^}]*min-height:\s*var\(--recommendation-card-stage-height\)[^}]*align-content:\s*end[^}]*padding-top:\s*5rem/
+         /\.recommendation-result-card\s*\{[^}]*min-height:\s*var\(--recommendation-card-height\)/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-result-card__stage\s*\{[^}]*height:\s*calc\(\s*var\(--recommendation-card-height\) - var\(--recommendation-details-summary-height\)\s*\)[^}]*align-content:\s*end[^}]*padding-top:\s*5rem/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card\s*\{[^}]*box-sizing:\s*border-box[^}]*min-width:\s*0/
@@ -118,6 +137,15 @@ describe("responsive layout contract", () => {
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__actions\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*1fr/
       );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-results__cards--accepted\s*\{[^}]*width:\s*min\(100%,\s*24rem\)[^}]*margin-inline:\s*auto/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-results__cards--accepted \.recommendation-result-card__cover\s*\{[^}]*object-fit:\s*contain/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-results__start-over\s*\{[^}]*display:\s*block[^}]*margin:\s*1rem auto 0/
+      );
    });
 
    it("gives full-art recommendation cards a readable surface and clear action hierarchy", () => {
@@ -125,10 +153,34 @@ describe("responsive layout contract", () => {
          /\.recommendation-result-card\s*\{[^}]*position:\s*relative[^}]*isolation:\s*isolate[^}]*overflow:\s*hidden[^}]*background:\s*var\(--color-void-black\)/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-result-card::after\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*1[^}]*inset:\s*0[^}]*linear-gradient\(/
+         /\.recommendation-result-card::after\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*1[^}]*top:\s*0[^}]*inset-inline:\s*0[^}]*height:\s*var\(--recommendation-card-height\)[^}]*linear-gradient\([^}]*rgb\(0 0 0 \/ 68%\) 0%[^}]*rgb\(0 0 0 \/ 18%\) 34%/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-result-card:focus\s*\{[^}]*outline:\s*2px solid var\(--color-alarm-red\)[^}]*outline-offset:\s*3px/
+         /\.recommendation-result-card:focus\s*\{[^}]*outline:\s*none/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-result-card:focus-within:not\(:focus\)\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*box-shadow:[^}]*transform:\s*translateY\(-0\.2rem\)/
+      );
+      expect(recommendationCss).toMatch(
+         /@media \(hover:\s*hover\)[\s\S]*\.recommendation-result-card:hover\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*box-shadow:[^}]*transform:\s*translateY\(-0\.2rem\)/
+      );
+      expect(recommendationCss).not.toMatch(
+         /\.recommendation-result-card:(?:hover|focus-within(?::not\(:focus\))?)::before/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-result-card:(?:hover|focus-within(?::not\(:focus\))?) \.recommendation-result-card__cover\s*\{[^}]*filter:\s*brightness\(1\.08\) saturate\(1\.05\)/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-result-card\[data-selection-state="accepted"\]\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*box-shadow:/
+      );
+      expect(recommendationCss).not.toMatch(
+         /\.recommendation-result-card\[data-selection-state="accepted"\]::before/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-result-card\[data-selection-state="accepted"\] \.recommendation-result-card__cover\s*\{[^}]*filter:\s*brightness\(1\.08\) saturate\(1\.05\)/
+      );
+      expect(recommendationCss).toMatch(
+         /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.recommendation-result-card,\s*\.recommendation-result-card__cover\s*\{[^}]*transition:\s*none[^}]*\}[\s\S]*\.recommendation-result-card:hover,[\s\S]*\.recommendation-result-card:focus-within:not\(:focus\)\s*\{[^}]*transform:\s*none/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__content h3\s*\{[^}]*min-height:\s*1\.9em/
@@ -140,10 +192,10 @@ describe("responsive layout contract", () => {
 
    it("gives recommendation covers and titles a deliberate composition", () => {
       expect(recommendationCss).toMatch(
-         /\.recommendation-result-card\s*\{[^}]*--recommendation-card-stage-height:\s*clamp\(30rem,\s*70vw,\s*32rem\)[^}]*min-height:\s*var\(--recommendation-card-stage-height\)/
+         /\.recommendation-result-card\s*\{[^}]*--recommendation-card-height:\s*clamp\(30rem,\s*70vw,\s*32rem\)[^}]*--recommendation-details-summary-height:\s*3\.25rem[^}]*min-height:\s*var\(--recommendation-card-height\)/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-result-card__cover-frame\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*0[^}]*top:\s*0[^}]*inset-inline:\s*0[^}]*height:\s*var\(--recommendation-card-stage-height\)[^}]*overflow:\s*hidden/
+         /\.recommendation-result-card__cover-frame\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*0[^}]*top:\s*0[^}]*inset-inline:\s*0[^}]*height:\s*var\(--recommendation-card-height\)[^}]*overflow:\s*hidden/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__cover,\s*\.recommendation-result-card__cover-fallback\s*\{[^}]*width:\s*100%[^}]*height:\s*100%/
@@ -152,7 +204,7 @@ describe("responsive layout contract", () => {
          /\.recommendation-result-card__cover\s*\{[^}]*object-fit:\s*cover/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-result-card__content header\s*\{[^}]*display:\s*grid[^}]*gap:\s*0\.35rem/
+         /\.recommendation-result-card__content header\s*\{[^}]*position:\s*absolute[^}]*top:\s*4\.25rem[^}]*inset-inline:\s*var\(--recommendation-card-padding\)[^}]*display:\s*grid[^}]*gap:\s*0\.35rem/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__content h3\s*\{[^}]*margin:\s*0[^}]*min-height:\s*1\.9em[^}]*overflow-wrap:\s*anywhere/
@@ -180,6 +232,12 @@ describe("responsive layout contract", () => {
       );
       expect(recommendationCss).not.toMatch(
          /\.recommendation-evidence\s*\{[^}]*border-(?:top|bottom):/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-result-card__details\s*\{[^}]*border-top:\s*1px solid var\(--color-ash-taupe\)/
+      );
+      expect(recommendationCss).not.toMatch(
+         /\.recommendation-result-card__details\s*\{[^}]*border-bottom:/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__details\[open\]\s*\{[^}]*background:\s*transparent/

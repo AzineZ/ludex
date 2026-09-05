@@ -79,7 +79,7 @@ describe("App session experience", () => {
       expect(
          screen.getByRole("heading", { name: "Ludex — Your next game awaits" })
       ).toBeInTheDocument();
-      expect(screen.getByText("Backend: checking")).toBeInTheDocument();
+      expect(screen.getByText("Server: pending")).toBeInTheDocument();
       expect(screen.getByText("Checking your Steam session…")).toHaveAttribute(
          "role",
          "status"

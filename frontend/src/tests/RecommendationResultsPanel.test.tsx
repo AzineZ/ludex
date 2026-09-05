@@ -96,7 +96,7 @@ describe("RecommendationResultsPanel", () => {
       );
    });
 
-   it("renders the top three complete results and keeps waiting games hidden", () => {
+   it("renders the top three complete results without result-count copy", () => {
       render(
          <RecommendationResultsPanel
             status="ready"
@@ -108,16 +108,14 @@ describe("RecommendationResultsPanel", () => {
       expect(
          screen.getByRole("region", { name: "Your recommendations" })
       ).toHaveAttribute("aria-live", "polite");
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "6 recommendations found. Showing the top 3."
-      );
+      expect(screen.queryByText(/recommendations found/i)).not.toBeInTheDocument();
       expect(screen.getAllByRole("article")).toHaveLength(3);
       expect(screen.getByRole("article", { name: "Game 1" })).toBeInTheDocument();
       expect(screen.getByRole("article", { name: "Game 3" })).toBeInTheDocument();
       expect(screen.queryByText("Game 4")).not.toBeInTheDocument();
    });
 
-   it("reports and renders every sparse result", () => {
+   it("renders every sparse result without result-count copy", () => {
       render(
          <RecommendationResultsPanel
             status="ready"
@@ -126,14 +124,11 @@ describe("RecommendationResultsPanel", () => {
          />
       );
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "2 recommendations found."
-      );
-      expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
+      expect(screen.queryByText(/recommendations found/i)).not.toBeInTheDocument();
       expect(screen.getAllByRole("article")).toHaveLength(2);
    });
 
-   it("uses singular sparse-count wording", () => {
+   it("does not add singular count copy for one sparse result", () => {
       render(
          <RecommendationResultsPanel
             status="ready"
@@ -142,9 +137,7 @@ describe("RecommendationResultsPanel", () => {
          />
       );
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "1 recommendation found."
-      );
+      expect(screen.queryByText(/recommendation found/i)).not.toBeInTheDocument();
    });
 
    it("treats an empty outcome as success with refinement guidance", () => {
@@ -218,9 +211,7 @@ describe("RecommendationResultsPanel", () => {
       );
 
       const gameTwo = screen.getByRole("article", { name: "Game 2" });
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "3 alternatives remaining."
-      );
+      expect(screen.queryByText(/recommendations found/i)).not.toBeInTheDocument();
       fireEvent.click(
          within(gameTwo).getByRole("button", {
             name: "Show another instead of Game 2. 3 alternatives remaining.",
@@ -229,7 +220,11 @@ describe("RecommendationResultsPanel", () => {
       fireEvent.click(
          within(gameTwo).getByRole("button", { name: "Choose Game 2" })
       );
-      fireEvent.click(screen.getByRole("button", { name: "Reset recommendations" }));
+      const resetButton = screen.getByRole("button", {
+         name: "Reset recommendations",
+      });
+      expect(resetButton).toHaveClass("recommendation-results__start-over");
+      fireEvent.click(resetButton);
 
       expect(onShowAnother).toHaveBeenCalledWith(1002);
       expect(onPlayThis).toHaveBeenCalledWith(1002);
@@ -294,8 +289,12 @@ describe("RecommendationResultsPanel", () => {
       );
       expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
       expect(screen.getAllByRole("article")).toHaveLength(1);
-      expect(screen.getByRole("article", { name: "Game 2" }))
-         .toBeInTheDocument();
+      const acceptedCard = screen.getByRole("article", { name: "Game 2" });
+      expect(acceptedCard).toHaveAttribute("data-selection-state", "accepted");
+      expect(acceptedCard.parentElement).toHaveClass(
+         "recommendation-results__cards--accepted"
+      );
+      expect(within(acceptedCard).getByText("Your pick")).toBeInTheDocument();
       expect(screen.queryByText("Game 1")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /^Choose / }))
          .not.toBeInTheDocument();

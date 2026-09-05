@@ -187,7 +187,10 @@ describe("preference recommendation workflow", () => {
       expect(mockedGetRecommendations).toHaveBeenCalledWith(
          canonicalPreference
       );
-      expect(screen.getByText("1 recommendation found.")).toBeInTheDocument();
+      expect(
+         screen.getByRole("heading", { name: "Your recommendations" })
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/recommendation found/i)).not.toBeInTheDocument();
       await waitFor(
          () => {
             expect(screen.getByRole("article", { name: "Portal 2" }))
@@ -362,8 +365,9 @@ describe("preference recommendation workflow", () => {
       const replacementCard = screen.getByRole("article", { name: "Game 4" });
       expect(replacementCard).toHaveFocus();
       expect(screen.getByRole("status")).toHaveTextContent(
-         "0 alternatives remaining."
+         "You’ve seen every recommendation in this bounded queue."
       );
+      expect(screen.queryByText(/alternatives remaining/i)).not.toBeInTheDocument();
       for (const button of screen.getAllByRole("button", {
          name: /^Show another instead of/,
       })) {

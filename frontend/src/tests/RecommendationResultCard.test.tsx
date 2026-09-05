@@ -93,10 +93,20 @@ describe("RecommendationResultCard", () => {
       render(<RecommendationResultCard item={recommendation} />);
 
       const card = screen.getByRole("article", { name: "Portal 2" });
+      expect(card).not.toHaveAttribute("data-selection-state");
       expect(within(card).getByText("Recommendation 1")).toBeInTheDocument();
       expect(
          within(card).getByRole("img", { name: "Portal 2 cover" })
       ).toHaveAttribute("src", "https://images.example/portal-2.jpg");
+   });
+
+   it("marks an accepted recommendation as the user's persistent pick", () => {
+      render(<RecommendationResultCard item={recommendation} isAccepted />);
+
+      const card = screen.getByRole("article", { name: "Portal 2" });
+      expect(card).toHaveAttribute("data-selection-state", "accepted");
+      expect(within(card).getByText("Your pick")).toBeInTheDocument();
+      expect(within(card).queryByText("Recommendation 1")).not.toBeInTheDocument();
    });
 
    it("requests a sharper IGDB cover without rewriting other image hosts", () => {
@@ -178,6 +188,32 @@ describe("RecommendationResultCard", () => {
 
       fireEvent.click(within(card).getByText("Game details"));
       expect(details).toHaveAttribute("open");
+   });
+
+   it("keeps the primary card layout in a fixed stage above expanding details", () => {
+      render(
+         <RecommendationResultCard
+            item={recommendation}
+            onPlayThis={vi.fn()}
+            onShowAnother={vi.fn()}
+            remainingAlternatives={3}
+         />
+      );
+
+      const card = screen.getByRole("article", { name: "Portal 2" });
+      const stage = card.querySelector(".recommendation-result-card__stage");
+      const details = within(card).getByText("Game details").closest("details");
+
+      expect(stage).toContainElement(within(card).getByRole("heading", {
+         name: "Portal 2",
+      }));
+      expect(stage).toContainElement(within(card).getByRole("button", {
+         name: "Choose Portal 2",
+      }));
+      expect(stage).not.toContainElement(details);
+      expect(
+         stage?.compareDocumentPosition(details as Node) ?? 0
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
    });
 
    it("renders honest fallbacks for zero playtime and missing metadata", () => {

@@ -64,7 +64,7 @@ describe("PreferenceValidationPanel", () => {
       expect(mockedUseValidation).toHaveBeenCalledWith(7, preference);
       expect(screen.getByRole("heading", { name: "Find your next game" }))
          .toBeInTheDocument();
-      expect(screen.getByText("Step 3 of 3")).toBeInTheDocument();
+      expect(screen.queryByText(/step 3 of 3/i)).not.toBeInTheDocument();
       expect(container.querySelector("pre")).toBeNull();
       expect(screen.queryByText(/steam_app_id/)).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Get recommendations" }));

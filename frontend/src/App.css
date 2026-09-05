@@ -3,6 +3,8 @@
    --color-bone-cream: #ebe4d8;
    --color-ash-taupe: #c3bdb3;
    --color-alarm-red: #ff4034;
+   --color-status-connected: #55d187;
+   --color-status-pending: #f2c94c;
    --font-display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
    --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -109,10 +111,6 @@
    margin-top: 0.85rem;
 }
 
-.app:has(.app__current-profile) .app__status {
-   margin-top: 0.75rem;
-}
-
 .app:has(.app__current-profile) .app__session h2 {
    margin-bottom: 1.25rem;
    font-size: clamp(2.75rem, 7vw, 4.25rem);
@@ -141,12 +139,18 @@
 }
 
 .app__status {
+   position: absolute;
+   top: clamp(1rem, 3vw, 2rem);
+   right: clamp(1rem, 3vw, 2rem);
+   z-index: 2;
    display: flex;
    align-items: center;
    gap: 0.55rem;
    width: fit-content;
-   margin: 1.5rem auto 0;
+   margin: 0;
+   padding: 0.55rem 0.7rem;
    color: var(--color-bone-cream);
+   background: rgb(0 0 0 / 78%);
    font-size: 0.75rem;
    font-weight: 800;
    letter-spacing: 0.12em;
@@ -156,29 +160,21 @@
 .app__status::before {
    width: 0.65rem;
    height: 0.65rem;
-   background: var(--color-alarm-red);
    content: "";
 }
 
+.app__status--connected::before {
+   background: var(--color-status-connected);
+}
+
 .app__status--checking::before {
-   outline: 1px solid var(--color-alarm-red);
+   background: var(--color-status-pending);
+   outline: 1px solid var(--color-status-pending);
    outline-offset: 3px;
 }
 
-.app__status--unavailable {
-   color: var(--color-alarm-red);
-   text-decoration: line-through;
-   text-decoration-thickness: 1px;
-}
-
-.app__step-label {
-   margin: 0 0 0.65rem;
-   color: var(--color-alarm-red);
-   font-size: 0.75rem;
-   font-weight: 900;
-   letter-spacing: 0.12em;
-   text-align: center;
-   text-transform: uppercase;
+.app__status--unavailable::before {
+   background: var(--color-alarm-red);
 }
 
 @media (max-width: 36rem) {

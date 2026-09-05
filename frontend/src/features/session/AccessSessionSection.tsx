@@ -122,7 +122,6 @@ function AccessSessionSection() {
             <>
                <div className="app__current-profile">
                   <div className="app__profile-summary">
-                     <p className="app__step-label">Step 1 of 3 · Steam connected</p>
                      <p className="app__selection">
                         Current Steam profile: <strong>{currentProfile.display_name}</strong>
                      </p>

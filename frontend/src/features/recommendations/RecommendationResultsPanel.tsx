@@ -6,7 +6,6 @@ import { splitRecommendationItems } from "./recommendationResults";
 import type { RecommendationSessionState } from "./recommendationSession";
 import type { RecommendationRequestStatus } from "./useRecommendationRequest";
 
-
 type RecommendationResultsPanelProps = {
    status: RecommendationRequestStatus;
    response: FinalRecommendationResponse | null;
@@ -23,16 +22,6 @@ type RecommendationResultsPanelProps = {
 
 const UNEXPECTED_ERROR_MESSAGE =
    "Something went wrong while loading recommendations.";
-
-function resultCountMessage(response: FinalRecommendationResponse): string {
-   if (response.outcome === "complete") {
-      return `${response.returned_count} recommendations found. Showing the top 3.`;
-   }
-   if (response.returned_count === 1) {
-      return "1 recommendation found.";
-   }
-   return `${response.returned_count} recommendations found.`;
-}
 
 function RecommendationResultsPanel({
    status,
@@ -94,7 +83,7 @@ function RecommendationResultsPanel({
                </p>
                {session !== null && onStartOver !== undefined && (
                   <button
-                     className="app__secondary-button"
+                     className="app__secondary-button recommendation-results__start-over"
                      type="button"
                      onClick={onStartOver}
                   >
@@ -109,21 +98,36 @@ function RecommendationResultsPanel({
    const acceptedSession = session?.phase === "accepted" ? session : null;
    const activeSession = session?.phase === "active" ? session : null;
    const queuedSession =
-      session?.phase === "active"
-      || session?.phase === "editing"
-      || session?.phase === "refining"
+      session?.phase === "active" ||
+      session?.phase === "editing" ||
+      session?.phase === "refining"
          ? session
          : null;
    const fallbackItems = splitRecommendationItems(response.items).visibleItems;
-   const visibleItems = acceptedSession !== null
-      ? [acceptedSession.acceptedItem]
-      : queuedSession?.visibleItems ?? fallbackItems;
+   const visibleItems =
+      acceptedSession !== null
+         ? [acceptedSession.acceptedItem]
+         : queuedSession?.visibleItems ?? fallbackItems;
    const queueExhausted =
-      activeSession !== null
-      && activeSession.visibleItems.length > 0
-      && activeSession.waitingItems.length === 0;
+      activeSession !== null &&
+      activeSession.visibleItems.length > 0 &&
+      activeSession.waitingItems.length === 0;
    const remainingAlternatives = activeSession?.waitingItems.length ?? null;
-   const countMessage = resultCountMessage(response);
+   let statusMessage: string | null = null;
+   if (acceptedSession !== null) {
+      statusMessage = `You chose ${acceptedSession.acceptedItem.title}. Have fun!`;
+   } else if (session?.phase === "refining") {
+      statusMessage =
+         "Refining recommendations while keeping your current queue.";
+   } else if (queueExhausted) {
+      statusMessage =
+         "You’ve seen every recommendation in this bounded queue. " +
+         "Choose a game, refine your preferences, or reset recommendations.";
+   }
+   const cardsClassName =
+      acceptedSession === null
+         ? "recommendation-results__cards"
+         : "recommendation-results__cards recommendation-results__cards--accepted";
 
    return (
       <section
@@ -137,33 +141,11 @@ function RecommendationResultsPanel({
                   ? "Your recommendations"
                   : "Your choice"}
             </h3>
-            <p role="status" aria-atomic="true">
-               {acceptedSession !== null ? (
-                  `You chose ${acceptedSession.acceptedItem.title}.`
-               ) : session?.phase === "refining" ? (
-                  "Refining recommendations while keeping your current queue."
-               ) : (
-                  <>
-                     <span>{countMessage}</span>
-                     {remainingAlternatives !== null && (
-                        <>
-                           {` ${remainingAlternatives} ${
-                              remainingAlternatives === 1
-                                 ? "alternative"
-                                 : "alternatives"
-                           } remaining.`}
-                        </>
-                     )}
-                     {queueExhausted && (
-                        <>
-                           {" You’ve seen every recommendation in this bounded "}
-                           queue. Choose a game, refine your preferences, or
-                           reset recommendations.
-                        </>
-                     )}
-                  </>
-               )}
-            </p>
+            {statusMessage !== null && (
+               <p role="status" aria-atomic="true">
+                  {statusMessage}
+               </p>
+            )}
             {session !== null && onStartOver !== undefined && (
                <button
                   className="app__secondary-button recommendation-results__start-over"
@@ -175,7 +157,7 @@ function RecommendationResultsPanel({
             )}
          </header>
 
-         <div className="recommendation-results__cards">
+         <div className={cardsClassName}>
             {visibleItems.map((item) => (
                <RecommendationResultCard
                   key={item.steam_app_id}
@@ -192,6 +174,7 @@ function RecommendationResultsPanel({
                   }
                   showAnotherDisabled={queueExhausted}
                   remainingAlternatives={remainingAlternatives ?? undefined}
+                  isAccepted={acceptedSession !== null}
                   focusRequestId={
                      focusRequest?.steamAppId === item.steam_app_id
                         ? focusRequest.requestId

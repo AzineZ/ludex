@@ -1,5 +1,6 @@
 import "./App.css";
 import Hero from "./components/Hero";
+import ServerStatus from "./components/ServerStatus";
 import AccessSessionSection from "./features/session/AccessSessionSection";
 import { useBackendHealth } from "./hooks/useBackendHealth";
 
@@ -9,8 +10,9 @@ function App() {
 
    return (
       <main className="app">
+         <ServerStatus connectionState={connectionState} />
          <section className="app__content">
-            <Hero connectionState={connectionState} />
+            <Hero />
             <AccessSessionSection />
          </section>
       </main>

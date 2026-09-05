@@ -11,6 +11,7 @@ type RecommendationResultCardProps = {
    showAnotherDisabled?: boolean;
    remainingAlternatives?: number;
    focusRequestId?: number;
+   isAccepted?: boolean;
 };
 
 function formatMinutes(minutes: number): string {
@@ -40,6 +41,7 @@ function RecommendationResultCard({
    showAnotherDisabled = false,
    remainingAlternatives,
    focusRequestId,
+   isAccepted = false,
 }: RecommendationResultCardProps) {
    const headingId = useId();
    const cardRef = useRef<HTMLElement>(null);
@@ -74,6 +76,7 @@ function RecommendationResultCard({
       <article
          ref={cardRef}
          className="recommendation-result-card"
+         data-selection-state={isAccepted ? "accepted" : undefined}
          aria-labelledby={headingId}
          tabIndex={focusRequestId === undefined ? undefined : -1}
       >
@@ -95,51 +98,53 @@ function RecommendationResultCard({
             )}
          </div>
 
-         <p className="recommendation-result-card__rank">
-            Recommendation {item.rank}
-         </p>
+         <div className="recommendation-result-card__stage">
+            <p className="recommendation-result-card__rank">
+               {isAccepted ? "Your pick" : `Recommendation ${item.rank}`}
+            </p>
 
-         <div className="recommendation-result-card__content">
-            <header>
-               <h3 id={headingId}>{item.title}</h3>
-            </header>
+            <div className="recommendation-result-card__content">
+               <header>
+                  <h3 id={headingId}>{item.title}</h3>
+               </header>
 
-            <section className="recommendation-result-card__reason">
-               <h4>Why it matches</h4>
-               <p>{item.match_summary.text}</p>
-            </section>
-         </div>
-
-         {(onPlayThis !== undefined || onShowAnother !== undefined) && (
-            <div className="recommendation-result-card__actions">
-               {onPlayThis !== undefined && (
-                  <button
-                     className="app__primary-button"
-                     type="button"
-                     aria-label={`Choose ${item.title}`}
-                     onClick={onPlayThis}
-                  >
-                     Choose this game
-                  </button>
-               )}
-               {onShowAnother !== undefined && (
-                  <button
-                     className="app__secondary-button"
-                     type="button"
-                     aria-label={
-                        `Show another instead of ${item.title}`
-                        + (alternativeCountText === null
-                           ? ""
-                           : `. ${alternativeCountText}.`)
-                     }
-                     onClick={onShowAnother}
-                     disabled={showAnotherDisabled}
-                  >
-                     {showAnotherText}
-                  </button>
-               )}
+               <section className="recommendation-result-card__reason">
+                  <h4>Why it matches</h4>
+                  <p>{item.match_summary.text}</p>
+               </section>
             </div>
-         )}
+
+            {(onPlayThis !== undefined || onShowAnother !== undefined) && (
+               <div className="recommendation-result-card__actions">
+                  {onPlayThis !== undefined && (
+                     <button
+                        className="app__primary-button"
+                        type="button"
+                        aria-label={`Choose ${item.title}`}
+                        onClick={onPlayThis}
+                     >
+                        Choose this game
+                     </button>
+                  )}
+                  {onShowAnother !== undefined && (
+                     <button
+                        className="app__secondary-button"
+                        type="button"
+                        aria-label={
+                           `Show another instead of ${item.title}`
+                           + (alternativeCountText === null
+                              ? ""
+                              : `. ${alternativeCountText}.`)
+                        }
+                        onClick={onShowAnother}
+                        disabled={showAnotherDisabled}
+                     >
+                        {showAnotherText}
+                     </button>
+                  )}
+               </div>
+            )}
+         </div>
 
          <details className="recommendation-result-card__details">
             <summary>Game details</summary>

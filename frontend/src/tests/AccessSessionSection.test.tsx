@@ -85,8 +85,7 @@ describe("AccessSessionSection composition", () => {
       render(<AccessSessionSection />);
       expect(screen.getByRole("heading", { name: "What should you play next?" }))
          .toBeInTheDocument();
-      expect(screen.getByText("Step 1 of 3 · Steam connected"))
-         .toBeInTheDocument();
+      expect(screen.queryByText(/step 1 of 3/i)).not.toBeInTheDocument();
       expect(screen.getByText("Recommendation epoch: 4")).toBeInTheDocument();
    });
 
