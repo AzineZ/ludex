@@ -129,8 +129,39 @@
 .app__current-profile {
    display: grid;
    gap: 1.25rem;
-   margin: 2rem 0 4rem;
+   margin: 2rem 0;
    text-align: center;
+}
+
+.app__recommendation-workspace {
+   position: relative;
+   box-sizing: border-box;
+}
+
+.app__workspace-nav {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 0.5rem;
+   padding: 0.5rem;
+   border: 1px solid rgb(235 228 216 / 60%);
+   background: rgb(0 0 0 / 88%);
+   backdrop-filter: blur(10px);
+}
+
+.app__workspace-nav button {
+   min-height: 2.75rem;
+   padding: 0.65rem 1rem;
+   border: 1px solid transparent;
+   color: var(--color-bone-cream);
+   background: transparent;
+   font: inherit;
+   font-weight: 900;
+   cursor: pointer;
+}
+
+.app__workspace-nav button[aria-current="page"] {
+   color: var(--color-void-black);
+   background: var(--color-alarm-red);
 }
 
 .app__profile-summary {

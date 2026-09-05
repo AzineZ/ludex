@@ -99,6 +99,29 @@ describe("RecommendationResultCard", () => {
       ).toHaveAttribute("src", "https://images.example/portal-2.jpg");
    });
 
+   it("requests a sharper IGDB cover without rewriting other image hosts", () => {
+      const { rerender } = render(
+         <RecommendationResultCard
+            item={{
+               ...recommendation,
+               cover_url:
+                  "https://images.igdb.com/igdb/image/upload/t_cover_big/coay61.jpg",
+            }}
+         />
+      );
+
+      expect(screen.getByRole("img", { name: "Portal 2 cover" })).toHaveAttribute(
+         "src",
+         "https://images.igdb.com/igdb/image/upload/t_cover_big_2x/coay61.jpg"
+      );
+
+      rerender(<RecommendationResultCard item={recommendation} />);
+      expect(screen.getByRole("img", { name: "Portal 2 cover" })).toHaveAttribute(
+         "src",
+         "https://images.example/portal-2.jpg"
+      );
+   });
+
    it("formats known selected-profile playtime and completion time", () => {
       render(<RecommendationResultCard item={recommendation} />);
 
@@ -119,6 +142,42 @@ describe("RecommendationResultCard", () => {
             "Does not match your Environmental puzzles preference."
          )
       ).toBeInTheDocument();
+   });
+
+   it("keeps decision essentials outside one collapsed secondary-details area", () => {
+      render(
+         <RecommendationResultCard
+            item={recommendation}
+            onPlayThis={vi.fn()}
+            onShowAnother={vi.fn()}
+            remainingAlternatives={3}
+         />
+      );
+
+      const card = screen.getByRole("article", { name: "Portal 2" });
+      const details = within(card).getByText("Game details").closest("details");
+      const actions = card.querySelector(".recommendation-result-card__actions");
+      expect(details).not.toHaveAttribute("open");
+      expect(within(card).getByText(
+         "Matches your Puzzle and Science fiction preferences."
+      )).toBeInTheDocument();
+      expect(within(card).getByRole("button", { name: "Choose Portal 2" }))
+         .toBeInTheDocument();
+      expect(within(card).getByRole("button", {
+         name: "Show another instead of Portal 2. 3 alternatives remaining.",
+      })).toBeInTheDocument();
+      expect(details).toContainElement(within(card).getByText("1 hr 30 min played"));
+      expect(details).toContainElement(within(card).getByText("5 hr"));
+      expect(details).toContainElement(within(card).getByText(
+         "Does not match your Environmental puzzles preference."
+      ));
+      expect(
+         actions?.compareDocumentPosition(details as Node)
+         ?? 0
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+      fireEvent.click(within(card).getByText("Game details"));
+      expect(details).toHaveAttribute("open");
    });
 
    it("renders honest fallbacks for zero playtime and missing metadata", () => {
@@ -214,12 +273,10 @@ describe("RecommendationResultCard", () => {
    it("discloses authoritative contribution labels and states in backend order", () => {
       render(<RecommendationResultCard item={recommendationWithEvidence} />);
 
-      const disclosure = screen.getByText("Why this game?").closest("details");
-      expect(disclosure).not.toHaveAttribute("open");
-
-      fireEvent.click(screen.getByText("Why this game?"));
-
-      expect(disclosure).toHaveAttribute("open");
+      fireEvent.click(screen.getByText("Game details"));
+      expect(screen.getByRole("heading", { name: "Preference comparison" }))
+         .toBeInTheDocument();
+      expect(screen.queryByText("Why this game?")).not.toBeInTheDocument();
       expect(screen.getAllByRole("listitem").map((item) => item.textContent))
          .toEqual([
             "PuzzleGenreMatched",
@@ -230,7 +287,7 @@ describe("RecommendationResultCard", () => {
 
    it("keeps raw scoring and provider identities out of the disclosure", () => {
       render(<RecommendationResultCard item={recommendationWithEvidence} />);
-      fireEvent.click(screen.getByText("Why this game?"));
+      fireEvent.click(screen.getByText("Game details"));
 
       expect(screen.queryByText("8765")).not.toBeInTheDocument();
       expect(screen.queryByText("factual-overlap-v1")).not.toBeInTheDocument();
@@ -241,7 +298,7 @@ describe("RecommendationResultCard", () => {
 
    it("explains an honestly empty contribution collection", () => {
       render(<RecommendationResultCard item={recommendation} />);
-      fireEvent.click(screen.getByText("Why this game?"));
+      fireEvent.click(screen.getByText("Game details"));
 
       expect(screen.getByText(
          "No factual contribution details are available for this comparison."

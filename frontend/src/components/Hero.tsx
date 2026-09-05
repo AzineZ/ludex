@@ -23,7 +23,7 @@ function Hero({ connectionState }: HeroProps) {
             </p>
 
             <p className={`app__status app__status--${connectionState}`}>
-               Backend: {connectionState}
+               Server: {connectionState}
             </p>
          </header>
       </>

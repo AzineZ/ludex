@@ -197,6 +197,42 @@ describe("preference recommendation workflow", () => {
       );
    });
 
+   it("hands successful and reset navigation to a controlled workspace", async () => {
+      const onRecommendationsReady = vi.fn();
+      const onRecommendationsReset = vi.fn();
+      const { rerender } = render(
+         <PreferenceValidationPanel
+            sessionEpoch={7}
+            preference={draft}
+            activeView="preferences"
+            onRecommendationsReady={onRecommendationsReady}
+            onRecommendationsReset={onRecommendationsReset}
+         />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Get recommendations" }));
+      await waitFor(() => expect(onRecommendationsReady).toHaveBeenCalledOnce());
+      expect(screen.queryByRole("article", { name: "Portal 2" }))
+         .not.toBeInTheDocument();
+
+      rerender(
+         <PreferenceValidationPanel
+            sessionEpoch={7}
+            preference={draft}
+            activeView="recommendations"
+            onRecommendationsReady={onRecommendationsReady}
+            onRecommendationsReset={onRecommendationsReset}
+         />
+      );
+      expect(await screen.findByRole("article", { name: "Portal 2" }))
+         .toBeInTheDocument();
+
+      fireEvent.click(
+         screen.getByRole("button", { name: "Reset recommendations" })
+      );
+      expect(onRecommendationsReset).toHaveBeenCalledOnce();
+   });
+
    it("preserves the draft and retries preference validation", async () => {
       mockedValidate
          .mockRejectedValueOnce(new Error("Validation temporarily unavailable."))

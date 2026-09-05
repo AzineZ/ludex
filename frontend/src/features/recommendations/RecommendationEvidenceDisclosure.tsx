@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import type {
    FacetKind,
    FacetLabelResponse,
@@ -28,6 +30,7 @@ function RecommendationEvidenceDisclosure({
    evidence,
    facetLabels,
 }: RecommendationEvidenceDisclosureProps) {
+   const headingId = useId();
    const labelsByIdentity = new Map(
       facetLabels.map((label) => [
          `${label.facet_kind}:${label.facet_igdb_id}`,
@@ -36,8 +39,11 @@ function RecommendationEvidenceDisclosure({
    );
 
    return (
-      <details className="recommendation-evidence">
-         <summary>Why this game?</summary>
+      <section
+         className="recommendation-evidence"
+         aria-labelledby={headingId}
+      >
+         <h4 id={headingId}>Preference comparison</h4>
          <div className="recommendation-evidence__content">
             <p>
                This comparison uses the factual preferences you selected.
@@ -73,7 +79,7 @@ function RecommendationEvidenceDisclosure({
                </ul>
             )}
          </div>
-      </details>
+      </section>
    );
 }
 

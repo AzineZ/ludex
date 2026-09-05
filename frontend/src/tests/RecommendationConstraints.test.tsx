@@ -10,8 +10,28 @@ const defaults: PreferenceConstraints = {
 };
 
 describe("RecommendationConstraints", () => {
+   function openConstraints(): void {
+      fireEvent.click(screen.getByText("Optional constraints"));
+   }
+
+   it("starts collapsed with a plain-language summary of the current filters", () => {
+      render(<RecommendationConstraints value={defaults} onChange={vi.fn()} />);
+
+      const disclosure = screen.getByText("Optional constraints").closest("details");
+      expect(disclosure).not.toHaveAttribute("open");
+      expect(screen.getByText("Any length · Any play status"))
+         .toBeInTheDocument();
+      expect(screen.getByRole("spinbutton", {
+         name: "Maximum completion time in minutes",
+      })).not.toBeVisible();
+
+      openConstraints();
+      expect(disclosure).toHaveAttribute("open");
+   });
+
    it("renders an optional bounded completion time and the current play status", () => {
       render(<RecommendationConstraints value={defaults} onChange={vi.fn()} />);
+      openConstraints();
       const completion = screen.getByRole("spinbutton", {
          name: "Maximum completion time in minutes",
       });
@@ -26,6 +46,7 @@ describe("RecommendationConstraints", () => {
       const { rerender } = render(
          <RecommendationConstraints value={defaults} onChange={onChange} />
       );
+      openConstraints();
       const completion = screen.getByRole("spinbutton", {
          name: "Maximum completion time in minutes",
       });
@@ -58,10 +79,26 @@ describe("RecommendationConstraints", () => {
       render(
          <RecommendationConstraints value={initialValue} onChange={onChange} />
       );
+      openConstraints();
       fireEvent.click(screen.getByRole("radio", { name: label }));
       expect(onChange).toHaveBeenCalledWith({
          ...initialValue,
          play_status: playStatus,
       });
+   });
+
+   it("updates the collapsed summary without changing the controlled value", () => {
+      render(
+         <RecommendationConstraints
+            value={{
+               maximum_completion_minutes: 1800,
+               play_status: "unplayed",
+            }}
+            onChange={vi.fn()}
+         />
+      );
+
+      expect(screen.getByText("30 hr max · Unplayed"))
+         .toBeInTheDocument();
    });
 });

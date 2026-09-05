@@ -1,13 +1,86 @@
+import { useCallback, useState } from "react";
+
 import "./session.css";
 import ReferenceSelectionSection from "../recommendations/ReferenceSelectionSection";
+import type { RecommendationWorkspaceView } from "../recommendations/recommendationWorkspace";
 import SessionGameLibrary from "./SessionGameLibrary";
 import SteamSessionForm from "./SteamSessionForm";
 import { useAccessSession } from "./useAccessSession";
+
+type WorkspaceNavigationProps = {
+   activeView: RecommendationWorkspaceView;
+   recommendationsAvailable: boolean;
+   onSelect: (view: RecommendationWorkspaceView) => void;
+};
+
+function WorkspaceNavigation({
+   activeView,
+   recommendationsAvailable,
+   onSelect,
+}: WorkspaceNavigationProps) {
+   return (
+      <nav
+         className="app__workspace-nav"
+         aria-label="Recommendation workspace"
+      >
+         <button
+            type="button"
+            aria-current={activeView === "preferences" ? "page" : undefined}
+            onClick={() => onSelect("preferences")}
+         >
+            Preferences
+         </button>
+         <button
+            type="button"
+            aria-current={
+               activeView === "recommendations" ? "page" : undefined
+            }
+            disabled={!recommendationsAvailable}
+            onClick={() => onSelect("recommendations")}
+         >
+            Recommendations
+         </button>
+      </nav>
+   );
+}
 
 /** Composes the single browser-authorized Steam profile experience. */
 function AccessSessionSection() {
    const session = useAccessSession();
    const currentProfile = session.status === "ready" ? session.profile : null;
+   const [workspaceState, setWorkspaceState] = useState<{
+      sessionEpoch: number | null;
+      activeView: RecommendationWorkspaceView;
+      recommendationsAvailable: boolean;
+   }>({
+      sessionEpoch: session.sessionEpoch,
+      activeView: "preferences",
+      recommendationsAvailable: false,
+   });
+   const currentWorkspace =
+      workspaceState.sessionEpoch === session.sessionEpoch
+         ? workspaceState
+         : {
+              sessionEpoch: session.sessionEpoch,
+              activeView: "preferences" as const,
+              recommendationsAvailable: false,
+           };
+
+   const handleRecommendationsReady = useCallback(() => {
+      setWorkspaceState({
+         sessionEpoch: session.sessionEpoch,
+         activeView: "recommendations",
+         recommendationsAvailable: true,
+      });
+   }, [session.sessionEpoch]);
+
+   const handleRecommendationsReset = useCallback(() => {
+      setWorkspaceState({
+         sessionEpoch: session.sessionEpoch,
+         activeView: "preferences",
+         recommendationsAvailable: false,
+      });
+   }, [session.sessionEpoch]);
 
    return (
       <section className="app__session" aria-labelledby="steam-session-heading">
@@ -88,7 +161,31 @@ function AccessSessionSection() {
                   {session.endError !== null && <p role="alert">{session.endError}</p>}
                </div>
 
-               <ReferenceSelectionSection sessionEpoch={session.sessionEpoch} />
+               <div
+                  className="app__recommendation-workspace"
+               >
+                  <WorkspaceNavigation
+                     activeView={currentWorkspace.activeView}
+                     recommendationsAvailable={
+                        currentWorkspace.recommendationsAvailable
+                     }
+                     onSelect={(activeView) =>
+                        setWorkspaceState({
+                           ...currentWorkspace,
+                           activeView,
+                        })
+                     }
+                  />
+
+                  <div className="app__recommendation-workspace__body">
+                     <ReferenceSelectionSection
+                        sessionEpoch={session.sessionEpoch}
+                        activeView={currentWorkspace.activeView}
+                        onRecommendationsReady={handleRecommendationsReady}
+                        onRecommendationsReset={handleRecommendationsReset}
+                     />
+                  </div>
+               </div>
             </>
          )}
       </section>

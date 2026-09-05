@@ -11,7 +11,7 @@
    position: relative;
    min-height: 100vh;
    padding: clamp(2rem, 6vw, 5rem) clamp(1.25rem, 4vw, 3rem) 8rem;
-   overflow: hidden;
+   overflow: clip;
    color: var(--color-bone-cream);
    background: var(--color-void-black);
    font-family: var(--font-body);
@@ -90,6 +90,10 @@
 
 .app:has(.app__current-profile) .app__hero {
    min-height: clamp(11rem, 24vh, 16rem);
+}
+
+.app:has(.app__current-profile) .app__content {
+   width: min(100%, 75rem);
 }
 
 .app:has(.app__current-profile) .app__session {

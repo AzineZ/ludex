@@ -26,6 +26,13 @@ function formatMinutes(minutes: number): string {
    return `${hours} hr ${remainingMinutes} min`;
 }
 
+function getRecommendationCoverUrl(coverUrl: string): string {
+   return coverUrl.replace(
+      /^(https:\/\/images\.igdb\.com\/igdb\/image\/upload\/)t_cover_big(?=\/)/,
+      "$1t_cover_big_2x"
+   );
+}
+
 function RecommendationResultCard({
    item,
    onPlayThis,
@@ -82,79 +89,85 @@ function RecommendationResultCard({
             ) : (
                <img
                   className="recommendation-result-card__cover"
-                  src={item.cover_url}
+                  src={getRecommendationCoverUrl(item.cover_url)}
                   alt={`${item.title} cover`}
                />
             )}
          </div>
 
+         <p className="recommendation-result-card__rank">
+            Recommendation {item.rank}
+         </p>
+
          <div className="recommendation-result-card__content">
             <header>
-               <p className="recommendation-result-card__rank">
-                  Recommendation {item.rank}
-               </p>
                <h3 id={headingId}>{item.title}</h3>
             </header>
-
-            <dl className="recommendation-result-card__facts">
-               <div>
-                  <dt>Your library</dt>
-                  <dd>{playtime}</dd>
-               </div>
-               <div>
-                  <dt>Estimated completion</dt>
-                  <dd>{completionTime}</dd>
-               </div>
-            </dl>
 
             <section className="recommendation-result-card__reason">
                <h4>Why it matches</h4>
                <p>{item.match_summary.text}</p>
             </section>
-
-            {item.tradeoff !== null && (
-               <aside className="recommendation-result-card__tradeoff">
-                  <h4>Keep in mind</h4>
-                  <p>{item.tradeoff.text}</p>
-               </aside>
-            )}
-
-            <RecommendationEvidenceDisclosure
-               evidence={item.factual_evidence}
-               facetLabels={item.facet_labels}
-            />
-
-            {(onPlayThis !== undefined || onShowAnother !== undefined) && (
-               <div className="recommendation-result-card__actions">
-                  {onPlayThis !== undefined && (
-                     <button
-                        className="app__primary-button"
-                        type="button"
-                        aria-label={`Choose ${item.title}`}
-                        onClick={onPlayThis}
-                     >
-                        Choose this game
-                     </button>
-                  )}
-                  {onShowAnother !== undefined && (
-                     <button
-                        className="app__secondary-button"
-                        type="button"
-                        aria-label={
-                           `Show another instead of ${item.title}`
-                           + (alternativeCountText === null
-                              ? ""
-                              : `. ${alternativeCountText}.`)
-                        }
-                        onClick={onShowAnother}
-                        disabled={showAnotherDisabled}
-                     >
-                        {showAnotherText}
-                     </button>
-                  )}
-               </div>
-            )}
          </div>
+
+         {(onPlayThis !== undefined || onShowAnother !== undefined) && (
+            <div className="recommendation-result-card__actions">
+               {onPlayThis !== undefined && (
+                  <button
+                     className="app__primary-button"
+                     type="button"
+                     aria-label={`Choose ${item.title}`}
+                     onClick={onPlayThis}
+                  >
+                     Choose this game
+                  </button>
+               )}
+               {onShowAnother !== undefined && (
+                  <button
+                     className="app__secondary-button"
+                     type="button"
+                     aria-label={
+                        `Show another instead of ${item.title}`
+                        + (alternativeCountText === null
+                           ? ""
+                           : `. ${alternativeCountText}.`)
+                     }
+                     onClick={onShowAnother}
+                     disabled={showAnotherDisabled}
+                  >
+                     {showAnotherText}
+                  </button>
+               )}
+            </div>
+         )}
+
+         <details className="recommendation-result-card__details">
+            <summary>Game details</summary>
+            <div className="recommendation-result-card__details-content">
+               <dl className="recommendation-result-card__facts">
+                  <div>
+                     <dt>Your library</dt>
+                     <dd>{playtime}</dd>
+                  </div>
+                  <div>
+                     <dt>Estimated completion</dt>
+                     <dd>{completionTime}</dd>
+                  </div>
+               </dl>
+
+               {item.tradeoff !== null && (
+                  <aside className="recommendation-result-card__tradeoff">
+                     <h4>Keep in mind</h4>
+                     <p>{item.tradeoff.text}</p>
+                  </aside>
+               )}
+
+               <RecommendationEvidenceDisclosure
+                  evidence={item.factual_evidence}
+                  facetLabels={item.facet_labels}
+               />
+            </div>
+         </details>
       </article>
    );
 }

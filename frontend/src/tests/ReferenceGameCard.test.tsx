@@ -139,6 +139,31 @@ describe("ReferenceGameCard", () => {
       expect(onRemove).toHaveBeenCalledWith(100);
    });
 
+   it("summarizes selected traits and controls its preference disclosure", () => {
+      const onToggleExpanded = vi.fn();
+
+      render(
+         <ReferenceGameCard
+            reference={reference}
+            isExpanded={false}
+            onToggleExpanded={onToggleExpanded}
+            onToggleFacet={vi.fn()}
+            onRemove={vi.fn()}
+         />
+      );
+
+      expect(screen.getByText("2 traits selected")).toBeInTheDocument();
+      const editButton = screen.getByRole("button", {
+         name: "Edit preferences for First Game",
+      });
+      expect(editButton).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("group", { name: "Genres" }))
+         .not.toBeInTheDocument();
+
+      fireEvent.click(editButton);
+      expect(onToggleExpanded).toHaveBeenCalledOnce();
+   });
+
    it("renders honest fallbacks for a missing cover and empty facet groups", () => {
       renderCard({
          details: {
