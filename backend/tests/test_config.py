@@ -1,5 +1,5 @@
 import pytest
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 
 from app.config import Settings
 
@@ -96,3 +96,27 @@ def test_alembic_prefers_separate_direct_migration_url() -> None:
         "postgresql+psycopg://migrator:secret@direct.example/test"
     )
     assert "migrator:secret" not in repr(settings)
+
+
+@pytest.mark.parametrize("environment", ["staging", "production"])
+def test_hosted_environment_requires_rate_limit_hmac_secret(
+    environment: str,
+) -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            _env_file=None,
+            **_valid_settings(),
+            deployment_environment=environment,
+        )
+
+
+def test_hosted_rate_limit_hmac_secret_is_masked() -> None:
+    settings = Settings(
+        _env_file=None,
+        **_valid_settings(),
+        deployment_environment="staging",
+        steam_rate_limit_hmac_key="a" * 32,
+    )
+
+    assert isinstance(settings.steam_rate_limit_hmac_key, SecretStr)
+    assert "a" * 32 not in repr(settings)

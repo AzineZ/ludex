@@ -95,7 +95,7 @@ restore_table_count=$(
         -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'"
 )
 
-test "$source_revision" = "d52e7a91c304"
+test "$source_revision" = "6a2f8e4c91bd"
 test "$restore_revision" = "$source_revision"
 test "$source_table_count" -gt 0
 test "$restore_table_count" = "$source_table_count"

@@ -1,24 +1,24 @@
-# Provisional production Blueprint. Do not sync it until the Checkpoint 9
-# provisioning gate and dashboard price/hostname checks are approved.
+# Temporary free staging package for Checkpoint 9 hosted verification.
+# The owner creates and removes these services in the Render dashboard.
 services:
   - type: web
-    name: ludex-api
+    name: ludex-staging-api
     runtime: docker
     rootDir: backend
     dockerfilePath: ./Dockerfile
     dockerCommand: ./render-start.sh
-    plan: 0.5c-512mb
+    plan: free
     region: oregon
     numInstances: 1
     healthCheckPath: /live
     autoDeployTrigger: "off"
     envVars:
       - key: FRONTEND_ORIGIN
-        value: https://ludex.onrender.com
+        value: https://ludex-staging.onrender.com
       - key: ACCESS_SESSION_COOKIE_SECURE
         value: "true"
       - key: DEPLOYMENT_ENVIRONMENT
-        value: production
+        value: staging
       - key: STEAM_RATE_LIMIT_HMAC_KEY
         generateValue: true
       - key: DATABASE_URL
@@ -31,7 +31,7 @@ services:
         sync: false
 
   - type: web
-    name: ludex
+    name: ludex-staging
     runtime: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
@@ -43,7 +43,7 @@ services:
     routes:
       - type: rewrite
         source: /api/*
-        destination: https://ludex-api.onrender.com/*
+        destination: https://ludex-staging-api.onrender.com/*
       - type: rewrite
         source: /*
         destination: /index.html

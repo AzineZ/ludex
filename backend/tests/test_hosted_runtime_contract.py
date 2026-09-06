@@ -18,6 +18,13 @@ def load_blueprint() -> dict[str, Any]:
     return blueprint
 
 
+def load_staging_blueprint() -> dict[str, Any]:
+    blueprint = yaml.safe_load(read_project_file("render.staging.yaml"))
+
+    assert isinstance(blueprint, dict)
+    return blueprint
+
+
 def service_named(blueprint: dict[str, Any], name: str) -> dict[str, Any]:
     services = blueprint.get("services")
 
@@ -90,6 +97,14 @@ def test_render_blueprint_separates_public_values_and_runtime_secrets() -> None:
         "key": "ACCESS_SESSION_COOKIE_SECURE",
         "value": "true",
     }
+    assert environment["DEPLOYMENT_ENVIRONMENT"] == {
+        "key": "DEPLOYMENT_ENVIRONMENT",
+        "value": "production",
+    }
+    assert environment["STEAM_RATE_LIMIT_HMAC_KEY"] == {
+        "key": "STEAM_RATE_LIMIT_HMAC_KEY",
+        "generateValue": True,
+    }
     for key in (
         "DATABASE_URL",
         "STEAM_API_KEY",
@@ -98,6 +113,43 @@ def test_render_blueprint_separates_public_values_and_runtime_secrets() -> None:
     ):
         assert environment[key] == {"key": key, "sync": False}
 
+    assert "GEMINI_API_KEY" not in environment
+
+
+def test_staging_blueprint_is_free_isolated_and_manual() -> None:
+    blueprint = load_staging_blueprint()
+    backend = service_named(blueprint, "ludex-staging-api")
+    frontend = service_named(blueprint, "ludex-staging")
+
+    assert backend["runtime"] == "docker"
+    assert backend["plan"] == "free"
+    assert backend["region"] == "oregon"
+    assert backend["numInstances"] == 1
+    assert backend["healthCheckPath"] == "/live"
+    assert backend["autoDeployTrigger"] == "off"
+    assert frontend["runtime"] == "static"
+    assert frontend["autoDeployTrigger"] == "off"
+    assert frontend["routes"][0] == {
+        "type": "rewrite",
+        "source": "/api/*",
+        "destination": "https://ludex-staging-api.onrender.com/*",
+    }
+
+
+def test_staging_blueprint_uses_staging_only_secrets_and_origin() -> None:
+    backend = service_named(load_staging_blueprint(), "ludex-staging-api")
+    environment = environment_by_key(backend)
+
+    assert environment["FRONTEND_ORIGIN"]["value"] == (
+        "https://ludex-staging.onrender.com"
+    )
+    assert environment["DEPLOYMENT_ENVIRONMENT"]["value"] == "staging"
+    assert environment["STEAM_RATE_LIMIT_HMAC_KEY"]["generateValue"] is True
+    assert environment["DATABASE_URL"] == {
+        "key": "DATABASE_URL",
+        "sync": False,
+    }
+    assert "MIGRATION_DATABASE_URL" not in environment
     assert "GEMINI_API_KEY" not in environment
 
 

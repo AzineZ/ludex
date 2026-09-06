@@ -11,11 +11,19 @@ from sqlalchemy.pool import StaticPool
 
 import app.sessions.routes as session_routes_module
 from app.sessions.http import ACCESS_SESSION_COOKIE_NAME
+from app.sessions.routes import get_steam_abuse_controller
 from app.sessions.service import IssuedAccessSession, issue_access_session
+from app.abuse.steam import SteamAbuseController
 from app.database import Base, get_database_session
 from app.dependencies import get_steam_client
 from app.main import app
-from app.models import Game, Profile, ProfileGame, SteamAccessSession
+from app.models import (
+    Game,
+    Profile,
+    ProfileGame,
+    SteamAccessSession,
+    SteamUsageEvent,
+)
 from app.integrations.steam.client import (
     SteamAPIError,
     SteamAPIUnavailableError,
@@ -45,6 +53,7 @@ def session_api(
     )
     session_factory = sessionmaker(bind=engine, expire_on_commit=False)
     Base.metadata.create_all(engine)
+    abuse_controller = SteamAbuseController()
 
     def override_database_session() -> Generator[Session, None, None]:
         with session_factory() as database_session:
@@ -57,6 +66,9 @@ def session_api(
         get_database_session
     ] = override_database_session
     app.dependency_overrides[get_steam_client] = override_steam_client
+    app.dependency_overrides[
+        get_steam_abuse_controller
+    ] = lambda: abuse_controller
 
     try:
         with TestClient(app) as client:
@@ -64,6 +76,7 @@ def session_api(
     finally:
         app.dependency_overrides.pop(get_database_session, None)
         app.dependency_overrides.pop(get_steam_client, None)
+        app.dependency_overrides.pop(get_steam_abuse_controller, None)
         engine.dispose()
 
 
@@ -152,6 +165,24 @@ def test_create_session_reuses_cached_numeric_profile_without_provider_calls(
 
     with session_factory() as database_session:
         assert len(database_session.scalars(select(SteamAccessSession)).all()) == 1
+        assert database_session.scalars(select(SteamUsageEvent)).all() == []
+
+
+def test_uncached_numeric_session_reserves_provider_operation(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+) -> None:
+    client, session_factory = session_api
+    _configure_import(steam_client)
+
+    response = client.post("/session", json={"identifier": FIRST_STEAM_ID})
+
+    assert response.status_code == 201
+    with session_factory() as database_session:
+        events = database_session.scalars(select(SteamUsageEvent)).all()
+        assert [event.category for event in events] == ["session_create"]
+        assert len(events[0].subject_digest) == 32
+        assert FIRST_STEAM_ID.encode("ascii") not in events[0].subject_digest
 
 
 def test_create_session_resolves_vanity_then_reuses_cached_profile(
@@ -171,6 +202,40 @@ def test_create_session_resolves_vanity_then_reuses_cached_profile(
 
     assert response.status_code == 201
     steam_client.resolve_steam_id.assert_called_once()
+    steam_client.get_profile.assert_not_called()
+    steam_client.get_owned_games.assert_not_called()
+
+    with session_factory() as database_session:
+        assert [
+            event.category
+            for event in database_session.scalars(select(SteamUsageEvent))
+        ] == ["session_create"]
+
+
+def test_sixth_session_attempt_is_generic_rate_limit_before_provider(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+) -> None:
+    client, _ = session_api
+
+    for index in range(5):
+        response = client.post(
+            "/session",
+            json={"identifier": f"invalid identifier {index}"},
+        )
+        assert response.status_code == 422
+
+    limited = client.post(
+        "/session",
+        json={"identifier": FIRST_STEAM_ID},
+    )
+
+    assert limited.status_code == 429
+    assert limited.json() == {
+        "detail": "Too many Steam requests. Try again later."
+    }
+    assert 1 <= int(limited.headers["retry-after"]) <= 600
+    steam_client.resolve_steam_id.assert_not_called()
     steam_client.get_profile.assert_not_called()
     steam_client.get_owned_games.assert_not_called()
 
@@ -439,6 +504,37 @@ def test_refresh_updates_only_session_profile_without_renewing_cookie(
     assert client.cookies[ACCESS_SESSION_COOKIE_NAME] == current_token
     steam_client.get_profile.assert_called_once_with(FIRST_STEAM_ID)
     steam_client.get_owned_games.assert_called_once_with(FIRST_STEAM_ID)
+
+    with session_factory() as database_session:
+        assert [
+            event.category
+            for event in database_session.scalars(select(SteamUsageEvent))
+        ] == ["refresh"]
+
+
+def test_refresh_cooldown_returns_429_without_second_provider_call(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+) -> None:
+    client, session_factory = session_api
+    _store_cached_profile(session_factory)
+    assert client.post(
+        "/session",
+        json={"identifier": FIRST_STEAM_ID},
+    ).status_code == 201
+    _configure_import(steam_client)
+    assert client.post("/session/profile/refresh").status_code == 200
+    steam_client.reset_mock()
+
+    limited = client.post("/session/profile/refresh")
+
+    assert limited.status_code == 429
+    assert limited.json() == {
+        "detail": "Too many Steam requests. Try again later."
+    }
+    assert 1 <= int(limited.headers["retry-after"]) <= 900
+    steam_client.get_profile.assert_not_called()
+    steam_client.get_owned_games.assert_not_called()
 
 
 @pytest.mark.parametrize(

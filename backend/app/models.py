@@ -106,6 +106,46 @@ class SteamAccessSession(Base):
     )
 
 
+class SteamUsageEvent(Base):
+    """Store one expiring, identifier-free hosted Steam budget event."""
+
+    __tablename__ = "steam_usage_events"
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('session_create', 'provider_call', 'refresh')",
+            name="ck_steam_usage_events_category",
+        ),
+        CheckConstraint(
+            "length(subject_digest) = 32",
+            name="ck_steam_usage_events_subject_digest_length",
+        ),
+        CheckConstraint(
+            "expires_at > created_at",
+            name="ck_steam_usage_events_expiration_order",
+        ),
+        Index(
+            "ix_steam_usage_events_category_created_at",
+            "category",
+            "created_at",
+        ),
+        Index(
+            "ix_steam_usage_events_subject_created_at",
+            "category",
+            "subject_digest",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[str] = mapped_column(String(32))
+    subject_digest: Mapped[bytes] = mapped_column(LargeBinary(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        index=True,
+    )
+
+
 class Game(Base):
     """Represent Steam game metadata shared across local profiles."""
 

@@ -26,7 +26,7 @@ from app.managed_database_bootstrap import (
 
 
 POSTGRES_IMAGE = "postgres:18-alpine"
-EXPECTED_REVISION = "d52e7a91c304"
+EXPECTED_REVISION = "6a2f8e4c91bd"
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 

@@ -189,6 +189,13 @@ order, and credential-rotation procedure are documented in
 No command in that workflow creates provider accounts, projects, billing
 changes, Render services, domains, or console alerts.
 
+The temporary free staging package is defined separately in
+`render.staging.yaml`. Its owner-operated creation and hosted browser gate are
+documented in
+[`docs/components/hosted-deployment.md`](docs/components/hosted-deployment.md).
+Staging and production both require a separate generated
+`STEAM_RATE_LIMIT_HMAC_KEY`; the browser never receives it.
+
 ## Back up the database
 
 Choose an existing host directory outside the repository and a new destination

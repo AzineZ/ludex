@@ -22,6 +22,8 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_database_session
 from app.dependencies import get_steam_client
 from app.main import app
+from app.abuse.steam import SteamAbuseController
+from app.sessions.routes import get_steam_abuse_controller
 from app.integrations.steam.client import SteamClient
 
 
@@ -41,6 +43,7 @@ def profile_api_client(
     )
     test_session_factory = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
+    abuse_controller = SteamAbuseController()
 
     def override_database_session() -> Generator[Session, None, None]:
         with test_session_factory() as database_session:
@@ -55,6 +58,9 @@ def profile_api_client(
     app.dependency_overrides[
         get_steam_client
     ] = override_steam_client
+    app.dependency_overrides[
+        get_steam_abuse_controller
+    ] = lambda: abuse_controller
 
     try:
         with TestClient(app) as client:
@@ -62,4 +68,5 @@ def profile_api_client(
     finally:
         app.dependency_overrides.pop(get_database_session, None)
         app.dependency_overrides.pop(get_steam_client, None)
+        app.dependency_overrides.pop(get_steam_abuse_controller, None)
         engine.dispose()

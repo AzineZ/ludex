@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.abuse.http import UnsafeRequestBoundaryMiddleware
 from app.database import get_database_session
 from app.recommendations.api.router import (
     router as recommendations_router,
@@ -24,6 +25,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.add_middleware(
+    UnsafeRequestBoundaryMiddleware,
+    origin=settings.frontend_origin,
 )
 
 app.include_router(recommendations_router)
