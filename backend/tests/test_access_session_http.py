@@ -9,14 +9,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.access_session_http import (
+from app.sessions.http import (
     ACCESS_SESSION_COOKIE_NAME,
     clear_access_session_cookie,
     get_access_session_clock,
     require_access_session,
     set_access_session_cookie,
 )
-from app.access_sessions import ActiveAccessSession, IssuedAccessSession
+from app.sessions.service import ActiveAccessSession, IssuedAccessSession
 from app.database import Base, get_database_session
 from app.models import Profile, SteamAccessSession
 

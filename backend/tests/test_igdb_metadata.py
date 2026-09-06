@@ -1,8 +1,8 @@
 import pytest
 from datetime import UTC, datetime
-from app.igdb_client import IGDBResponseError, IGDBClient
+from app.integrations.igdb.client import IGDBResponseError, IGDBClient
 from unittest.mock import Mock
-from app.igdb_metadata import (
+from app.integrations.igdb.metadata import (
     IGDBNamedEntity,
     _normalize_named_entities,
     IGDBGameMetadata,

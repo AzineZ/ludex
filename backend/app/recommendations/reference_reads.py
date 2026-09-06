@@ -4,7 +4,7 @@ from enum import StrEnum
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from app.igdb_images import igdb_cover_url
+from app.integrations.igdb.images import igdb_cover_url
 from app.models import (
     Game,
     GameIGDBMetadataTerm,

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
-from app.igdb_images import igdb_cover_url
+from app.integrations.igdb.images import igdb_cover_url
 from app.models import Game, IGDBMetadataTerm, ProfileGame
 from app.recommendations.factual_scoring import FacetKind
 from app.recommendations.final_results import (

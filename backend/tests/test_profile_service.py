@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.models import Game, Profile, ProfileGame
-from app.profile_service import sync_profile
-from app.steam_client import (
+from app.profiles.service import sync_profile
+from app.integrations.steam.client import (
     SteamAPIUnavailableError,
     SteamClient,
     SteamOwnedGame,

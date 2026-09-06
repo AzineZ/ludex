@@ -1,0 +1,20 @@
+.reference-selection {
+   margin-top: 2rem;
+   padding-top: 3rem;
+   border-top: 2px solid var(--color-alarm-red);
+}
+
+.reference-selection--recommendations {
+   padding-top: 0;
+   border-top: 0;
+}
+
+.reference-selection--recommendations .recommendation-results {
+   margin-top: 0;
+}
+
+.reference-selection__preferences,
+.preference-validation {
+   width: min(100%, 42.5rem);
+   margin-inline: auto;
+}

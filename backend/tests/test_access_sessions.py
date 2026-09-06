@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.access_sessions import (
+from app.sessions.service import (
     ACCESS_SESSION_LIFETIME,
     issue_access_session,
     revoke_access_session,

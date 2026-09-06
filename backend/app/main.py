@@ -7,12 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_database_session
-from app.reliability_logging import log_database_request_failure
-from app.session_routes import router as session_router
-
-from app.recommendations.routes import (
+from app.recommendations.api.router import (
     router as recommendations_router,
 )
+from app.reliability_logging import log_database_request_failure
+from app.sessions.routes import router as session_router
 
 app = FastAPI(
     title="Ludex API",

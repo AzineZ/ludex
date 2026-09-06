@@ -5,14 +5,14 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-import app.igdb_enrichment as enrichment
+import app.integrations.igdb.enrichment as enrichment
 from app.database import Base
-from app.igdb_client import (
+from app.integrations.igdb.client import (
     IGDBClient,
     IGDBResponseError,
     IGDBUnavailableError,
 )
-from app.igdb_matching import (
+from app.integrations.igdb.matching import (
     IGDBMatchResult,
     IGDBMatchStatus,
 )

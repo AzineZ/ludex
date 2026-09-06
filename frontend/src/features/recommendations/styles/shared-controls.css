@@ -1,0 +1,50 @@
+.reference-game-autocomplete,
+.reference-keywords {
+   position: relative;
+   display: grid;
+   gap: 0.65rem;
+}
+
+.reference-game-autocomplete label,
+.reference-keywords label,
+.recommendation-constraints label {
+   font-weight: 800;
+}
+
+.reference-game-autocomplete input,
+.reference-keywords input,
+.recommendation-constraints__custom-length input {
+   width: 100%;
+   box-sizing: border-box;
+   padding: 0.9rem 1rem;
+   border: 1px solid var(--color-bone-cream);
+   border-radius: 0;
+   color: var(--color-bone-cream);
+   background: var(--color-void-black);
+   font: inherit;
+}
+
+.reference-game-autocomplete input:focus-visible,
+.reference-keywords input:focus-visible,
+.recommendation-constraints input:focus-visible,
+.reference-selection button:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 3px;
+}
+.reference-game-card__toggle,
+.reference-game-card__remove,
+.reference-game-card__facet,
+.reference-selection__recovery button,
+.reference-keywords button,
+.preference-validation button:not(.app__primary-button) {
+   min-height: 2.5rem;
+   padding: 0.55rem 0.75rem;
+   border: 1px solid var(--color-bone-cream);
+   border-radius: 999px;
+   color: var(--color-bone-cream);
+   background: transparent;
+   font: inherit;
+   font-size: 0.875rem;
+   font-weight: 800;
+   cursor: pointer;
+}

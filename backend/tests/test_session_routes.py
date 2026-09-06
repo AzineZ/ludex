@@ -9,14 +9,14 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.session_routes as session_routes_module
-from app.access_session_http import ACCESS_SESSION_COOKIE_NAME
-from app.access_sessions import IssuedAccessSession, issue_access_session
+import app.sessions.routes as session_routes_module
+from app.sessions.http import ACCESS_SESSION_COOKIE_NAME
+from app.sessions.service import IssuedAccessSession, issue_access_session
 from app.database import Base, get_database_session
 from app.dependencies import get_steam_client
 from app.main import app
 from app.models import Game, Profile, ProfileGame, SteamAccessSession
-from app.steam_client import (
+from app.integrations.steam.client import (
     SteamAPIError,
     SteamAPIUnavailableError,
     SteamClient,

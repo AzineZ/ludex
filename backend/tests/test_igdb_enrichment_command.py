@@ -7,9 +7,9 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.database import Base
-from app.igdb_enrichment import get_pending_owned_steam_app_ids
+from app.integrations.igdb.enrichment import get_pending_owned_steam_app_ids
 from app.igdb_enrichment_command import run_igdb_enrichment_command
-from app.igdb_client import IGDBUnavailableError
+from app.integrations.igdb.client import IGDBUnavailableError
 from app.models import Game, Profile, ProfileGame
 
 
@@ -140,7 +140,7 @@ def test_report_only_command_makes_no_provider_call_or_database_change() -> None
     client_factory = MagicMock()
 
     with patch(
-        "app.igdb_enrichment.enrich_game_metadata",
+        "app.integrations.igdb.enrichment.enrich_game_metadata",
         side_effect=AssertionError("IGDB enrichment must not run"),
     ) as enrichment:
         exit_code = run_igdb_enrichment_command(

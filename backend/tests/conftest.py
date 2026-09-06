@@ -22,7 +22,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_database_session
 from app.dependencies import get_steam_client
 from app.main import app
-from app.steam_client import SteamClient
+from app.integrations.steam.client import SteamClient
 
 
 @pytest.fixture

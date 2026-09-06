@@ -1,7 +1,7 @@
 import pytest
-from app.igdb_client import IGDBResponseError, IGDBClient
+from app.integrations.igdb.client import IGDBResponseError, IGDBClient
 from unittest.mock import Mock
-from app.igdb_matching import (
+from app.integrations.igdb.matching import (
     IGDBMatchResult,
     IGDBMatchStatus,
     normalize_external_game_matches,

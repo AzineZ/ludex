@@ -4,11 +4,11 @@ import type {
    FinalRecommendationResponse,
    RecommendationPreference,
 } from "../../api";
-import RecommendationResultsPanel from "./RecommendationResultsPanel";
-import type { RecommendationWorkspaceView } from "./recommendationWorkspace";
-import { usePreferenceValidation } from "./usePreferenceValidation";
-import { useRecommendationRequest } from "./useRecommendationRequest";
-import { useRecommendationSession } from "./useRecommendationSession";
+import { usePreferenceValidation } from "./preferences/usePreferenceValidation";
+import type { RecommendationWorkspaceView } from "./recommendationWorkspaceTypes";
+import RecommendationResultsPanel from "./results/RecommendationResultsPanel";
+import { useRecommendationRequest } from "./results/useRecommendationRequest";
+import { useRecommendationSession } from "./state/useRecommendationSession";
 
 type PreferenceValidationPanelProps = {
    sessionEpoch: number | null;

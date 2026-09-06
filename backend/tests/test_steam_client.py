@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
-from app.steam_client import (
+from app.integrations.steam.client import (
     SteamAPIError,
     SteamAPIUnavailableError,
     SteamClient,
@@ -12,7 +12,7 @@ from app.steam_client import (
     SteamProfile,
     SteamProfileNotFoundError,
 )
-from app.steam_identifiers import SteamIdentifier
+from app.integrations.steam.identifiers import SteamIdentifier
 
 
 def test_numeric_identifier_does_not_call_steam() -> None:

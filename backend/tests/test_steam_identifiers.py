@@ -1,6 +1,6 @@
 import pytest
 
-from app.steam_identifiers import (
+from app.integrations.steam.identifiers import (
     InvalidSteamIdentifierError,
     SteamIdentifier,
     normalize_steam_identifier,

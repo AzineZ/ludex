@@ -1,0 +1,189 @@
+.recommendation-constraints {
+   min-width: 0;
+   border: 1px solid var(--color-ash-taupe);
+}
+.recommendation-constraints,
+.preference-validation {
+   margin-top: 2rem;
+   padding: 1.25rem;
+}
+
+.recommendation-constraints {
+   background: rgb(0 0 0 / 94%);
+}
+
+.recommendation-constraints > summary {
+   display: flex;
+   justify-content: space-between;
+   gap: 1rem;
+   font-weight: 900;
+   cursor: pointer;
+}
+
+.recommendation-constraints__summary-value {
+   color: var(--color-ash-taupe);
+   font-size: 0.8rem;
+   text-align: right;
+}
+
+.recommendation-constraints__content {
+   display: grid;
+   gap: 1.25rem;
+   margin-top: 1rem;
+   padding-top: 1rem;
+   border-top: 1px solid var(--color-ash-taupe);
+}
+
+.recommendation-constraints__group {
+   min-width: 0;
+   margin: 0;
+   padding: 0;
+   border: 0;
+}
+
+.recommendation-constraints__group + .recommendation-constraints__group {
+   padding-top: 1.25rem;
+   border-top: 1px solid rgb(195 189 179 / 45%);
+}
+
+.recommendation-constraints__group legend {
+   margin-bottom: 0.75rem;
+   padding: 0;
+   font-weight: 900;
+   text-transform: uppercase;
+}
+
+.recommendation-constraints__choices {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0.6rem;
+}
+
+.recommendation-constraints__choices button,
+.recommendation-constraints__clear {
+   min-height: 2.5rem;
+   padding: 0.55rem 0.8rem;
+   border: 1px solid var(--color-bone-cream);
+   border-radius: 999px;
+   color: var(--color-bone-cream);
+   background: transparent;
+   font: inherit;
+   font-size: 0.875rem;
+   font-weight: 800;
+   cursor: pointer;
+}
+
+.recommendation-constraints__choices button {
+   flex: 1 1 8rem;
+}
+
+.recommendation-constraints__choices button[aria-pressed="true"] {
+   color: var(--color-void-black);
+   background: var(--color-bone-cream);
+}
+
+.recommendation-constraints__custom-length {
+   display: grid;
+   width: min(100%, 20rem);
+   gap: 0.55rem;
+   margin-top: 0.85rem;
+}
+
+.recommendation-constraints__custom-length input {
+   width: 100%;
+}
+
+.recommendation-constraints__custom-length p,
+.recommendation-constraints__unknown-note {
+   margin: 0;
+   color: var(--color-ash-taupe);
+   font-size: 0.8rem;
+   line-height: 1.45;
+}
+
+.recommendation-constraints__unknown-note {
+   margin-top: 0.85rem;
+}
+
+.recommendation-constraints__clear {
+   justify-self: start;
+}
+
+@media (hover: hover) {
+   .recommendation-constraints__choices button:hover:not([aria-pressed="true"]),
+   .recommendation-constraints__clear:hover {
+      color: var(--color-void-black);
+      background: var(--color-bone-cream);
+   }
+}
+
+.preference-validation {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   gap: 1rem;
+   align-items: end;
+   border: 1px solid var(--color-bone-cream);
+   background: rgb(0 0 0 / 94%);
+}
+
+.preference-validation[hidden] {
+   display: none;
+}
+
+.preference-validation__summary h3 {
+   margin: 0;
+   font-size: clamp(1.5rem, 4vw, 2.25rem);
+   line-height: 0.95;
+   text-align: left;
+}
+
+.preference-validation__summary > p:last-child {
+   margin: 0.6rem 0 0;
+}
+
+.preference-validation > [role="status"],
+.preference-validation > [role="alert"],
+.preference-validation__requirement,
+.preference-validation > .recommendation-results__state {
+   grid-column: 1 / -1;
+}
+
+.preference-validation__recommendation-action {
+   margin: 0;
+   padding: 0;
+   border: 0;
+}
+
+.preference-validation__recommendation-action button {
+   width: 100%;
+}
+
+.preference-validation__requirement {
+   padding-left: 0.75rem;
+   border-left: 3px solid var(--color-alarm-red);
+}
+
+.preference-validation__recommendation-action button:disabled {
+   cursor: not-allowed;
+   opacity: 0.5;
+}
+
+@media (max-width: 36rem) {
+   .recommendation-constraints,
+   .preference-validation {
+      padding: 0.85rem;
+   }
+
+   .preference-validation {
+      grid-template-columns: 1fr;
+   }
+
+   .recommendation-constraints > summary {
+      flex-direction: column;
+      gap: 0.35rem;
+   }
+
+   .recommendation-constraints__summary-value {
+      text-align: left;
+   }
+}

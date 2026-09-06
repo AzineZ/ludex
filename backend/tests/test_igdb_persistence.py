@@ -1,18 +1,18 @@
 import pytest
 from datetime import UTC, datetime
 
-from app.igdb_metadata import IGDBGameMetadata, IGDBTimeToBeat, IGDBNamedEntity
-from app.igdb_persistence import (
+from app.integrations.igdb.metadata import IGDBGameMetadata, IGDBTimeToBeat, IGDBNamedEntity
+from app.integrations.igdb.persistence import (
     apply_ready_metadata,
     apply_unmatched_result,
     persist_metadata_batch,
     replace_metadata_terms,
     record_metadata_failure,
 )
-import app.igdb_persistence as igdb_persistence
+import app.integrations.igdb.persistence as igdb_persistence
 from app.models import Game, IGDBMetadataTerm, GameIGDBMetadataTerm
 from app.database import Base
-from app.igdb_matching import (
+from app.integrations.igdb.matching import (
     IGDBMatchResult,
     IGDBMatchStatus,
 )

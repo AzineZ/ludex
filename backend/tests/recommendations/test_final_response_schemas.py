@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.recommendations.api_schemas import (
+from app.recommendations.api.schemas import (
     FinalRecommendationResponse,
     to_final_recommendation_response,
 )

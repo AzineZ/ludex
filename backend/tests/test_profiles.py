@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
-from app.steam_client import (
+from app.integrations.steam.client import (
     SteamAPIError,
     SteamAPIUnavailableError,
     SteamClient,

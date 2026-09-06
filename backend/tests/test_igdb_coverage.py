@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.database import Base
-from app.igdb_coverage import (
+from app.integrations.igdb.coverage import (
     IGDBMetadataCoverage,
     get_igdb_metadata_coverage,
 )

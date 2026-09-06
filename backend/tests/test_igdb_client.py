@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from app.igdb_client import (
+from app.integrations.igdb.client import (
     IGDBAPIError,
     IGDBAuthenticationError,
     IGDBClient,
