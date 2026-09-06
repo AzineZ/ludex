@@ -175,6 +175,20 @@ backend credentials marked `sync: false`; no real credential or
 Local Docker Compose is intentionally unchanged: it still starts PostgreSQL,
 runs migrations, and then starts the API on port 8000 for development.
 
+## Managed database safety
+
+Hosted staging and production are isolated Neon projects. FastAPI receives only
+the pooled `ludex_app` URL; Alembic uses the direct `ludex_migrator` URL; Neon
+owner credentials remain in owner-only ignored local files and never go to the
+web worker. Staging is migrated and verified. Production has restricted roles
+but intentionally remains empty until the hosted staging and backup gates pass.
+
+The repeatable bootstrap, resume, backup/restore rehearsal, later migration
+order, and credential-rotation procedure are documented in
+[`docs/components/managed-database.md`](docs/components/managed-database.md).
+No command in that workflow creates provider accounts, projects, billing
+changes, Render services, domains, or console alerts.
+
 ## Back up the database
 
 Choose an existing host directory outside the repository and a new destination

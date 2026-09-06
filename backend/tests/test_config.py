@@ -67,3 +67,32 @@ def test_allows_local_development_to_disable_secure_cookie() -> None:
     )
 
     assert settings.access_session_cookie_secure is False
+
+
+def test_alembic_falls_back_to_runtime_database_url_locally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
+    settings = Settings(
+        _env_file=None,
+        **_valid_settings(),
+    )
+
+    assert settings.alembic_database_url == (
+        "postgresql+psycopg://test:test@localhost/test"
+    )
+
+
+def test_alembic_prefers_separate_direct_migration_url() -> None:
+    settings = Settings(
+        _env_file=None,
+        **_valid_settings(),
+        migration_database_url=(
+            "postgresql+psycopg://migrator:secret@direct.example/test"
+        ),
+    )
+
+    assert settings.alembic_database_url == (
+        "postgresql+psycopg://migrator:secret@direct.example/test"
+    )
+    assert "migrator:secret" not in repr(settings)

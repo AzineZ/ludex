@@ -110,6 +110,15 @@ def test_render_start_does_not_run_migrations_in_web_worker() -> None:
     assert "alembic" not in startup
 
 
+def test_alembic_uses_the_operator_connection_boundary() -> None:
+    migration_environment = read_project_file("backend/migrations/env.py")
+    backend_example = read_project_file("backend/.env.example")
+
+    assert migration_environment.count("settings.alembic_database_url") == 2
+    assert "# MIGRATION_DATABASE_URL=" in backend_example
+    assert "direct connection" in backend_example
+
+
 def test_docker_build_contexts_exclude_local_environment_files() -> None:
     for relative_path in (
         "backend/.dockerignore",
