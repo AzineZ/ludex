@@ -154,11 +154,11 @@ does not provision Render or Neon resources by itself. Do not sync it until the
 Checkpoint 9 provisioning gate has approved the current dashboard price,
 service-name availability, database setup, and secret values.
 
-The `ludex` service builds `frontend/dist` with `VITE_API_BASE_URL=/api` and
-serves it as static assets. Its `/api/*` rule rewrites requests to the separate
-`ludex-api` service before the single-page-app fallback. Both service names and
-their `onrender.com` addresses remain provisional until availability is
-checked.
+The single `ludex` web service builds `frontend/dist` with
+`VITE_API_BASE_URL=/api`, serves those assets from FastAPI, and mounts the
+existing API under `/api`. This combined origin is the approved fallback after
+live staging proved that a Render static-site external rewrite can serve API
+GET responses but does not reliably forward session POST/cookie traffic.
 
 The backend uses Render's assigned `PORT` and `/live` for shallow platform
 probes. `/live` does not query PostgreSQL or an external provider. `/health`
@@ -189,9 +189,11 @@ order, and credential-rotation procedure are documented in
 No command in that workflow creates provider accounts, projects, billing
 changes, Render services, domains, or console alerts.
 
-The temporary free staging package is defined separately in
-`render.staging.yaml`. Its owner-operated creation and hosted browser gate are
-documented in
+The replacement temporary free staging package is defined in
+`render.staging-combined.yaml`. The original two-service rehearsal in
+`render.staging.yaml` is retained only as failure evidence and must not be
+resynced. The owner-operated replacement and hosted browser gate are documented
+in
 [`docs/components/hosted-deployment.md`](docs/components/hosted-deployment.md).
 Staging and production both require a separate generated
 `STEAM_RATE_LIMIT_HMAC_KEY`; the browser never receives it.

@@ -1,5 +1,6 @@
-# Temporary free staging package for Checkpoint 9 hosted verification.
-# The owner creates and removes these services in the Render dashboard.
+# OBSOLETE: live verification proved that this static-site rewrite returns 404
+# for session POST traffic. Do not create or manually sync this Blueprint.
+# Keep it temporarily only to identify the two failed resources for cleanup.
 services:
   - type: web
     name: ludex-staging-api

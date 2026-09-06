@@ -1,24 +1,23 @@
-# Provisional combined production Blueprint. Do not sync it until the
-# Checkpoint 9 provisioning gate and dashboard price/hostname checks are
-# approved.
+# Replacement staging package after Render's static-site rewrite rejected POST.
+# Create this as a new Blueprint; do not sync it into the old Blueprint.
 services:
   - type: web
-    name: ludex
+    name: ludex-staging-app
     runtime: docker
     dockerfilePath: ./Dockerfile.render
     dockerCommand: ./render-combined-start.sh
-    plan: 0.5c-512mb
+    plan: free
     region: oregon
     numInstances: 1
     healthCheckPath: /live
     autoDeployTrigger: "off"
     envVars:
       - key: FRONTEND_ORIGIN
-        value: https://ludex.onrender.com
+        value: https://ludex-staging-app.onrender.com
       - key: ACCESS_SESSION_COOKIE_SECURE
         value: "true"
       - key: DEPLOYMENT_ENVIRONMENT
-        value: production
+        value: staging
       - key: STEAM_RATE_LIMIT_HMAC_KEY
         generateValue: true
       - key: DATABASE_URL

@@ -19,7 +19,9 @@ def load_blueprint() -> dict[str, Any]:
 
 
 def load_staging_blueprint() -> dict[str, Any]:
-    blueprint = yaml.safe_load(read_project_file("render.staging.yaml"))
+    blueprint = yaml.safe_load(
+        read_project_file("render.staging-combined.yaml")
+    )
 
     assert isinstance(blueprint, dict)
     return blueprint
@@ -36,48 +38,30 @@ def environment_by_key(service: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {entry["key"]: entry for entry in service["envVars"]}
 
 
-def test_render_blueprint_builds_the_vite_static_site() -> None:
-    frontend = service_named(load_blueprint(), "ludex")
+def test_render_image_builds_frontend_and_backend_for_one_origin() -> None:
+    dockerfile = read_project_file("Dockerfile.render")
 
-    assert frontend["type"] == "web"
-    assert frontend["runtime"] == "static"
-    assert frontend["rootDir"] == "frontend"
-    assert frontend["buildCommand"] == "npm ci && npm run build"
-    assert frontend["staticPublishPath"] == "./dist"
-    assert frontend["autoDeployTrigger"] == "off"
-    assert environment_by_key(frontend) == {
-        "VITE_API_BASE_URL": {
-            "key": "VITE_API_BASE_URL",
-            "value": "/api",
-        }
-    }
+    assert "FROM node:24-slim AS frontend-builder" in dockerfile
+    assert "ENV VITE_API_BASE_URL=/api" in dockerfile
+    assert "RUN npm run build" in dockerfile
+    assert "FROM python:3.12-slim" in dockerfile
+    assert "COPY backend/app ./app" in dockerfile
+    assert (
+        "COPY --from=frontend-builder /frontend/dist ./frontend-dist"
+        in dockerfile
+    )
 
 
-def test_render_static_site_proxies_api_before_spa_fallback() -> None:
-    frontend = service_named(load_blueprint(), "ludex")
+def test_render_blueprint_uses_one_paid_oregon_app_and_shallow_probe() -> None:
+    blueprint = load_blueprint()
+    backend = service_named(blueprint, "ludex")
 
-    assert frontend["routes"] == [
-        {
-            "type": "rewrite",
-            "source": "/api/*",
-            "destination": "https://ludex-api.onrender.com/*",
-        },
-        {
-            "type": "rewrite",
-            "source": "/*",
-            "destination": "/index.html",
-        },
-    ]
-
-
-def test_render_blueprint_uses_paid_oregon_backend_and_shallow_probe() -> None:
-    backend = service_named(load_blueprint(), "ludex-api")
-
+    assert len(blueprint["services"]) == 1
     assert backend["type"] == "web"
     assert backend["runtime"] == "docker"
-    assert backend["rootDir"] == "backend"
-    assert backend["dockerfilePath"] == "./Dockerfile"
-    assert backend["dockerCommand"] == "./render-start.sh"
+    assert "rootDir" not in backend
+    assert backend["dockerfilePath"] == "./Dockerfile.render"
+    assert backend["dockerCommand"] == "./render-combined-start.sh"
     assert backend["plan"] == "0.5c-512mb"
     assert backend["region"] == "oregon"
     assert backend["numInstances"] == 1
@@ -86,7 +70,7 @@ def test_render_blueprint_uses_paid_oregon_backend_and_shallow_probe() -> None:
 
 
 def test_render_blueprint_separates_public_values_and_runtime_secrets() -> None:
-    backend = service_named(load_blueprint(), "ludex-api")
+    backend = service_named(load_blueprint(), "ludex")
     environment = environment_by_key(backend)
 
     assert environment["FRONTEND_ORIGIN"] == {
@@ -118,30 +102,32 @@ def test_render_blueprint_separates_public_values_and_runtime_secrets() -> None:
 
 def test_staging_blueprint_is_free_isolated_and_manual() -> None:
     blueprint = load_staging_blueprint()
-    backend = service_named(blueprint, "ludex-staging-api")
-    frontend = service_named(blueprint, "ludex-staging")
+    backend = service_named(blueprint, "ludex-staging-app")
 
+    assert len(blueprint["services"]) == 1
     assert backend["runtime"] == "docker"
+    assert backend["dockerfilePath"] == "./Dockerfile.render"
+    assert backend["dockerCommand"] == "./render-combined-start.sh"
     assert backend["plan"] == "free"
     assert backend["region"] == "oregon"
     assert backend["numInstances"] == 1
     assert backend["healthCheckPath"] == "/live"
     assert backend["autoDeployTrigger"] == "off"
-    assert frontend["runtime"] == "static"
-    assert frontend["autoDeployTrigger"] == "off"
-    assert frontend["routes"][0] == {
-        "type": "rewrite",
-        "source": "/api/*",
-        "destination": "https://ludex-staging-api.onrender.com/*",
-    }
+
+
+def test_failed_two_service_staging_blueprint_is_marked_obsolete() -> None:
+    legacy_blueprint = read_project_file("render.staging.yaml")
+
+    assert legacy_blueprint.startswith("# OBSOLETE:")
+    assert "Do not create or manually sync" in legacy_blueprint
 
 
 def test_staging_blueprint_uses_staging_only_secrets_and_origin() -> None:
-    backend = service_named(load_staging_blueprint(), "ludex-staging-api")
+    backend = service_named(load_staging_blueprint(), "ludex-staging-app")
     environment = environment_by_key(backend)
 
     assert environment["FRONTEND_ORIGIN"]["value"] == (
-        "https://ludex-staging.onrender.com"
+        "https://ludex-staging-app.onrender.com"
     )
     assert environment["DEPLOYMENT_ENVIRONMENT"]["value"] == "staging"
     assert environment["STEAM_RATE_LIMIT_HMAC_KEY"]["generateValue"] is True
@@ -154,11 +140,12 @@ def test_staging_blueprint_uses_staging_only_secrets_and_origin() -> None:
 
 
 def test_render_start_does_not_run_migrations_in_web_worker() -> None:
-    startup = read_project_file("backend/render-start.sh")
+    startup = read_project_file("backend/render-combined-start.sh")
 
     assert "set -eu" in startup
     assert 'port="${PORT:-8000}"' in startup
     assert '--port "$port"' in startup
+    assert "app/hosted.py" in startup
     assert "alembic" not in startup
 
 
@@ -173,6 +160,7 @@ def test_alembic_uses_the_operator_connection_boundary() -> None:
 
 def test_docker_build_contexts_exclude_local_environment_files() -> None:
     for relative_path in (
+        ".dockerignore",
         "backend/.dockerignore",
         "frontend/.dockerignore",
     ):
