@@ -1,18 +1,6 @@
 # Ludex
 
-Ludex helps users choose what to play from their existing Steam library. The project is currently in local development.
-
-## Documentation
-
-- [Project design](PROJECT_DESIGN.md) defines the product problem, scope, user
-  journeys, requirements, and product decisions.
-- [Technical design](TECHNICAL_DESIGN.md) defines architecture, data and trust
-  boundaries, APIs, flows, reliability, and testing strategy.
-- [Architecture overview](docs/ARCHITECTURE.md) explains the system boundaries,
-  data flows, and links to detailed component notes.
-- [Checkpoint journal](docs/CHECKPOINT.md) records completed work, verification,
-  and the exact continuation point.
-- [Visual design](UI_DESIGN.md) defines the Ludex interface language.
+If you have a huge Steam backlog, there's a good chance you have experienced the feeling of scrolling through them repeatedly and struggle to choose one, Ludex helps you combat the choice paralysis problem and finish the games you have paid for.
 
 ## Local application stack
 
