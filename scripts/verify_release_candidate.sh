@@ -21,7 +21,7 @@ docker compose config --quiet
     cd frontend
     npm test
     npm run lint
-    npm run build
+    VITE_API_BASE_URL=/api npm run build
 )
 
 git diff --check

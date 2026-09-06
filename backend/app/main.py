@@ -30,6 +30,12 @@ app.include_router(recommendations_router)
 app.include_router(session_router)
 
 
+@app.get("/live")
+def live_check() -> dict[str, str]:
+    """Report that the API process can serve HTTP without touching providers."""
+    return {"status": "live"}
+
+
 @app.exception_handler(SQLAlchemyError)
 async def database_unavailable_handler(
     _request: Request,

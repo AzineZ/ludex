@@ -57,6 +57,13 @@ def test_backend_container_stops_when_migration_fails() -> None:
     assert "exec uv run fastapi run" in startup
 
 
+def test_backend_container_honors_platform_port_with_local_default() -> None:
+    startup = read_project_file("backend/start.sh")
+
+    assert 'port="${PORT:-8000}"' in startup
+    assert '--port "$port"' in startup
+
+
 def test_compose_ports_are_overrideable_without_changing_local_defaults() -> None:
     compose = read_project_file("compose.yaml")
 

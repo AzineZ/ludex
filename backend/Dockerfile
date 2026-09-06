@@ -11,7 +11,8 @@ COPY app ./app
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY start.sh ./
-RUN chmod +x start.sh
+COPY render-start.sh ./
+RUN chmod +x start.sh render-start.sh
 
 EXPOSE 8000
 

@@ -11,6 +11,27 @@ from app.database import get_database_session
 from app.main import app
 
 
+def test_live_check_is_shallow_and_does_not_open_database_session() -> None:
+    def fail_if_database_session_is_requested() -> Generator[
+        Session, None, None
+    ]:
+        raise AssertionError("/live must not open a database session")
+        yield MagicMock(spec=Session)
+
+    app.dependency_overrides[
+        get_database_session
+    ] = fail_if_database_session_is_requested
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/live")
+    finally:
+        app.dependency_overrides.pop(get_database_session, None)
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "live"}
+
+
 def test_health_check_reports_database_connection() -> None:
     database_session = MagicMock(spec=Session)
 

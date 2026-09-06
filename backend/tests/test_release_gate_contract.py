@@ -16,7 +16,7 @@ def test_release_gate_runs_complete_provider_free_verification() -> None:
     assert "uv run alembic check" in script
     assert "npm test" in script
     assert "npm run lint" in script
-    assert "npm run build" in script
+    assert "VITE_API_BASE_URL=/api npm run build" in script
     assert "git diff --check" in script
 
 

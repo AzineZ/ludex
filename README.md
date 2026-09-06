@@ -147,6 +147,34 @@ The backend health endpoint should return:
 }
 ```
 
+## Hosted production package
+
+The reviewed `render.yaml` describes the provisional production package; it
+does not provision Render or Neon resources by itself. Do not sync it until the
+Checkpoint 9 provisioning gate has approved the current dashboard price,
+service-name availability, database setup, and secret values.
+
+The `ludex` service builds `frontend/dist` with `VITE_API_BASE_URL=/api` and
+serves it as static assets. Its `/api/*` rule rewrites requests to the separate
+`ludex-api` service before the single-page-app fallback. Both service names and
+their `onrender.com` addresses remain provisional until availability is
+checked.
+
+The backend uses Render's assigned `PORT` and `/live` for shallow platform
+probes. `/live` does not query PostgreSQL or an external provider. `/health`
+remains the deliberate database-aware check and must not be configured as the
+frequent Render probe.
+
+The hosted web-worker command does not run Alembic. Before a hosted release,
+the owner-operated migration step must run exactly once through a direct Neon
+connection after the approved backup check. The running service receives a
+separate pooled Neon connection as `DATABASE_URL`. Render prompts for all
+backend credentials marked `sync: false`; no real credential or
+`GEMINI_API_KEY` belongs in the Blueprint, frontend build, or image layers.
+
+Local Docker Compose is intentionally unchanged: it still starts PostgreSQL,
+runs migrations, and then starts the API on port 8000 for development.
+
 ## Back up the database
 
 Choose an existing host directory outside the repository and a new destination

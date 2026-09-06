@@ -1,0 +1,45 @@
+# Provisional production Blueprint. Do not sync it until the Checkpoint 9
+# provisioning gate and dashboard price/hostname checks are approved.
+services:
+  - type: web
+    name: ludex-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerCommand: ./render-start.sh
+    plan: 0.5c-512mb
+    region: oregon
+    numInstances: 1
+    healthCheckPath: /live
+    autoDeployTrigger: "off"
+    envVars:
+      - key: FRONTEND_ORIGIN
+        value: https://ludex.onrender.com
+      - key: ACCESS_SESSION_COOKIE_SECURE
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: STEAM_API_KEY
+        sync: false
+      - key: IGDB_CLIENT_ID
+        sync: false
+      - key: IGDB_CLIENT_SECRET
+        sync: false
+
+  - type: web
+    name: ludex
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    autoDeployTrigger: "off"
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: /api
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://ludex-api.onrender.com/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
