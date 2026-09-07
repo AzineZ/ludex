@@ -19,7 +19,7 @@ describe("PublicDataNotice", () => {
       window.history.replaceState({}, "", "/");
    });
 
-   it("discloses data use, retention, deletion, and provider boundaries", () => {
+   it("discloses data use, retention, and provider boundaries", () => {
       render(<PublicDataNotice />);
 
       const notice = screen.getByRole("region", {
@@ -34,12 +34,7 @@ describe("PublicDataNotice", () => {
       expect(notice).toHaveTextContent("as-is and as-available");
       expect(notice).toHaveTextContent("not affiliated with or endorsed");
       expect(notice).toHaveTextContent("do not contact those providers");
-      expect(
-         within(notice).getByRole("link", { name: "Game metadata from IGDB" })
-      ).toHaveAttribute("href", "https://www.igdb.com/");
-      expect(
-         within(notice).getByRole("link", { name: "Ludex repository" })
-      ).toHaveAttribute("href", "https://github.com/AzineZ/ludex/issues/new");
+      expect(within(notice).queryByRole("link")).not.toBeInTheDocument();
    });
 
    it("keeps the notice off the application page but reachable from its footer", () => {
@@ -55,6 +50,12 @@ describe("PublicDataNotice", () => {
       expect(
          within(footer).getByRole("link", { name: "Privacy & data use" })
       ).toHaveAttribute("href", "/privacy");
+      expect(
+         within(footer).getByRole("link", { name: "Steam Web API" })
+      ).toHaveAttribute("href", "https://steamcommunity.com/dev/apiterms");
+      expect(
+         within(footer).getByRole("link", { name: "Game metadata from IGDB" })
+      ).toHaveAttribute("href", "https://www.igdb.com/");
    });
 
    it("renders the complete notice on the dedicated privacy page", () => {

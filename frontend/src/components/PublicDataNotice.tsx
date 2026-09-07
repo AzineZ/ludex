@@ -65,26 +65,8 @@ function PublicDataNotice() {
                   Recommendation and refinement requests use cached facts and
                   do not contact those providers.
                </p>
-               <p className="public-data-notice__provider-links">
-                  <a href="https://store.steampowered.com/privacy_agreement/">
-                     Steam Privacy Policy
-                  </a>
-                  <a href="https://steamcommunity.com/dev/apiterms">
-                     Steam Web API Terms
-                  </a>
-                  <a href="https://www.igdb.com/">
-                     Game metadata from IGDB
-                  </a>
-               </p>
             </section>
          </div>
-
-         <p className="public-data-notice__deletion">
-            To request earlier deletion, open a privacy contact request through
-            the <a href="https://github.com/AzineZ/ludex/issues/new">Ludex repository</a>.
-            Do not post a Steam ID, session cookie, or other private data in a
-            public issue; the owner will arrange a private exchange.
-         </p>
       </section>
    );
 }
