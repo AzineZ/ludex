@@ -123,6 +123,19 @@ def test_setup_guide_documents_safe_backup_and_shutdown() -> None:
     assert "permanently deletes" in readme
 
 
+def test_setup_guide_documents_retention_operator_safety() -> None:
+    readme = read_project_file("README.md")
+    normalized_readme = " ".join(readme.split())
+
+    assert "uv run python -m app.retention_cleanup_command" in readme
+    assert (
+        "uv run python -m app.retention_cleanup_command --apply" in readme
+    )
+    assert "PostgreSQL advisory lock" in normalized_readme
+    assert "aggregate only" in normalized_readme
+    assert "rolls back in full" in normalized_readme
+
+
 def test_setup_guide_troubleshoots_runtime_boundaries() -> None:
     readme = read_project_file("README.md")
 

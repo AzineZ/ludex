@@ -16,6 +16,7 @@ from app.integrations.igdb.coverage import (
     get_igdb_metadata_coverage,
 )
 from app.integrations.igdb.enrichment import (
+    ENRICHMENT_BATCH_SIZE,
     enrich_game_metadata,
     get_pending_owned_steam_app_ids,
 )
@@ -82,6 +83,13 @@ def _coverage_payload(
     }
 
 
+def _batch_count(game_count: int) -> int:
+    """Return the bounded enrichment batches required for a game count."""
+    return (
+        game_count + ENRICHMENT_BATCH_SIZE - 1
+    ) // ENRICHMENT_BATCH_SIZE
+
+
 def _report_payload(
     coverage: IGDBMetadataCoverage,
     *,
@@ -91,6 +99,7 @@ def _report_payload(
         "mode": "report-only",
         **_coverage_payload(coverage),
         "selected_pending_game_count": selected_pending_game_count,
+        "selected_batch_count": _batch_count(selected_pending_game_count),
     }
 
 
@@ -133,6 +142,7 @@ def run_igdb_enrichment_command(
                     "mode": "blocked",
                     "detail": "IGDB enrichment is already running.",
                     "selected_pending_game_count": len(pending_ids),
+                    "selected_batch_count": _batch_count(len(pending_ids)),
                 },
                 error_output,
             )
@@ -159,6 +169,7 @@ def run_igdb_enrichment_command(
                         "mode": "failed",
                         "detail": "IGDB enrichment did not complete.",
                         "selected_pending_game_count": len(pending_ids),
+                        "selected_batch_count": _batch_count(len(pending_ids)),
                         "before": _coverage_payload(before),
                         "after": _coverage_payload(after),
                     },
@@ -174,6 +185,7 @@ def run_igdb_enrichment_command(
                 "mode": "applied",
                 "selected_pending_game_count": len(pending_ids),
                 "processed_game_count": processed_game_count,
+                "processed_batch_count": _batch_count(processed_game_count),
                 "before": _coverage_payload(before),
                 "after": _coverage_payload(after),
             },

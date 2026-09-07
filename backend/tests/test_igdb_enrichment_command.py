@@ -152,6 +152,17 @@ def test_apply_lock_uses_one_transaction_scoped_postgres_lock(
     connection.begin.return_value.__exit__.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    ("game_count", "expected_batch_count"),
+    [(0, 0), (1, 1), (100, 1), (101, 2), (500, 5)],
+)
+def test_batch_count_reports_bounded_operator_batches(
+    game_count: int,
+    expected_batch_count: int,
+) -> None:
+    assert command._batch_count(game_count) == expected_batch_count
+
+
 def test_report_only_command_returns_safe_aggregate_coverage() -> None:
     engine, factory = _database()
     output = StringIO()
@@ -171,6 +182,7 @@ def test_report_only_command_returns_safe_aggregate_coverage() -> None:
         "mode": "report-only",
         "pending_game_count": 2,
         "ready_game_count": 1,
+        "selected_batch_count": 1,
         "selected_pending_game_count": 2,
         "total_owned_game_count": 5,
     }
@@ -286,6 +298,7 @@ def test_apply_enriches_exact_selection_and_reports_before_and_after() -> None:
             "total_owned_game_count": 5,
         },
         "mode": "applied",
+        "processed_batch_count": 1,
         "processed_game_count": 2,
         "selected_pending_game_count": 2,
     }
@@ -326,6 +339,7 @@ def test_apply_with_no_pending_games_does_not_construct_client() -> None:
     assert exit_code == 0
     assert payload["mode"] == "applied"
     assert payload["selected_pending_game_count"] == 0
+    assert payload["processed_batch_count"] == 0
     assert payload["processed_game_count"] == 0
     assert payload["before"] == payload["after"]
     client_factory.assert_not_called()
@@ -356,6 +370,7 @@ def test_apply_stops_safely_when_another_enrichment_job_holds_lock() -> None:
     assert json.loads(error_output.getvalue()) == {
         "detail": "IGDB enrichment is already running.",
         "mode": "blocked",
+        "selected_batch_count": 1,
         "selected_pending_game_count": 2,
     }
     client_factory.assert_not_called()
@@ -424,6 +439,7 @@ def test_apply_failure_is_sanitized_and_reports_preserved_progress() -> None:
         },
         "detail": "IGDB enrichment did not complete.",
         "mode": "failed",
+        "selected_batch_count": 1,
         "selected_pending_game_count": 2,
     }
     assert "raw-provider-secret" not in error_output.getvalue()

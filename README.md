@@ -91,11 +91,12 @@ uv run python -m app.igdb_enrichment_command --apply
 ```
 
 Only `--apply` contacts IGDB. It uses the bounded enrichment service, prints
-aggregate before/after coverage, and exits nonzero with a sanitized report when
-IGDB fails; successful earlier batches remain committed for a safe retry. A
-transaction-scoped PostgreSQL advisory lock prevents overlapping apply runs.
-No automatic endpoint or background worker exists. Recommendation requests
-remain cache-only, and Gemini is neither constructed nor required.
+aggregate before/after coverage and batch counts, and exits nonzero with a
+sanitized report when IGDB fails; successful earlier batches remain committed
+for a safe retry. A transaction-scoped PostgreSQL advisory lock prevents
+overlapping apply runs. No automatic endpoint or background worker exists.
+Recommendation requests remain cache-only, and Gemini is neither constructed
+nor required.
 
 ## Verify the installation
 
@@ -190,6 +191,12 @@ order, and credential-rotation procedure are documented in
 No command in that workflow creates provider accounts, projects, billing
 changes, Render services, domains, or console alerts.
 
+The manual-job, monitoring, quota, cost, backup, incident, and provider-terms
+checklists are documented in
+[`docs/components/hosted-operations.md`](docs/components/hosted-operations.md).
+Public launch remains gated on the user-facing privacy/provider notice and the
+owner's Render and Neon dashboard verification.
+
 The replacement temporary free staging package is defined in
 `render.staging-combined.yaml`. The original two-service rehearsal in
 `render.staging.yaml` is retained only as failure evidence and must not be
@@ -254,8 +261,12 @@ uv run python -m app.retention_cleanup_command --apply
 
 Application rechecks eligibility in one transaction, removes only eligible
 profile, access-session, and profile-ownership rows, and retains shared game and
-IGDB facts. This command is manual maintenance; recommendation and session
-requests never trigger it.
+IGDB facts. Apply mode holds a transaction-scoped PostgreSQL advisory lock for
+the complete job; an overlapping apply exits without deleting data. Failures
+return a generic nonzero result, and the cleanup transaction rolls back in full.
+Output is aggregate only and never includes Steam IDs, profile names, session
+data, or per-profile timestamps. This command is manual maintenance;
+recommendation and session requests never trigger it.
 
 ## Environment variables
 
