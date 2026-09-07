@@ -14,6 +14,13 @@ from app.integrations.steam.client import (
 STEAM_ID = "76561198000000000"
 
 
+def authorized_session_request(identifier: str) -> dict[str, object]:
+    return {
+        "identifier": identifier,
+        "authorized_use_acknowledged": True,
+    }
+
+
 def configure_successful_steam_response(
     steam_client: MagicMock,
 ) -> None:
@@ -52,7 +59,7 @@ def test_create_session_imports_steam_library(
 
     response = profile_api_client.post(
         "/session",
-        json={"identifier": STEAM_ID},
+        json=authorized_session_request(STEAM_ID),
     )
 
     assert response.status_code == 201
@@ -98,7 +105,7 @@ def test_current_session_profile_uses_cached_data(
 
     create_response = profile_api_client.post(
         "/session",
-        json={"identifier": STEAM_ID},
+        json=authorized_session_request(STEAM_ID),
     )
     assert create_response.status_code == 201
     steam_client.reset_mock()
@@ -132,7 +139,7 @@ def test_refresh_session_profile_updates_cached_library(
 
     create_response = profile_api_client.post(
         "/session",
-        json={"identifier": STEAM_ID},
+        json=authorized_session_request(STEAM_ID),
     )
     assert create_response.status_code == 201
 
@@ -239,7 +246,7 @@ def test_create_session_rejects_invalid_identifier(
     """Verify that invalid identifiers are rejected before contacting Steam."""
     response = profile_api_client.post(
         "/session",
-        json={"identifier": "https://example.com/id/player"},
+        json=authorized_session_request("https://example.com/id/player"),
     )
 
     assert response.status_code == 422
@@ -312,7 +319,7 @@ def test_create_session_maps_steam_errors_to_http_responses(
 
     response = profile_api_client.post(
         "/session",
-        json={"identifier": STEAM_ID},
+        json=authorized_session_request(STEAM_ID),
     )
 
     assert response.status_code == expected_status

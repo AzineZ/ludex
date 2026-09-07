@@ -67,6 +67,30 @@
    line-height: 1.4;
 }
 
+.app__session-form .app__session-acknowledgment {
+   display: grid;
+   grid-column: 1 / -1;
+   grid-template-columns: auto minmax(0, 1fr);
+   align-items: start;
+   gap: 0.7rem;
+   color: var(--color-ash-taupe);
+   font-size: 0.8rem;
+   font-weight: 400;
+   line-height: 1.45;
+}
+
+.app__session-acknowledgment input {
+   width: 1.15rem;
+   height: 1.15rem;
+   margin: 0.1rem 0 0;
+   accent-color: var(--color-alarm-red);
+}
+
+.app__session-acknowledgment input:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 3px;
+}
+
 .app__session-form-error {
    grid-column: 1 / -1;
    margin: 0;

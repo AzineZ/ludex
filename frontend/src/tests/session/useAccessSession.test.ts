@@ -87,11 +87,11 @@ describe("useAccessSession", () => {
 
       await act(async () => {
          await expect(
-            result.current.startSession(`  ${profile.steam_id}  `)
+            result.current.startSession(`  ${profile.steam_id}  `, true)
          ).resolves.toBe(true);
       });
 
-      expect(mockedCreate).toHaveBeenCalledWith(profile.steam_id);
+      expect(mockedCreate).toHaveBeenCalledWith(profile.steam_id, true);
       expect(result.current).toMatchObject({
          status: "ready",
          profile,
@@ -107,7 +107,7 @@ describe("useAccessSession", () => {
       await waitFor(() => expect(result.current.status).toBe("ready"));
 
       await act(async () => {
-         await expect(result.current.startSession("missing")).resolves.toBe(
+         await expect(result.current.startSession("missing", true)).resolves.toBe(
             false
          );
       });
@@ -115,6 +115,20 @@ describe("useAccessSession", () => {
       expect(result.current.profile).toEqual(profile);
       expect(result.current.startError).toBe("Profile not found.");
       expect(result.current.sessionEpoch).toBe(0);
+   });
+
+   it("does not create a session without authorized-use acknowledgment", async () => {
+      mockedGetCurrent.mockRejectedValue(new ApiError(401, "Required."));
+      const { result } = renderHook(() => useAccessSession());
+      await waitFor(() => expect(result.current.status).toBe("signed_out"));
+
+      await act(async () => {
+         await expect(
+            result.current.startSession(profile.steam_id, false)
+         ).resolves.toBe(false);
+      });
+
+      expect(mockedCreate).not.toHaveBeenCalled();
    });
 
    it("refreshes the same session without invalidating recommendations", async () => {

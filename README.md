@@ -67,11 +67,13 @@ Backend: connected
 
 ## First-run data workflow
 
-Open http://localhost:5173. Enter a Steam ID or public Steam profile URL.
-When that profile is not already cached, Ludex imports its public Steam library
-and creates one browser access session. Returning with that session reads only
-the cache. Use **Refresh Steam library** when you explicitly want to contact
-Steam and update ownership or playtime.
+Open http://localhost:5173. Enter a Steam ID or public Steam profile URL and
+confirm that you are authorized to request that profile's public Steam data.
+This acknowledgment does not prove account ownership. When the profile is not
+already cached, Ludex imports its public Steam library and creates one browser
+access session. Returning with that session reads only the cache. Use
+**Refresh Steam library** when you explicitly want to contact Steam and update
+ownership or playtime.
 
 Preference validation and recommendation requests use cached database facts and
 never call Steam, IGDB, Gemini, or another provider. A new Steam import does not
@@ -194,8 +196,9 @@ changes, Render services, domains, or console alerts.
 The manual-job, monitoring, quota, cost, backup, incident, and provider-terms
 checklists are documented in
 [`docs/components/hosted-operations.md`](docs/components/hosted-operations.md).
-Public launch remains gated on the user-facing privacy/provider notice and the
-owner's Render and Neon dashboard verification.
+The user-facing privacy/provider notice and authorized-use acknowledgment are
+implemented. Public launch remains gated on staging verification of that exact
+artifact and the owner's Render and Neon dashboard checks.
 
 The replacement temporary free staging package is defined in
 `render.staging-combined.yaml`. The original two-service rehearsal in

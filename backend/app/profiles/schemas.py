@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ProfileCreateRequest(BaseModel):
-    """Validate the Steam identifier submitted for profile import."""
+    """Validate the Steam identifier and authorized-use assertion."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -12,6 +12,15 @@ class ProfileCreateRequest(BaseModel):
         min_length=1,
         max_length=500,
     )
+    authorized_use_acknowledged: bool = Field(strict=True)
+
+    @field_validator("authorized_use_acknowledged")
+    @classmethod
+    def require_authorized_use_acknowledgment(cls, value: bool) -> bool:
+        """Accept only an explicit JSON boolean true assertion."""
+        if value is not True:
+            raise ValueError("Authorized-use acknowledgment is required.")
+        return value
 
 
 class OwnedGameResponse(BaseModel):

@@ -1,0 +1,92 @@
+import "./public-data-notice.css";
+
+/** Publishes Ludex's public-profile, retention, and provider-use boundaries. */
+function PublicDataNotice() {
+   return (
+      <section
+         className="public-data-notice"
+         id="privacy-data"
+         aria-labelledby="privacy-data-heading"
+      >
+         <p className="public-data-notice__eyebrow">Public portfolio notice</p>
+         <h2 id="privacy-data-heading">Privacy &amp; data use</h2>
+         <p>
+            Ludex is an independent portfolio project. It uses public Steam
+            profile and library data only when a visitor starts a session or
+            explicitly refreshes that library.
+         </p>
+
+         <div className="public-data-notice__sections">
+            <section aria-labelledby="privacy-data-collected">
+               <h3 id="privacy-data-collected">What is used</h3>
+               <p>
+                  Ludex may request and cache the submitted Steam ID, public
+                  display name, profile and avatar URLs, owned games, playtime,
+                  and last-played information. Shared game facts and artwork may
+                  be cached from IGDB. Recommendation preferences are used for
+                  the current request and are not saved as a user account.
+                  For abuse prevention, raw network addresses are used
+                  transiently by in-memory limits but are not persisted or
+                  application-logged; durable limits use keyed opaque buckets.
+               </p>
+            </section>
+
+            <section aria-labelledby="privacy-data-access">
+               <h3 id="privacy-data-access">Access &amp; cookies</h3>
+               <p>
+                  A required, secure, HTTP-only cookie authorizes this browser
+                  to one cached profile for a fixed seven days. Ludex stores
+                  only a one-way digest of its random session token. The cookie
+                  is not Steam login, and a submitted Steam ID is not proof of
+                  account ownership. Ludex uses no advertising or analytics
+                  cookies.
+               </p>
+            </section>
+
+            <section aria-labelledby="privacy-data-retention">
+               <h3 id="privacy-data-retention">Storage &amp; retention</h3>
+               <p>
+                  Application data, PostgreSQL data, and encrypted backups are
+                  kept in the United States. Ending a session revokes browser
+                  access immediately. Profile-specific data becomes eligible
+                  for operator cleanup when no session remains active and at
+                  least 30 days have passed since the latest session ended.
+                  Encrypted recovery backups may retain deleted profile data
+                  for up to approximately 58 days after that session ended.
+               </p>
+            </section>
+
+            <section aria-labelledby="privacy-data-providers">
+               <h3 id="privacy-data-providers">Providers &amp; availability</h3>
+               <p>
+                  Steam data, provider integrations, and Ludex are provided
+                  as-is and as-available, without warranties. Ludex is not
+                  affiliated with or endorsed by Valve, Steam, IGDB, or Twitch.
+                  Recommendation and refinement requests use cached facts and
+                  do not contact those providers.
+               </p>
+               <p className="public-data-notice__provider-links">
+                  <a href="https://store.steampowered.com/privacy_agreement/">
+                     Steam Privacy Policy
+                  </a>
+                  <a href="https://steamcommunity.com/dev/apiterms">
+                     Steam Web API Terms
+                  </a>
+                  <a href="https://www.igdb.com/">
+                     Game metadata from IGDB
+                  </a>
+               </p>
+            </section>
+         </div>
+
+         <p className="public-data-notice__deletion">
+            To request earlier deletion, open a privacy contact request through
+            the <a href="https://github.com/AzineZ/ludex/issues/new">Ludex repository</a>.
+            Do not post a Steam ID, session cookie, or other private data in a
+            public issue; the owner will arrange a private exchange.
+         </p>
+      </section>
+   );
+}
+
+export default PublicDataNotice;

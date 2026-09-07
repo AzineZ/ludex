@@ -77,6 +77,9 @@ describe("AccessSessionSection startup recovery", () => {
          name: "Steam ID or profile URL",
       });
       fireEvent.change(identifier, { target: { value: enteredProfile.steam_id } });
+      fireEvent.click(
+         screen.getByRole("checkbox", { name: /I confirm I am authorized/ })
+      );
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
 
       expect(
@@ -132,6 +135,9 @@ describe("AccessSessionSection startup recovery", () => {
          name: "Steam ID or profile URL",
       });
       fireEvent.change(identifier, { target: { value: enteredProfile.steam_id } });
+      fireEvent.click(
+         screen.getByRole("checkbox", { name: /I confirm I am authorized/ })
+      );
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
       expect(
          await screen.findByText(`Current Steam profile:`, { exact: false })

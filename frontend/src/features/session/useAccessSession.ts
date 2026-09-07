@@ -125,16 +125,24 @@ export function useAccessSession() {
       };
    }, [handleSessionUnauthorized, restoreSession]);
 
-   async function startSession(identifier: string): Promise<boolean> {
+   async function startSession(
+      identifier: string,
+      authorizedUseAcknowledged: boolean
+   ): Promise<boolean> {
       const normalizedIdentifier = identifier.trim();
-      if (!normalizedIdentifier || isStarting) return false;
+      if (!normalizedIdentifier || !authorizedUseAcknowledged || isStarting) {
+         return false;
+      }
 
       invalidateSessionRestoration();
       setIsStarting(true);
       setStartupError(null);
       setStartError(null);
       try {
-         const nextProfile = await createAccessSession(normalizedIdentifier);
+         const nextProfile = await createAccessSession(
+            normalizedIdentifier,
+            authorizedUseAcknowledged
+         );
          setProfile(nextProfile);
          setStatus("ready");
          setStartupError(null);

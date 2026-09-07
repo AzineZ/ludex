@@ -313,7 +313,7 @@ def create_session(
         Depends(enforce_session_attempt_limit),
     ],
 ) -> SessionProfileResponse:
-    """Reuse or import one profile and authorize this browser to access it."""
+    """Acknowledge use, then authorize this browser for one profile."""
     profile_id = _resolve_profile_for_session(
         database_session,
         steam_client,

@@ -70,6 +70,9 @@ describe("AccessSessionSection action recovery", () => {
          name: "Steam ID or profile URL",
       });
       fireEvent.change(input, { target: { value: originalProfile.steam_id } });
+      fireEvent.click(
+         screen.getByRole("checkbox", { name: /I confirm I am authorized/ })
+      );
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
 
       expect(await screen.findByRole("alert")).toHaveTextContent(

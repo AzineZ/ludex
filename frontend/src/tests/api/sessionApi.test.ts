@@ -49,13 +49,16 @@ describe("session API", () => {
       fetchMock.mockResolvedValue(jsonResponse(sessionProfile, 201));
 
       await expect(
-         createAccessSession(sessionProfile.steam_id)
+         createAccessSession(sessionProfile.steam_id, true)
       ).resolves.toEqual(sessionProfile);
 
       expect(fetchMock).toHaveBeenCalledWith("http://localhost:8000/session", {
          method: "POST",
          headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ identifier: sessionProfile.steam_id }),
+         body: JSON.stringify({
+            identifier: sessionProfile.steam_id,
+            authorized_use_acknowledged: true,
+         }),
          credentials: "include",
       });
    });

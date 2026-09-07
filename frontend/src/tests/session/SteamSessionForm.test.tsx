@@ -28,6 +28,9 @@ describe("SteamSessionForm", () => {
          screen.getByRole("textbox", { name: "Steam ID or profile URL" })
       ).toBeDisabled();
       expect(
+         screen.getByRole("checkbox", { name: /I confirm I am authorized/ })
+      ).toBeDisabled();
+      expect(
          screen.getByRole("button", { name: "Loading Steam profile…" })
       ).toBeDisabled();
    });
@@ -52,5 +55,36 @@ describe("SteamSessionForm", () => {
             "This Steam library is private or unavailable."
       );
       expect(screen.getByRole("alert")).toHaveClass("app__session-form-error");
+   });
+
+   it("requires authorized-use acknowledgment before starting a session", async () => {
+      const onStart = vi.fn().mockResolvedValue(true);
+      render(
+         <SteamSessionForm
+            error={null}
+            isStarting={false}
+            onStart={onStart}
+         />
+      );
+
+      const input = screen.getByRole("textbox", {
+         name: "Steam ID or profile URL",
+      });
+      const acknowledgment = screen.getByRole("checkbox", {
+         name: /I confirm I am authorized/,
+      });
+      const submit = screen.getByRole("button", {
+         name: "Continue with Steam",
+      });
+
+      fireEvent.change(input, { target: { value: "example-profile" } });
+      expect(submit).toBeDisabled();
+      expect(acknowledgment).toBeRequired();
+
+      fireEvent.click(acknowledgment);
+      expect(submit).toBeEnabled();
+      fireEvent.click(submit);
+
+      expect(onStart).toHaveBeenCalledWith("example-profile", true);
    });
 });

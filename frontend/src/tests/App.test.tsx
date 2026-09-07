@@ -61,6 +61,12 @@ const mockedGetCurrent = vi.mocked(getCurrentSessionProfile);
 const mockedGetHealth = vi.mocked(getHealth);
 const mockedRefresh = vi.mocked(refreshCurrentSessionProfile);
 
+function acknowledgeAuthorizedUse(): void {
+   fireEvent.click(
+      screen.getByRole("checkbox", { name: /I confirm I am authorized/ })
+   );
+}
+
 describe("App session experience", () => {
    beforeEach(() => {
       mockedCreate.mockReset();
@@ -93,6 +99,9 @@ describe("App session experience", () => {
          .toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Continue with Steam" }))
          .toBeDisabled();
+      expect(
+         screen.getByRole("checkbox", { name: /I confirm I am authorized/ })
+      ).toBeRequired();
       expect(screen.queryByText(/saved profiles/i)).not.toBeInTheDocument();
    });
 
@@ -133,8 +142,9 @@ describe("App session experience", () => {
       render(<App />);
       const input = await screen.findByLabelText("Steam ID or profile URL");
       fireEvent.change(input, { target: { value: "  example-profile  " } });
+      acknowledgeAuthorizedUse();
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
-      expect(mockedCreate).toHaveBeenCalledWith("example-profile");
+      expect(mockedCreate).toHaveBeenCalledWith("example-profile", true);
       expect(await screen.findByText("Session Player")).toBeInTheDocument();
       expect(screen.queryByLabelText("Steam ID or profile URL"))
          .not.toBeInTheDocument();
@@ -148,6 +158,7 @@ describe("App session experience", () => {
       render(<App />);
       const input = await screen.findByLabelText("Steam ID or profile URL");
       fireEvent.change(input, { target: { value: "private-profile" } });
+      acknowledgeAuthorizedUse();
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
       expect(await screen.findByRole("alert")).toHaveTextContent(
          "This Steam library is private or unavailable."
@@ -162,6 +173,7 @@ describe("App session experience", () => {
       render(<App />);
       const input = await screen.findByLabelText("Steam ID or profile URL");
       fireEvent.change(input, { target: { value: "example-profile" } });
+      acknowledgeAuthorizedUse();
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
       expect(input).toBeDisabled();
       expect(screen.getByRole("button", { name: "Loading Steam profile…" }))

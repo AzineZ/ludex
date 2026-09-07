@@ -17,7 +17,10 @@ def test_wrong_origin_is_rejected_before_provider_dependency() -> None:
             response = client.post(
                 "/session",
                 headers={"Origin": "https://attacker.example"},
-                json={"identifier": "76561198000000000"},
+                json={
+                    "identifier": "76561198000000000",
+                    "authorized_use_acknowledged": True,
+                },
             )
     finally:
         app.dependency_overrides.pop(get_steam_client, None)
@@ -32,7 +35,10 @@ def test_exact_origin_reaches_normal_validation() -> None:
         response = client.post(
             "/session",
             headers={"Origin": "http://localhost:5173"},
-            json={"identifier": "invalid identifier"},
+            json={
+                "identifier": "invalid identifier",
+                "authorized_use_acknowledged": True,
+            },
         )
 
     assert response.status_code == 422
@@ -57,7 +63,10 @@ def test_missing_origin_remains_available_to_non_browser_operator_checks() -> No
     with TestClient(app) as client:
         response = client.post(
             "/session",
-            json={"identifier": "invalid identifier"},
+            json={
+                "identifier": "invalid identifier",
+                "authorized_use_acknowledged": True,
+            },
         )
 
     assert response.status_code == 422
@@ -74,12 +83,18 @@ def test_hosted_session_attempt_fails_closed_without_forwarded_client(
         with TestClient(app) as client:
             missing = client.post(
                 "/session",
-                json={"identifier": "invalid identifier"},
+                json={
+                    "identifier": "invalid identifier",
+                    "authorized_use_acknowledged": True,
+                },
             )
             forwarded = client.post(
                 "/session",
                 headers={"X-Forwarded-For": "8.8.8.8, 10.0.0.2"},
-                json={"identifier": "invalid identifier"},
+                json={
+                    "identifier": "invalid identifier",
+                    "authorized_use_acknowledged": True,
+                },
             )
     finally:
         app.dependency_overrides.pop(get_steam_abuse_controller, None)

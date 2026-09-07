@@ -1,5 +1,6 @@
 import "./App.css";
 import Hero from "./components/Hero";
+import PublicDataNotice from "./components/PublicDataNotice";
 import ServerStatus from "./components/ServerStatus";
 import AccessSessionSection from "./features/session/AccessSessionSection";
 import { useBackendHealth } from "./hooks/useBackendHealth";
@@ -9,13 +10,21 @@ function App() {
    const connectionState = useBackendHealth();
 
    return (
-      <main className="app">
+      <div className="app">
          <ServerStatus connectionState={connectionState} />
-         <section className="app__content">
+         <main className="app__content">
             <Hero />
             <AccessSessionSection />
-         </section>
-      </main>
+            <PublicDataNotice />
+         </main>
+         <footer className="app__footer" aria-label="Site information">
+            <a href="#privacy-data">Privacy &amp; data use</a>
+            <span aria-hidden="true">•</span>
+            <a href="https://steamcommunity.com/dev/apiterms">Steam Web API</a>
+            <span aria-hidden="true">•</span>
+            <a href="https://www.igdb.com/">Game metadata from IGDB</a>
+         </footer>
+      </div>
    );
 }
 

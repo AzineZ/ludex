@@ -22,12 +22,16 @@ export type SessionProfileResponse = {
 };
 
 export function createAccessSession(
-   identifier: string
+   identifier: string,
+   authorizedUseAcknowledged: boolean
 ): Promise<SessionProfileResponse> {
    return requestJson<SessionProfileResponse>("/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier }),
+      body: JSON.stringify({
+         identifier,
+         authorized_use_acknowledged: authorizedUseAcknowledged,
+      }),
    });
 }
 

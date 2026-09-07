@@ -38,6 +38,13 @@ FIRST_STEAM_ID = "76561198000000000"
 SECOND_STEAM_ID = "76561198000000001"
 
 
+def _authorized_session_request(identifier: str) -> dict[str, object]:
+    return {
+        "identifier": identifier,
+        "authorized_use_acknowledged": True,
+    }
+
+
 @pytest.fixture
 def session_api(
     steam_client: MagicMock,
@@ -134,6 +141,44 @@ def _configure_import(steam_client: MagicMock) -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "request_body",
+    [
+        {"identifier": FIRST_STEAM_ID},
+        {
+            "identifier": FIRST_STEAM_ID,
+            "authorized_use_acknowledged": False,
+        },
+        {
+            "identifier": FIRST_STEAM_ID,
+            "authorized_use_acknowledged": 1,
+        },
+        {
+            "identifier": FIRST_STEAM_ID,
+            "authorized_use_acknowledged": "true",
+        },
+    ],
+)
+def test_create_session_requires_authorized_use_acknowledgment(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    request_body: dict[str, object],
+) -> None:
+    client, _ = session_api
+
+    response = client.post("/session", json=request_body)
+
+    assert response.status_code == 422
+    assert any(
+        error["loc"] == ["body", "authorized_use_acknowledged"]
+        for error in response.json()["detail"]
+    )
+    assert ACCESS_SESSION_COOKIE_NAME not in client.cookies
+    steam_client.resolve_steam_id.assert_not_called()
+    steam_client.get_profile.assert_not_called()
+    steam_client.get_owned_games.assert_not_called()
+
+
 def test_create_session_reuses_cached_numeric_profile_without_provider_calls(
     session_api: tuple[TestClient, sessionmaker[Session]],
     steam_client: MagicMock,
@@ -146,7 +191,7 @@ def test_create_session_reuses_cached_numeric_profile_without_provider_calls(
 
     response = client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     )
 
     assert response.status_code == 201
@@ -175,7 +220,10 @@ def test_uncached_numeric_session_reserves_provider_operation(
     client, session_factory = session_api
     _configure_import(steam_client)
 
-    response = client.post("/session", json={"identifier": FIRST_STEAM_ID})
+    response = client.post(
+        "/session",
+        json=_authorized_session_request(FIRST_STEAM_ID),
+    )
 
     assert response.status_code == 201
     with session_factory() as database_session:
@@ -195,9 +243,9 @@ def test_create_session_resolves_vanity_then_reuses_cached_profile(
 
     response = client.post(
         "/session",
-        json={
-            "identifier": "https://steamcommunity.com/id/cached-player"
-        },
+        json=_authorized_session_request(
+            "https://steamcommunity.com/id/cached-player"
+        ),
     )
 
     assert response.status_code == 201
@@ -221,13 +269,13 @@ def test_sixth_session_attempt_is_generic_rate_limit_before_provider(
     for index in range(5):
         response = client.post(
             "/session",
-            json={"identifier": f"invalid identifier {index}"},
+            json=_authorized_session_request(f"invalid identifier {index}"),
         )
         assert response.status_code == 422
 
     limited = client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     )
 
     assert limited.status_code == 429
@@ -249,7 +297,7 @@ def test_create_session_imports_uncached_profile_and_sets_cookie(
 
     response = client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     )
 
     assert response.status_code == 201
@@ -272,7 +320,7 @@ def test_failed_session_creation_preserves_current_session(
     _store_cached_profile(session_factory)
     first = client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     )
     assert first.status_code == 201
     current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
@@ -282,7 +330,9 @@ def test_failed_session_creation_preserves_current_session(
 
     failed = client.post(
         "/session",
-        json={"identifier": "https://steamcommunity.com/id/unavailable"},
+        json=_authorized_session_request(
+            "https://steamcommunity.com/id/unavailable"
+        ),
     )
 
     assert failed.status_code == 503
@@ -311,14 +361,14 @@ def test_successful_session_replacement_revokes_only_current_cookie(
     )
     first = client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     )
     assert first.status_code == 201
     first_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
 
     second = client.post(
         "/session",
-        json={"identifier": SECOND_STEAM_ID},
+        json=_authorized_session_request(SECOND_STEAM_ID),
     )
 
     assert second.status_code == 201
@@ -347,7 +397,7 @@ def test_failed_session_replacement_write_preserves_current_session(
     )
     assert client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     ).status_code == 201
     current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
 
@@ -379,7 +429,7 @@ def test_failed_session_replacement_write_preserves_current_session(
 
     response = client.post(
         "/session",
-        json={"identifier": SECOND_STEAM_ID},
+        json=_authorized_session_request(SECOND_STEAM_ID),
     )
 
     assert response.status_code == 503
@@ -410,7 +460,7 @@ def test_current_profile_uses_cookie_and_never_returns_internal_id(
     _store_cached_profile(session_factory)
     assert client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     ).status_code == 201
     steam_client.reset_mock()
 
@@ -446,7 +496,7 @@ def test_current_profile_sanitizes_database_unavailability(
     _store_cached_profile(session_factory)
     assert client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     ).status_code == 201
     current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
 
@@ -490,7 +540,7 @@ def test_refresh_updates_only_session_profile_without_renewing_cookie(
     _store_cached_profile(session_factory)
     assert client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     ).status_code == 201
     current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
     _configure_import(steam_client)
@@ -520,7 +570,7 @@ def test_refresh_cooldown_returns_429_without_second_provider_call(
     _store_cached_profile(session_factory)
     assert client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     ).status_code == 201
     _configure_import(steam_client)
     assert client.post("/session/profile/refresh").status_code == 200
@@ -568,7 +618,7 @@ def test_failed_refresh_preserves_cached_profile_and_session(
     _store_cached_profile(session_factory)
     assert client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     ).status_code == 201
     current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
     steam_client.get_profile.return_value = SteamProfile(
@@ -611,7 +661,7 @@ def test_delete_session_revokes_cookie_and_returns_to_unauthorized_state(
     _store_cached_profile(session_factory)
     assert client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     ).status_code == 201
 
     response = client.delete("/session")
@@ -633,7 +683,7 @@ def test_failed_session_revocation_write_preserves_current_session(
     _store_cached_profile(session_factory)
     assert client.post(
         "/session",
-        json={"identifier": FIRST_STEAM_ID},
+        json=_authorized_session_request(FIRST_STEAM_ID),
     ).status_code == 201
     current_token = client.cookies[ACCESS_SESSION_COOKIE_NAME]
 

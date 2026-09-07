@@ -3,12 +3,17 @@ import { useState, type FormEvent } from "react";
 type SteamSessionFormProps = {
    error: string | null;
    isStarting: boolean;
-   onStart: (identifier: string) => Promise<boolean>;
+   onStart: (
+      identifier: string,
+      authorizedUseAcknowledged: boolean
+   ) => Promise<boolean>;
 };
 
 /** Collects the Steam identifier used to authorize this browser session. */
 function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps) {
    const [identifier, setIdentifier] = useState("");
+   const [authorizedUseAcknowledged, setAuthorizedUseAcknowledged] =
+      useState(false);
    const descriptionIds = [
       "steam-identifier-help",
       ...(error === null ? [] : ["steam-identifier-error"]),
@@ -16,7 +21,11 @@ function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps)
 
    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
       event.preventDefault();
-      if (await onStart(identifier)) setIdentifier("");
+      if (!authorizedUseAcknowledged) return;
+      if (await onStart(identifier, authorizedUseAcknowledged)) {
+         setIdentifier("");
+         setAuthorizedUseAcknowledged(false);
+      }
    }
 
    return (
@@ -40,10 +49,31 @@ function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps)
             disabled={isStarting}
             autoComplete="off"
          />
+         <label className="app__session-acknowledgment">
+            <input
+               type="checkbox"
+               name="authorized-use"
+               checked={authorizedUseAcknowledged}
+               onChange={(event) =>
+                  setAuthorizedUseAcknowledged(event.target.checked)
+               }
+               disabled={isStarting}
+               required
+            />
+            <span>
+               I confirm I am authorized to request this public profile&apos;s
+               Steam data. Entering a Steam ID does not verify ownership. Read
+               the <a href="#privacy-data">privacy and data notice</a>.
+            </span>
+         </label>
          <button
             className="app__primary-button"
             type="submit"
-            disabled={isStarting || identifier.trim().length === 0}
+            disabled={
+               isStarting ||
+               identifier.trim().length === 0 ||
+               !authorizedUseAcknowledged
+            }
          >
             {isStarting ? "Loading Steam profile…" : "Continue with Steam"}
          </button>
