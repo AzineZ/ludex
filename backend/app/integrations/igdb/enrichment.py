@@ -21,10 +21,11 @@ from app.models import Game
 
 ENRICHMENT_BATCH_SIZE = 100
 ENRICHMENT_BATCH_PAUSE_SECONDS = 1.0
+MAX_ENRICHMENT_GAMES_PER_RUN = 500
 
 
 def get_pending_owned_steam_app_ids(session: Session) -> list[int]:
-    """Return uniquely owned pending games in stable Steam App ID order."""
+    """Return up to one run's pending games in stable Steam App ID order."""
     return list(
         session.scalars(
             select(Game.steam_app_id)
@@ -33,6 +34,7 @@ def get_pending_owned_steam_app_ids(session: Session) -> list[int]:
                 Game.igdb_status == "pending",
             )
             .order_by(Game.steam_app_id)
+            .limit(MAX_ENRICHMENT_GAMES_PER_RUN)
         )
     )
 

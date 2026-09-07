@@ -93,6 +93,8 @@ def test_setup_guide_documents_the_supported_data_workflow() -> None:
     )
     assert "The default command is report-only" in normalized_readme
     assert "Only `--apply` contacts IGDB" in normalized_readme
+    assert "at most 500" in normalized_readme
+    assert "PostgreSQL advisory lock" in normalized_readme
     assert "Recommendation requests remain cache-only" in normalized_readme
 
 

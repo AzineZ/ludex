@@ -1,11 +1,14 @@
 import json
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
+import app.integrations.igdb.command as command
 from app.database import Base
 from app.integrations.igdb.enrichment import get_pending_owned_steam_app_ids
 from app.igdb_enrichment_command import run_igdb_enrichment_command
@@ -94,6 +97,61 @@ def test_selects_unique_owned_pending_games_in_deterministic_order() -> None:
     engine.dispose()
 
 
+def test_pending_selection_is_limited_to_one_hosted_apply_run() -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine)
+
+    with factory() as session:
+        profile = Profile(
+            steam_id="76561198000000003",
+            display_name="Bounded Player",
+        )
+        games = [
+            Game(
+                steam_app_id=steam_app_id,
+                name=f"Pending {steam_app_id}",
+                igdb_status="pending",
+            )
+            for steam_app_id in range(1, 502)
+        ]
+        session.add_all([profile, *games])
+        session.flush()
+        session.add_all(
+            [ProfileGame(profile=profile, game=game) for game in games]
+        )
+        session.commit()
+
+    with factory() as session:
+        selected = get_pending_owned_steam_app_ids(session)
+
+    assert selected == list(range(1, 501))
+    engine.dispose()
+
+
+def test_apply_lock_uses_one_transaction_scoped_postgres_lock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_engine = MagicMock()
+    connection = MagicMock()
+    database_engine.connect.return_value.__enter__.return_value = connection
+    connection.scalar.return_value = True
+    monkeypatch.setattr(command, "engine", database_engine)
+
+    with command._igdb_enrichment_apply_lock() as acquired:
+        assert acquired is True
+
+    statement, parameters = connection.scalar.call_args.args
+    assert str(statement) == (
+        "SELECT pg_try_advisory_xact_lock(:lock_key)"
+    )
+    assert parameters == {
+        "lock_key": command.IGDB_ENRICHMENT_ADVISORY_LOCK_KEY,
+    }
+    connection.begin.return_value.__enter__.assert_called_once_with()
+    connection.begin.return_value.__exit__.assert_called_once()
+
+
 def test_report_only_command_returns_safe_aggregate_coverage() -> None:
     engine, factory = _database()
     output = StringIO()
@@ -138,6 +196,7 @@ def test_report_only_command_makes_no_provider_call_or_database_change() -> None
         ]
 
     client_factory = MagicMock()
+    apply_lock = MagicMock()
 
     with patch(
         "app.integrations.igdb.enrichment.enrich_game_metadata",
@@ -147,11 +206,13 @@ def test_report_only_command_makes_no_provider_call_or_database_change() -> None
             [],
             session_factory=factory,
             client_factory=client_factory,
+            apply_lock=apply_lock,
             output=StringIO(),
         )
 
     assert exit_code == 0
     client_factory.assert_not_called()
+    apply_lock.assert_not_called()
     enrichment.assert_not_called()
 
     with factory() as session:
@@ -200,6 +261,7 @@ def test_apply_enriches_exact_selection_and_reports_before_and_after() -> None:
         session_factory=factory,
         client_factory=client_factory,
         enrichment_service=enrichment_service,
+        apply_lock=lambda: nullcontext(True),
         output=output,
     )
 
@@ -256,6 +318,7 @@ def test_apply_with_no_pending_games_does_not_construct_client() -> None:
         session_factory=factory,
         client_factory=client_factory,
         enrichment_service=enrichment_service,
+        apply_lock=lambda: nullcontext(True),
         output=output,
     )
 
@@ -267,6 +330,40 @@ def test_apply_with_no_pending_games_does_not_construct_client() -> None:
     assert payload["before"] == payload["after"]
     client_factory.assert_not_called()
     enrichment_service.assert_not_called()
+
+    engine.dispose()
+
+
+def test_apply_stops_safely_when_another_enrichment_job_holds_lock() -> None:
+    engine, factory = _database()
+    output = StringIO()
+    error_output = StringIO()
+    client_factory = MagicMock()
+    enrichment_service = MagicMock()
+
+    exit_code = run_igdb_enrichment_command(
+        ["--apply"],
+        session_factory=factory,
+        client_factory=client_factory,
+        enrichment_service=enrichment_service,
+        apply_lock=lambda: nullcontext(False),
+        output=output,
+        error_output=error_output,
+    )
+
+    assert exit_code == 2
+    assert output.getvalue() == ""
+    assert json.loads(error_output.getvalue()) == {
+        "detail": "IGDB enrichment is already running.",
+        "mode": "blocked",
+        "selected_pending_game_count": 2,
+    }
+    client_factory.assert_not_called()
+    enrichment_service.assert_not_called()
+
+    with factory() as session:
+        assert session.get(Game, 3).igdb_status == "pending"
+        assert session.get(Game, 9).igdb_status == "pending"
 
     engine.dispose()
 
@@ -298,6 +395,7 @@ def test_apply_failure_is_sanitized_and_reports_preserved_progress() -> None:
         session_factory=factory,
         client_factory=client_factory,
         enrichment_service=fail_after_progress,
+        apply_lock=lambda: nullcontext(True),
         output=output,
         error_output=error_output,
     )

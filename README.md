@@ -83,8 +83,8 @@ cd backend
 uv run python -m app.igdb_enrichment_command
 ```
 
-After reviewing that report, explicitly enrich the uniquely owned pending games
-with the configured backend IGDB credentials:
+After reviewing that report, explicitly enrich at most 500 uniquely owned
+pending games with the configured backend IGDB credentials:
 
 ```bash
 uv run python -m app.igdb_enrichment_command --apply
@@ -92,9 +92,10 @@ uv run python -m app.igdb_enrichment_command --apply
 
 Only `--apply` contacts IGDB. It uses the bounded enrichment service, prints
 aggregate before/after coverage, and exits nonzero with a sanitized report when
-IGDB fails; successful earlier batches remain committed for a safe retry. No
-automatic endpoint or background worker exists. Recommendation requests remain
-cache-only, and Gemini is neither constructed nor required.
+IGDB fails; successful earlier batches remain committed for a safe retry. A
+transaction-scoped PostgreSQL advisory lock prevents overlapping apply runs.
+No automatic endpoint or background worker exists. Recommendation requests
+remain cache-only, and Gemini is neither constructed nor required.
 
 ## Verify the installation
 
