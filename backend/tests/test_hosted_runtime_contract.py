@@ -145,7 +145,8 @@ def test_render_start_does_not_run_migrations_in_web_worker() -> None:
     assert "set -eu" in startup
     assert 'port="${PORT:-8000}"' in startup
     assert '--port "$port"' in startup
-    assert "app/hosted.py" in startup
+    assert "uvicorn app.hosted:app" in startup
+    assert "--no-access-log" in startup
     assert "alembic" not in startup
 
 
