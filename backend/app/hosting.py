@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from app.main import app as api_app
 
@@ -24,6 +25,12 @@ def create_hosted_app(
     def live_check() -> dict[str, str]:
         """Probe only the combined HTTP process, never PostgreSQL."""
         return {"status": "live"}
+
+    @hosted_app.get("/privacy", include_in_schema=False)
+    @hosted_app.get("/privacy/", include_in_schema=False)
+    def privacy_page() -> FileResponse:
+        """Serve the SPA shell for the dedicated public privacy page."""
+        return FileResponse(frontend_directory / "index.html")
 
     hosted_app.mount("/api", api_application)
     hosted_app.frontend(

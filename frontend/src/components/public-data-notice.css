@@ -6,6 +6,39 @@
    background: rgb(0 0 0 / 94%);
 }
 
+.app--privacy {
+   padding-bottom: clamp(2rem, 5vw, 3rem);
+}
+
+.app__privacy-content {
+   position: relative;
+   z-index: 1;
+   width: min(100%, 42.5rem);
+   margin: 0 auto;
+}
+
+.app__privacy-back {
+   display: inline-block;
+   margin-bottom: 1.5rem;
+   color: var(--color-bone-cream);
+   font-size: 0.85rem;
+   font-weight: 800;
+   text-underline-offset: 0.2em;
+}
+
+.app__privacy-back:hover {
+   color: var(--color-alarm-red);
+}
+
+.app__privacy-back:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 3px;
+}
+
+.app--privacy .public-data-notice {
+   margin-top: 0;
+}
+
 .public-data-notice__eyebrow {
    margin: 0 0 0.65rem;
    color: var(--color-alarm-red);

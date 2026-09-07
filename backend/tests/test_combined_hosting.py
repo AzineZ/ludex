@@ -38,10 +38,16 @@ def test_combined_app_serves_frontend_and_forwards_api_mutations(
 
     with TestClient(app, base_url="https://ludex.example") as client:
         frontend_response = client.get("/")
+        privacy_response = client.get("/privacy")
+        privacy_slash_response = client.get("/privacy/")
         session_response = client.post("/api/session")
 
     assert frontend_response.status_code == 200
     assert "Ludex test frontend" in frontend_response.text
+    assert privacy_response.status_code == 200
+    assert "Ludex test frontend" in privacy_response.text
+    assert privacy_slash_response.status_code == 200
+    assert "Ludex test frontend" in privacy_slash_response.text
     assert session_response.status_code == 200
     assert session_response.json() == {"status": "created"}
     assert session_response.headers["set-cookie"].startswith(

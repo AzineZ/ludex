@@ -1,5 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "../../App";
 import PublicDataNotice from "../../components/PublicDataNotice";
@@ -14,6 +14,11 @@ vi.mock("../../api", async (importOriginal) => {
 });
 
 describe("PublicDataNotice", () => {
+   afterEach(() => {
+      cleanup();
+      window.history.replaceState({}, "", "/");
+   });
+
    it("discloses data use, retention, deletion, and provider boundaries", () => {
       render(<PublicDataNotice />);
 
@@ -37,14 +42,29 @@ describe("PublicDataNotice", () => {
       ).toHaveAttribute("href", "https://github.com/AzineZ/ludex/issues/new");
    });
 
-   it("keeps the privacy notice reachable from the site footer", () => {
+   it("keeps the notice off the application page but reachable from its footer", () => {
+      window.history.replaceState({}, "", "/");
       render(<App />);
 
+      expect(
+         screen.queryByRole("region", { name: "Privacy & data use" })
+      ).not.toBeInTheDocument();
       const footer = screen.getByRole("contentinfo", {
          name: "Site information",
       });
       expect(
          within(footer).getByRole("link", { name: "Privacy & data use" })
-      ).toHaveAttribute("href", "#privacy-data");
+      ).toHaveAttribute("href", "/privacy");
+   });
+
+   it("renders the complete notice on the dedicated privacy page", () => {
+      window.history.replaceState({}, "", "/privacy");
+      render(<App />);
+
+      expect(
+         screen.getByRole("region", { name: "Privacy & data use" })
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "← Back to Ludex" }))
+         .toHaveAttribute("href", "/");
    });
 });

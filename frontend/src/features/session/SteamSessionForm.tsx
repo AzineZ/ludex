@@ -63,7 +63,7 @@ function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps)
             <span>
                I confirm I am authorized to request this public profile&apos;s
                Steam data. Entering a Steam ID does not verify ownership. Read
-               the <a href="#privacy-data">privacy and data notice</a>.
+               the <a href="/privacy">privacy and data notice</a>.
             </span>
          </label>
          <button

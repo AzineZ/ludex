@@ -80,6 +80,9 @@ describe("SteamSessionForm", () => {
       fireEvent.change(input, { target: { value: "example-profile" } });
       expect(submit).toBeDisabled();
       expect(acknowledgment).toBeRequired();
+      expect(
+         screen.getByRole("link", { name: "privacy and data notice" })
+      ).toHaveAttribute("href", "/privacy");
 
       fireEvent.click(acknowledgment);
       expect(submit).toBeEnabled();

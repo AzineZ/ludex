@@ -197,8 +197,10 @@ The manual-job, monitoring, quota, cost, backup, incident, and provider-terms
 checklists are documented in
 [`docs/components/hosted-operations.md`](docs/components/hosted-operations.md).
 The user-facing privacy/provider notice and authorized-use acknowledgment are
-implemented. Public launch remains gated on staging verification of that exact
-artifact and the owner's Render and Neon dashboard checks.
+implemented and verified on staging. The full notice lives at `/privacy`; the
+Steam form and shared footer keep compact links to it from signed-out and
+signed-in states. Public launch remains gated on the owner's Render and Neon
+dashboard checks and the final release gate.
 
 The replacement temporary free staging package is defined in
 `render.staging-combined.yaml`. The original two-service rehearsal in
