@@ -38,11 +38,11 @@ function PrivacyPage() {
 function SiteFooter() {
    return (
       <footer className="app__footer" aria-label="Site information">
-         <a href="/privacy">Privacy &amp; data use</a>
+         <a href="/privacy">Privacy &amp; Data Use</a>
          <span aria-hidden="true">•</span>
          <a href="https://steamcommunity.com/dev/apiterms">Steam Web API</a>
          <span aria-hidden="true">•</span>
-         <a href="https://www.igdb.com/">Game metadata from IGDB</a>
+         <a href="https://www.igdb.com/">Game Metadata From IGDB</a>
       </footer>
    );
 }

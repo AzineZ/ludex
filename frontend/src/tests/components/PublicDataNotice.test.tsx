@@ -23,7 +23,7 @@ describe("PublicDataNotice", () => {
       render(<PublicDataNotice />);
 
       const notice = screen.getByRole("region", {
-         name: "Privacy & data use",
+         name: "Privacy & Data Use",
       });
       expect(notice).toHaveTextContent("fixed seven days");
       expect(notice).toHaveTextContent("at least 30 days");
@@ -42,19 +42,19 @@ describe("PublicDataNotice", () => {
       render(<App />);
 
       expect(
-         screen.queryByRole("region", { name: "Privacy & data use" })
+         screen.queryByRole("region", { name: "Privacy & Data Use" })
       ).not.toBeInTheDocument();
       const footer = screen.getByRole("contentinfo", {
          name: "Site information",
       });
       expect(
-         within(footer).getByRole("link", { name: "Privacy & data use" })
+         within(footer).getByRole("link", { name: "Privacy & Data Use" })
       ).toHaveAttribute("href", "/privacy");
       expect(
          within(footer).getByRole("link", { name: "Steam Web API" })
       ).toHaveAttribute("href", "https://steamcommunity.com/dev/apiterms");
       expect(
-         within(footer).getByRole("link", { name: "Game metadata from IGDB" })
+         within(footer).getByRole("link", { name: "Game Metadata From IGDB" })
       ).toHaveAttribute("href", "https://www.igdb.com/");
    });
 
@@ -63,9 +63,10 @@ describe("PublicDataNotice", () => {
       render(<App />);
 
       expect(
-         screen.getByRole("region", { name: "Privacy & data use" })
+         screen.getByRole("region", { name: "Privacy & Data Use" })
       ).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "← Back to Ludex" }))
-         .toHaveAttribute("href", "/");
+      expect(
+         screen.getByRole("link", { name: "← Back to Ludex" })
+      ).toHaveAttribute("href", "/");
    });
 });

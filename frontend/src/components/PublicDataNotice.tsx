@@ -9,7 +9,7 @@ function PublicDataNotice() {
          aria-labelledby="privacy-data-heading"
       >
          <p className="public-data-notice__eyebrow">Public portfolio notice</p>
-         <h2 id="privacy-data-heading">Privacy &amp; data use</h2>
+         <h2 id="privacy-data-heading">Privacy &amp; Data Use</h2>
          <p>
             Ludex is an independent portfolio project. It uses public Steam
             profile and library data only when a visitor starts a session or
@@ -24,9 +24,9 @@ function PublicDataNotice() {
                   display name, profile and avatar URLs, owned games, playtime,
                   and last-played information. Shared game facts and artwork may
                   be cached from IGDB. Recommendation preferences are used for
-                  the current request and are not saved as a user account.
-                  For abuse prevention, raw network addresses are used
-                  transiently by in-memory limits but are not persisted or
+                  the current request and are not saved as a user account. For
+                  abuse prevention, raw network addresses are used transiently
+                  by in-memory limits but are not persisted or
                   application-logged; durable limits use keyed opaque buckets.
                </p>
             </section>
@@ -48,11 +48,11 @@ function PublicDataNotice() {
                <p>
                   Application data, PostgreSQL data, and encrypted backups are
                   kept in the United States. Ending a session revokes browser
-                  access immediately. Profile-specific data becomes eligible
-                  for operator cleanup when no session remains active and at
-                  least 30 days have passed since the latest session ended.
-                  Encrypted recovery backups may retain deleted profile data
-                  for up to approximately 58 days after that session ended.
+                  access immediately. Profile-specific data becomes eligible for
+                  operator cleanup when no session remains active and at least
+                  30 days have passed since the latest session ended. Encrypted
+                  recovery backups may retain deleted profile data for up to
+                  approximately 58 days after that session ended.
                </p>
             </section>
 
@@ -62,8 +62,8 @@ function PublicDataNotice() {
                   Steam data, provider integrations, and Ludex are provided
                   as-is and as-available, without warranties. Ludex is not
                   affiliated with or endorsed by Valve, Steam, IGDB, or Twitch.
-                  Recommendation and refinement requests use cached facts and
-                  do not contact those providers.
+                  Recommendation and refinement requests use cached facts and do
+                  not contact those providers.
                </p>
             </section>
          </div>
