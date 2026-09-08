@@ -1,12 +1,11 @@
-/// <reference types="vitest/config" />
-
-import { defineConfig } from "vite";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
    plugins: [react()],
    test: {
       environment: "jsdom",
+      exclude: [...configDefaults.exclude, "src/tests/browser/**"],
       setupFiles: "./src/tests/setup.ts",
       testTimeout: 10000,
    },

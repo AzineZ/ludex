@@ -14,6 +14,7 @@
 .app {
    position: relative;
    min-height: 100vh;
+   min-height: 100dvh;
    padding: clamp(2rem, 6vw, 5rem) clamp(1.25rem, 4vw, 3rem) 8rem;
    overflow: clip;
    color: var(--color-bone-cream);
@@ -22,13 +23,10 @@
 }
 
 .app::before {
-   position: absolute;
-   top: 0;
-   right: 0;
-   left: 0;
+   position: fixed;
+   inset: 0;
    z-index: 0;
-   height: min(55rem, 100vh);
-   background-image: url("./assets/ben-neale-zpxKdH_xNSI-unsplash.jpg");
+   background-image: url("./assets/monitor-cover-portrait.webp");
    background-position: center;
    background-repeat: no-repeat;
    background-size: cover;
@@ -54,7 +52,13 @@
 }
 
 .app:has(.app__session--access) {
+   display: flex;
+   flex-direction: column;
    padding-bottom: clamp(2rem, 5vw, 3rem);
+}
+
+.app:has(.app__session--access) .app__content {
+   margin-block: auto;
 }
 
 .app:has(.app__session--access) .app__hero {
@@ -156,15 +160,28 @@
    background: var(--color-alarm-red);
 }
 
+@media (orientation: landscape) {
+   .app::before {
+      background-image: url("./assets/monitor-cover-landscape.webp");
+   }
+}
+
 @media (max-width: 36rem) {
    .app::before {
-      height: 42rem;
       background-position: 58% center;
    }
 
    .app {
       padding-right: 1rem;
       padding-left: 1rem;
+   }
+
+   .app__status {
+      position: relative;
+      top: auto;
+      right: auto;
+      flex: none;
+      margin: 0 0 1.5rem auto;
    }
 
    .app__hero {
