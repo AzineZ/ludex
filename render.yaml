@@ -14,7 +14,7 @@ services:
     autoDeployTrigger: "off"
     envVars:
       - key: FRONTEND_ORIGIN
-        value: https://ludex.onrender.com
+        value: https://ludex-h6k1.onrender.com
       - key: ACCESS_SESSION_COOKIE_SECURE
         value: "true"
       - key: DEPLOYMENT_ENVIRONMENT
