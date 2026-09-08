@@ -75,7 +75,7 @@ def test_render_blueprint_separates_public_values_and_runtime_secrets() -> None:
 
     assert environment["FRONTEND_ORIGIN"] == {
         "key": "FRONTEND_ORIGIN",
-        "value": "https://ludex-h6k1.onrender.com",
+        "value": "https://ludexgame.app",
     }
     assert environment["ACCESS_SESSION_COOKIE_SECURE"] == {
         "key": "ACCESS_SESSION_COOKIE_SECURE",
