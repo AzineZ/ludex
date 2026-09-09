@@ -110,9 +110,10 @@ verification from the project root:
 ```
 
 The script validates Compose; runs the complete backend tests, compilation, and
-migration checks; runs the frontend tests, lint, and production build; and checks
-the working diff for whitespace errors. It does not start or stop containers,
-apply IGDB enrichment, contact a provider, or alter volumes.
+migration checks; runs the frontend tests, lint, and production build; builds
+the exact Render production image as `ludex:release-candidate`; and checks the
+working diff for whitespace errors. It does not start or stop containers, apply
+IGDB enrichment, contact a provider, or alter volumes.
 
 To run the same gates individually, first validate Compose from the project
 root:

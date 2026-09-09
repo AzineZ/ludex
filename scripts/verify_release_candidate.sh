@@ -24,4 +24,6 @@ docker compose config --quiet
     VITE_API_BASE_URL=/api npm run build
 )
 
+docker build --file Dockerfile.render --tag ludex:release-candidate .
+
 git diff --check
