@@ -41,9 +41,6 @@ function AccessSessionSection() {
                      </button>
                   </div>
                )}
-               <p>
-                  Use a public Steam profile to load your library on this browser.
-               </p>
                <SteamSessionForm
                   error={session.startError}
                   isStarting={session.isStarting}

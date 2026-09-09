@@ -67,6 +67,29 @@
    line-height: 1.4;
 }
 
+.app__session-form-sample {
+   grid-column: 1 / -1;
+   margin: 0;
+   padding: 0.8rem 1rem;
+   border: 1px solid rgb(239 226 192 / 45%);
+   color: var(--color-ash-taupe);
+   background: rgb(239 226 192 / 6%);
+   font-size: 0.8rem;
+   line-height: 1.5;
+}
+
+.app__session-form > .app__input {
+   grid-column: 1 / -1;
+}
+
+.app__session-form-sample code {
+   color: var(--color-bone-cream);
+   font: inherit;
+   font-weight: 800;
+   overflow-wrap: anywhere;
+   user-select: all;
+}
+
 .app__session-form .app__session-acknowledgment {
    display: grid;
    grid-column: 1 / -1;

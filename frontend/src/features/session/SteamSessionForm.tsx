@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
 
+const SAMPLE_STEAM_ID = "76561198342733684";
+
 type SteamSessionFormProps = {
    error: string | null;
    isStarting: boolean;
@@ -16,6 +18,7 @@ function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps)
       useState(false);
    const descriptionIds = [
       "steam-identifier-help",
+      "steam-sample-help",
       ...(error === null ? [] : ["steam-identifier-error"]),
    ].join(" ");
 
@@ -39,6 +42,10 @@ function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps)
          <p className="app__session-form-help" id="steam-identifier-help">
             Paste a 17-digit Steam ID or Steam Community profile URL.
          </p>
+         <p className="app__session-form-sample" id="steam-sample-help">
+            Prefer not to use your own Steam ID? Try the Ludex sample library by
+            pasting this steam ID: <code>{SAMPLE_STEAM_ID}</code>
+         </p>
          <input
             className="app__input"
             id="steam-identifier"
@@ -61,9 +68,9 @@ function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps)
                required
             />
             <span>
-               I confirm I am authorized to request this public profile&apos;s
-               Steam data. Entering a Steam ID does not verify ownership. Read
-               the <a href="/privacy">privacy and data notice</a>.
+               I confirm I am authorized to request this profile&apos;s cached or
+               public Steam data. Entering a Steam ID does not verify ownership.
+               Read the <a href="/privacy">privacy and data notice</a>.
             </span>
          </label>
          <button

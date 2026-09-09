@@ -13,8 +13,11 @@ describe("SteamSessionForm", () => {
          name: "Steam ID or profile URL",
       });
       expect(input).toHaveAccessibleDescription(
-         "Paste a 17-digit Steam ID or Steam Community profile URL."
+         "Paste a 17-digit Steam ID or Steam Community profile URL. " +
+            "Prefer not to use your own Steam ID? Try the Ludex sample " +
+            "library by pasting this steam ID: 76561198342733684"
       );
+      expect(screen.getByText("76561198342733684").tagName).toBe("CODE");
    });
 
    it("marks the form busy and disables duplicate input while loading", () => {
@@ -52,6 +55,8 @@ describe("SteamSessionForm", () => {
       expect(input).toHaveValue("private-profile");
       expect(input).toHaveAccessibleDescription(
          "Paste a 17-digit Steam ID or Steam Community profile URL. " +
+            "Prefer not to use your own Steam ID? Try the Ludex sample " +
+            "library by pasting this steam ID: 76561198342733684 " +
             "This Steam library is private or unavailable."
       );
       expect(screen.getByRole("alert")).toHaveClass("app__session-form-error");

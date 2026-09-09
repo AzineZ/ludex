@@ -103,10 +103,6 @@ function PublicPageFixture() {
             <Hero />
             <section className="app__session app__session--access">
                <h2>Connect your Steam library</h2>
-               <p>
-                  Use a public Steam profile to load your library on this
-                  browser.
-               </p>
                <SteamSessionForm
                   error={null}
                   isStarting={false}
@@ -207,6 +203,33 @@ describe("responsive layout contracts", () => {
             document.documentElement.scrollWidth,
             `login page width at ${viewportName(viewport)}`
          ).toBeLessThanOrEqual(viewport.width);
+      }
+   });
+
+   it("aligns the sample-library notice with the Steam input", async () => {
+      const { container } = render(<PublicPageFixture />);
+      const sampleNotice = container.querySelector<HTMLElement>(
+         ".app__session-form-sample"
+      );
+      const input = container.querySelector<HTMLInputElement>(".app__input");
+      expect(sampleNotice).not.toBeNull();
+      expect(input).not.toBeNull();
+
+      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
+         await setTestViewport(viewport);
+         const noticeBounds = (
+            sampleNotice as HTMLElement
+         ).getBoundingClientRect();
+         const inputBounds = (input as HTMLInputElement).getBoundingClientRect();
+
+         expect(
+            noticeBounds.left,
+            `sample/input left edge at ${viewportName(viewport)}`
+         ).toBeCloseTo(inputBounds.left, 1);
+         expect(
+            noticeBounds.right,
+            `sample/input right edge at ${viewportName(viewport)}`
+         ).toBeCloseTo(inputBounds.right, 1);
       }
    });
 

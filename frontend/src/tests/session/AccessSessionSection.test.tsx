@@ -60,11 +60,9 @@ describe("AccessSessionSection composition", () => {
          name: "Connect your Steam library",
       });
       expect(accessRegion).toHaveClass("app__session--access");
-      expect(
-         screen.getByText(
-            "Use a public Steam profile to load your library on this browser."
-         )
-      ).toBeInTheDocument();
+      expect(accessRegion).not.toHaveTextContent(
+         "Use a public Steam profile or the owner-authorized sample"
+      );
       expect(screen.queryByText(/Recommendation epoch:/)).not.toBeInTheDocument();
    });
 

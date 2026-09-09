@@ -31,6 +31,12 @@ describe("PublicDataNotice", () => {
       expect(notice).toHaveTextContent("United States");
       expect(notice).toHaveTextContent("not persisted or application-logged");
       expect(notice).toHaveTextContent("not proof of account ownership");
+      expect(notice).toHaveTextContent(
+         "Starting the cached sample does not contact Steam"
+      );
+      expect(notice).toHaveTextContent(
+         "even while its source Steam profile is private"
+      );
       expect(notice).toHaveTextContent("as-is and as-available");
       expect(notice).toHaveTextContent("not affiliated with or endorsed");
       expect(notice).toHaveTextContent("do not contact those providers");
