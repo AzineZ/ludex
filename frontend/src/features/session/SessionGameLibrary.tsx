@@ -13,6 +13,7 @@ type SessionGameLibraryProps = {
 const LIBRARY_WALL_GAME_LIMIT = 24;
 const MINIMUM_GAMES_PER_ROW = 8;
 const LIBRARY_WALL_ROW_COUNT = 3;
+const LIBRARY_TRACK_GROUP_COUNT = 4;
 
 function fillLibraryRow(games: readonly OwnedGameResponse[]): OwnedGameResponse[] {
    if (games.length === 0) return [];
@@ -61,12 +62,12 @@ function LibraryTrack({
 
    return (
       <div className={`app__library-track ${modifierClasses}`.trim()}>
-         {["original", "duplicate"].map((group) => (
-            <div className="app__library-track-group" key={group}>
+         {Array.from({ length: LIBRARY_TRACK_GROUP_COUNT }, (_, groupIndex) => (
+            <div className="app__library-track-group" key={groupIndex}>
                {games.map((game, index) => (
                   <LibraryCard
                      game={game}
-                     key={`${group}-${game.steam_app_id}-${index}`}
+                     key={`${groupIndex}-${game.steam_app_id}-${index}`}
                   />
                ))}
             </div>

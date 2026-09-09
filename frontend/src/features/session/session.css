@@ -364,7 +364,7 @@
    }
 
    to {
-      transform: translate3d(-50%, 0, 0);
+      transform: translate3d(-25%, 0, 0);
    }
 }
 
@@ -411,6 +411,21 @@
 
    .app__profile-actions .app__secondary-button {
       width: 100%;
+   }
+}
+
+@media (orientation: landscape) and (max-height: 30rem) {
+   .app__library-backdrop {
+      gap: 0.5rem;
+   }
+
+   .app__library-card {
+      width: min(8rem, 20vh);
+   }
+
+   .app__library-card-fallback {
+      padding: 0.5rem;
+      font-size: clamp(0.65rem, 3vh, 0.85rem);
    }
 }
 

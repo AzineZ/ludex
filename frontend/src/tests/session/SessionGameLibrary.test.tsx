@@ -48,6 +48,8 @@ describe("SessionGameLibrary", () => {
       const backdrop = container.querySelector(".app__library-backdrop");
       expect(backdrop).toHaveAttribute("aria-hidden", "true");
       expect(container.querySelectorAll(".app__library-track")).toHaveLength(3);
+      expect(container.querySelectorAll(".app__library-track-group"))
+         .toHaveLength(12);
       expect(container.querySelector('img[src="https://images.example/game-10.jpg"]'))
          .toHaveAttribute("alt", "");
       expect(screen.getAllByText("Game 20").length).toBeGreaterThan(0);
