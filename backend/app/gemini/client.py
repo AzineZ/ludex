@@ -21,6 +21,15 @@ class GeminiAuthenticationError(GeminiAPIError):
 class GeminiRateLimitError(GeminiAPIError):
     """Indicate that Gemini rate-limited a request."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        retry_after_seconds: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
+
 
 class GeminiUnavailableError(GeminiAPIError):
     """Indicate that Gemini is temporarily unavailable."""
@@ -74,6 +83,7 @@ class GeminiClient:
         system_instruction: str,
         user_prompt: str,
         response_schema: dict[str, Any],
+        max_output_tokens: int | None = None,
     ) -> dict[str, Any]:
         """Generate and decode one structured JSON object.
 
@@ -82,6 +92,7 @@ class GeminiClient:
             system_instruction: Trusted classifier instructions.
             user_prompt: Per-game prompt containing canonical facts.
             response_schema: JSON Schema restricting the model response.
+            max_output_tokens: Optional positive response-token ceiling.
 
         Returns:
             The decoded JSON object returned by Gemini.
@@ -94,6 +105,30 @@ class GeminiClient:
                 incomplete, or does not contain a JSON object.
             GeminiAPIError: If Gemini otherwise rejects the request.
         """
+        if (
+            max_output_tokens is not None
+            and (
+                not isinstance(max_output_tokens, int)
+                or isinstance(max_output_tokens, bool)
+                or max_output_tokens <= 0
+            )
+        ):
+            raise ValueError(
+                "Maximum output tokens must be a positive integer."
+            )
+
+        generation_config: dict[str, Any] = {
+            "responseFormat": {
+                "text": {
+                    "mimeType": "APPLICATION_JSON",
+                    "schema": response_schema,
+                }
+            }
+        }
+
+        if max_output_tokens is not None:
+            generation_config["maxOutputTokens"] = max_output_tokens
+
         request_body = {
             "systemInstruction": {
                 "parts": [{"text": system_instruction}],
@@ -104,14 +139,7 @@ class GeminiClient:
                     "parts": [{"text": user_prompt}],
                 }
             ],
-            "generationConfig": {
-                "responseFormat": {
-                    "text": {
-                        "mimeType": "APPLICATION_JSON",
-                        "schema": response_schema,
-                    }
-                }
-            },
+            "generationConfig": generation_config,
         }
 
         try:
@@ -244,8 +272,13 @@ class GeminiClient:
             )
 
         if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After")
+            retry_after_seconds = None
+            if retry_after is not None and retry_after.isdecimal():
+                retry_after_seconds = int(retry_after)
             raise GeminiRateLimitError(
-                "Gemini rate-limited the API request."
+                "Gemini rate-limited the API request.",
+                retry_after_seconds=retry_after_seconds,
             )
 
         if response.status_code >= 500:

@@ -1,6 +1,9 @@
 from typing import Any
 
-from app.gemini.traits.contracts import NUMERIC_TRAIT_FIELDS
+from app.gemini.traits.contracts import (
+    MAX_GAMES_PER_TRAIT_REQUEST,
+    NUMERIC_TRAIT_FIELDS,
+)
 
 
 MOOD_LABELS = (
@@ -206,5 +209,51 @@ def build_game_trait_response_schema() -> dict[str, Any]:
             *NUMERIC_TRAIT_FIELDS,
             "moods",
         ],
+        "additionalProperties": False,
+    }
+
+
+def build_game_trait_batch_response_schema(
+    steam_app_ids: tuple[int, ...],
+) -> dict[str, Any]:
+    """Build a strict response envelope for one exact game batch."""
+    if not steam_app_ids or len(steam_app_ids) > MAX_GAMES_PER_TRAIT_REQUEST:
+        raise ValueError("Trait batches must contain one through five games.")
+
+    if len(steam_app_ids) != len(set(steam_app_ids)):
+        raise ValueError("Trait batch Steam App IDs must be unique.")
+
+    if any(
+        not isinstance(steam_app_id, int)
+        or isinstance(steam_app_id, bool)
+        or steam_app_id <= 0
+        for steam_app_id in steam_app_ids
+    ):
+        raise ValueError("Steam App IDs must be positive integers.")
+
+    item_schema = {
+        "type": "object",
+        "properties": {
+            "steam_app_id": {
+                "type": "integer",
+                "enum": list(steam_app_ids),
+            },
+            "traits": build_game_trait_response_schema(),
+        },
+        "required": ["steam_app_id", "traits"],
+        "additionalProperties": False,
+    }
+
+    return {
+        "type": "object",
+        "properties": {
+            "games": {
+                "type": "array",
+                "items": item_schema,
+                "minItems": len(steam_app_ids),
+                "maxItems": len(steam_app_ids),
+            }
+        },
+        "required": ["games"],
         "additionalProperties": False,
     }

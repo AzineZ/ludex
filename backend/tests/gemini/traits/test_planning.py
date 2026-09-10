@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import Base
 from app.gemini.traits.planning import (
     load_game_trait_generation_plan,
+    load_owned_ready_game_trait_inventory,
 )
 from app.gemini.traits.prompt import (
     GAME_TRAIT_DERIVATION_VERSION,
@@ -18,6 +19,8 @@ from app.models import (
     Game,
     GameCurrentTraitDerivation,
     GameTraitDerivation,
+    Profile,
+    ProfileGame,
 )
 
 
@@ -137,6 +140,45 @@ def test_plan_reuses_current_derivation_until_facts_change() -> None:
 
         assert stale_plan.current_derivation_id == derivation_id
         assert stale_plan.needs_generation is True
+        assert session.in_transaction() is False
+
+    engine.dispose()
+
+
+def test_inventory_selects_owned_ready_games_and_reports_freshness() -> None:
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        profile = Profile(
+            steam_id="76561198000000000",
+            display_name="Tester",
+        )
+        session.add(profile)
+        session.add_all(
+            [
+                Game(steam_app_id=10, name="Current", igdb_status="ready"),
+                Game(steam_app_id=20, name="Pending", igdb_status="ready"),
+                Game(steam_app_id=30, name="Not ready", igdb_status="pending"),
+                Game(steam_app_id=40, name="Unowned", igdb_status="ready"),
+            ]
+        )
+        session.flush()
+        session.add_all(
+            [
+                ProfileGame(profile_id=profile.id, steam_app_id=10),
+                ProfileGame(profile_id=profile.id, steam_app_id=20),
+                ProfileGame(profile_id=profile.id, steam_app_id=30),
+            ]
+        )
+        session.commit()
+        _add_matching_current_derivation(session, 10)
+
+        inventory = load_owned_ready_game_trait_inventory(session)
+
+        assert inventory.ready_owned_game_count == 2
+        assert inventory.current_steam_app_ids == (10,)
+        assert inventory.pending_steam_app_ids == (20,)
         assert session.in_transaction() is False
 
     engine.dispose()

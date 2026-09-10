@@ -1,7 +1,12 @@
 from json import dumps
 from typing import Any
 
-from app.gemini.traits.schema import build_game_trait_response_schema
+import pytest
+
+from app.gemini.traits.schema import (
+    build_game_trait_batch_response_schema,
+    build_game_trait_response_schema,
+)
 from app.gemini.traits.contracts import NUMERIC_TRAIT_FIELDS
 
 
@@ -134,3 +139,28 @@ def test_schema_avoids_unsupported_or_permissive_keywords() -> None:
     assert '"$defs"' not in serialized_schema
     assert '"pattern"' not in serialized_schema
     assert '"multipleOf"' not in serialized_schema
+
+
+def test_batch_schema_requires_exact_count_and_requested_ids() -> None:
+    schema = build_game_trait_batch_response_schema((10, 20, 30))
+    games = schema["properties"]["games"]
+
+    assert schema["required"] == ["games"]
+    assert schema["additionalProperties"] is False
+    assert games["minItems"] == 3
+    assert games["maxItems"] == 3
+    assert games["items"]["properties"]["steam_app_id"] == {
+        "type": "integer",
+        "enum": [10, 20, 30],
+    }
+    assert games["items"]["properties"]["traits"] == (
+        build_game_trait_response_schema()
+    )
+
+
+@pytest.mark.parametrize("steam_app_ids", [(), (1, 1), (1, 2, 3, 4, 5, 6)])
+def test_batch_schema_rejects_invalid_identity_sets(
+    steam_app_ids: tuple[int, ...],
+) -> None:
+    with pytest.raises(ValueError):
+        build_game_trait_batch_response_schema(steam_app_ids)

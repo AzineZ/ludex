@@ -96,6 +96,55 @@ def test_generates_structured_content_with_exact_request() -> None:
     assert result == {"result": "classified"}
 
 
+def test_includes_optional_output_token_ceiling() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        generation_config = loads(request.content)["generationConfig"]
+        assert generation_config["maxOutputTokens"] == 8192
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [{"text": '{"result":"ok"}'}]
+                        },
+                        "finishReason": "STOP",
+                    }
+                ]
+            },
+        )
+
+    with GeminiClient(
+        "test-api-key",
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        result = client.generate_structured_content(
+            model_id=MODEL_ID,
+            system_instruction="System instruction",
+            user_prompt="User prompt",
+            response_schema=TEST_SCHEMA,
+            max_output_tokens=8192,
+        )
+
+    assert result == {"result": "ok"}
+
+
+def test_rejects_invalid_output_token_ceiling_before_request() -> None:
+    transport = httpx.MockTransport(
+        lambda request: pytest.fail("No request should be sent.")
+    )
+
+    with GeminiClient("test-api-key", transport=transport) as client:
+        with pytest.raises(ValueError, match="positive integer"):
+            client.generate_structured_content(
+                model_id=MODEL_ID,
+                system_instruction="System instruction",
+                user_prompt="User prompt",
+                response_schema=TEST_SCHEMA,
+                max_output_tokens=0,
+            )
+
+
 @pytest.mark.parametrize(
     ("status_code", "expected_error"),
     [
@@ -130,6 +179,27 @@ def test_translates_unsuccessful_responses(
                 user_prompt="User prompt",
                 response_schema=TEST_SCHEMA,
             )
+
+
+def test_preserves_numeric_retry_after_on_rate_limit() -> None:
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            429,
+            headers={"Retry-After": "120"},
+            json={"error": {"message": "Unsafe upstream detail"}},
+        )
+    )
+
+    with GeminiClient("test-api-key", transport=transport) as client:
+        with pytest.raises(GeminiRateLimitError) as caught:
+            client.generate_structured_content(
+                model_id=MODEL_ID,
+                system_instruction="System instruction",
+                user_prompt="User prompt",
+                response_schema=TEST_SCHEMA,
+            )
+
+    assert caught.value.retry_after_seconds == 120
 
 
 def test_network_failure_is_reported_as_unavailable() -> None:

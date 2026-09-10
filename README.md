@@ -100,6 +100,25 @@ overlapping apply runs. No automatic endpoint or background worker exists.
 Recommendation requests remain cache-only, and Gemini is neither constructed
 nor required.
 
+## Preview Gemini trait preparation
+
+Checkpoint 10's operator command is report-only by default. It reads shared
+owned games whose IGDB metadata is ready, skips current trait derivations, and
+prints aggregate primary and worst-case request accounting without constructing
+a Gemini client, changing data, or consuming quota:
+
+```bash
+cd backend
+uv run python -m app.gemini_trait_enrichment_command
+```
+
+The implemented apply path sends at most five games per structured request,
+paces starts to at most 10 per minute, stops after at most 100 attempts, commits
+valid games independently, and uses persisted freshness as its resume
+checkpoint. `--apply` remains separately gated by Checkpoint 10 model
+evaluation and operator approval; do not run it during Phase B. No application
+request invokes this command, and production continues without a Gemini key.
+
 ## Verify the installation
 
 With the normal database running, execute the complete provider-free release

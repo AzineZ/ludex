@@ -14,6 +14,7 @@ from pydantic import (
 
 
 MIN_KNOWN_CONFIDENCE = Decimal("0.30")
+MAX_GAMES_PER_TRAIT_REQUEST = 5
 
 _ABSENCE_BASED_EVIDENCE_PATTERNS = (
     re.compile(
@@ -65,6 +66,11 @@ _EXPLICIT_NONCOMBAT_EVIDENCE_PATTERNS = (
 TraitScore = Annotated[
     int,
     Field(strict=True, ge=0, le=5),
+]
+
+SteamAppID = Annotated[
+    int,
+    Field(strict=True, gt=0),
 ]
 
 Confidence = Annotated[
@@ -330,6 +336,15 @@ class GameTraitFacts(BaseModel):
         }
 
         return citation.value in source_values[citation.field]
+
+
+class GameTraitBatchRequestItem(BaseModel):
+    """Pair one shared game identity with its isolated factual payload."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    steam_app_id: SteamAppID
+    facts: GameTraitFacts
 
 
 def calculate_facts_fingerprint(facts: GameTraitFacts) -> str:

@@ -1,14 +1,22 @@
 from json import dumps
 
+import pytest
+
 from app.gemini.traits.prompt import (
     GAME_TRAIT_DERIVATION_VERSION,
     GAME_TRAIT_MODEL_ID,
     GAME_TRAIT_SCHEMA_VERSION,
     GAME_TRAIT_SYSTEM_INSTRUCTION,
     GAME_TRAIT_DERIVATION_VERSION,
+    MAX_GAME_TRAIT_BATCH_PROMPT_BYTES,
+    build_game_trait_batch_user_prompt,
     build_game_trait_user_prompt,
 )
-from app.gemini.traits.contracts import GameTraitFacts, NUMERIC_TRAIT_FIELDS
+from app.gemini.traits.contracts import (
+    GameTraitBatchRequestItem,
+    GameTraitFacts,
+    NUMERIC_TRAIT_FIELDS,
+)
 
 
 def _facts() -> GameTraitFacts:
@@ -104,3 +112,47 @@ def test_corrective_prompt_uses_static_instruction_only() -> None:
     )
     assert "<game_facts>" in prompt
     assert "</game_facts>" in prompt
+
+
+def test_batch_prompt_serializes_ids_and_isolated_facts() -> None:
+    items = (
+        GameTraitBatchRequestItem(steam_app_id=10, facts=_facts()),
+        GameTraitBatchRequestItem(steam_app_id=20, facts=_facts()),
+    )
+
+    prompt = build_game_trait_batch_user_prompt(items)
+
+    assert prompt.count('"steam_app_id"') == 2
+    assert '"steam_app_id": 10' in prompt
+    assert '"steam_app_id": 20' in prompt
+    assert "Never transfer facts or evidence between games." in prompt
+    assert len(prompt.encode("utf-8")) <= MAX_GAME_TRAIT_BATCH_PROMPT_BYTES
+
+
+def test_batch_prompt_rejects_more_than_five_games() -> None:
+    items = tuple(
+        GameTraitBatchRequestItem(steam_app_id=index, facts=_facts())
+        for index in range(1, 7)
+    )
+
+    with pytest.raises(ValueError, match="one through five"):
+        build_game_trait_batch_user_prompt(items)
+
+
+def test_batch_prompt_enforces_serialized_input_ceiling() -> None:
+    oversized_facts = GameTraitFacts(
+        **{
+            **_facts().model_dump(),
+            "summary": "x" * (MAX_GAME_TRAIT_BATCH_PROMPT_BYTES + 1),
+        }
+    )
+
+    with pytest.raises(ValueError, match="exceeds 60 KB"):
+        build_game_trait_batch_user_prompt(
+            (
+                GameTraitBatchRequestItem(
+                    steam_app_id=1,
+                    facts=oversized_facts,
+                ),
+            )
+        )
