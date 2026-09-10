@@ -15,6 +15,7 @@ from sqlalchemy import (
     func,
     ForeignKeyConstraint,
     Numeric,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -144,6 +145,73 @@ class SteamUsageEvent(Base):
         DateTime(timezone=True),
         index=True,
     )
+
+
+class GeminiPromptReservation(Base):
+    """Reserve one bounded prompt submission without storing its text."""
+
+    __tablename__ = "gemini_prompt_reservations"
+    __table_args__ = (
+        CheckConstraint(
+            "expires_at > created_at",
+            name="ck_gemini_prompt_reservations_expiration_order",
+        ),
+        CheckConstraint(
+            "completed_at IS NULL OR completed_at >= created_at",
+            name="ck_gemini_prompt_reservations_completion_order",
+        ),
+        Index(
+            "uq_gemini_prompt_reservations_active_session",
+            "access_session_id",
+            unique=True,
+            postgresql_where=text("completed_at IS NULL"),
+            sqlite_where=text("completed_at IS NULL"),
+        ),
+        Index(
+            "ix_gemini_prompt_reservations_session_created_at",
+            "access_session_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    access_session_id: Mapped[int] = mapped_column(
+        ForeignKey("steam_access_sessions.id", ondelete="CASCADE"),
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+
+class GeminiPromptUsageEvent(Base):
+    """Count one provider attempt without retaining prompt content."""
+
+    __tablename__ = "gemini_prompt_usage_events"
+    __table_args__ = (
+        CheckConstraint(
+            "expires_at > created_at",
+            name="ck_gemini_prompt_usage_events_expiration_order",
+        ),
+        Index(
+            "ix_gemini_prompt_usage_events_created_at",
+            "created_at",
+        ),
+        Index(
+            "ix_gemini_prompt_usage_events_reservation_created_at",
+            "reservation_id",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    reservation_id: Mapped[str] = mapped_column(
+        ForeignKey("gemini_prompt_reservations.id", ondelete="CASCADE"),
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Game(Base):

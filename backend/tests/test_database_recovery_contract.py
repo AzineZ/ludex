@@ -15,12 +15,13 @@ def test_migration_history_is_one_linear_chain() -> None:
     alembic_config = Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
     migration_history = ScriptDirectory.from_config(alembic_config)
 
-    assert migration_history.get_heads() == ["6a2f8e4c91bd"]
+    assert migration_history.get_heads() == ["3f2d8b7c1a90"]
     assert migration_history.get_bases() == ["cfafdeae2044"]
     assert [
         revision.revision
         for revision in migration_history.walk_revisions(base="base", head="heads")
     ] == [
+        "3f2d8b7c1a90",
         "6a2f8e4c91bd",
         "d52e7a91c304",
         "12154eb07460",
