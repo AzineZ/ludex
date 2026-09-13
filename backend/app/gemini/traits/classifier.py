@@ -97,7 +97,7 @@ def classify_game_traits(
         ) from None
 
 
-def _validate_batch_response(
+def validate_game_trait_batch_response(
     raw_response: dict[str, object],
     items: tuple[GameTraitBatchRequestItem, ...],
 ) -> GameTraitBatchClassification:
@@ -209,7 +209,6 @@ def classify_game_trait_batch(
     corrective_retry: bool = False,
 ) -> GameTraitBatchClassification:
     """Classify one through five games in one provider request."""
-    steam_app_ids = tuple(item.steam_app_id for item in items)
     user_prompt = build_game_trait_batch_user_prompt(
         items,
         corrective_retry=corrective_retry,
@@ -219,9 +218,9 @@ def classify_game_trait_batch(
         system_instruction=GAME_TRAIT_SYSTEM_INSTRUCTION,
         user_prompt=user_prompt,
         response_schema=build_game_trait_batch_response_schema(
-            steam_app_ids
+            tuple(item.steam_app_id for item in items)
         ),
         max_output_tokens=MAX_GAME_TRAIT_BATCH_OUTPUT_TOKENS,
     )
 
-    return _validate_batch_response(raw_response, items)
+    return validate_game_trait_batch_response(raw_response, items)

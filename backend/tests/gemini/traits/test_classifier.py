@@ -14,8 +14,10 @@ from app.gemini.traits.prompt import (
     build_game_trait_batch_user_prompt,
     build_game_trait_user_prompt,
 )
-from app.gemini.traits.schema import build_game_trait_response_schema
-from app.gemini.traits.schema import build_game_trait_batch_response_schema
+from app.gemini.traits.schema import (
+    build_game_trait_batch_response_schema,
+    build_game_trait_response_schema,
+)
 from app.gemini.traits.contracts import (
     GameTraitBatchRequestItem,
     GameTraitFacts,
@@ -228,7 +230,9 @@ def test_classifies_two_games_with_one_structured_request() -> None:
         model_id=GAME_TRAIT_MODEL_ID,
         system_instruction=GAME_TRAIT_SYSTEM_INSTRUCTION,
         user_prompt=build_game_trait_batch_user_prompt(items),
-        response_schema=build_game_trait_batch_response_schema((1, 2)),
+        response_schema=build_game_trait_batch_response_schema(
+            tuple(item.steam_app_id for item in items)
+        ),
         max_output_tokens=MAX_GAME_TRAIT_BATCH_OUTPUT_TOKENS,
     )
 
