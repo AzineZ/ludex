@@ -55,6 +55,7 @@ def recommendation_api() -> Generator[RecommendationAPI, None, None]:
 
     def override_access_session() -> ActiveAccessSession:
         return ActiveAccessSession(
+            id=1,
             profile_id=1,
             created_at=datetime.now(UTC) - timedelta(days=1),
             expires_at=datetime.now(UTC) + timedelta(days=6),

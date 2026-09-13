@@ -56,6 +56,7 @@ class RecommendationErrorCode(StrEnum):
     )
     FACET_NOT_ON_REFERENCE = "facet_not_on_reference"
     SERVICE_UNAVAILABLE = "service_unavailable"
+    ASSISTANT_OPTION_UNAVAILABLE = "assistant_option_unavailable"
 
 
 class OwnedGameSuggestionResponse(RecommendationHTTPModel):

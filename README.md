@@ -35,8 +35,8 @@ cp backend/.env.example backend/.env
 
 Before starting Ludex, replace the placeholder values for `STEAM_API_KEY`,
 `IGDB_CLIENT_ID`, and `IGDB_CLIENT_SECRET` in `backend/.env`. These credentials
-remain backend-only. Leave `GEMINI_API_KEY` commented out; Gemini is optional and
-is not used by the active application.
+remain backend-only. Leave the Gemini settings commented out while the optional
+prompt assistant is disabled.
 
 Then, from the project root, run:
 
@@ -315,7 +315,13 @@ Backend configuration:
 -  `ACCESS_SESSION_COOKIE_SECURE` is `false` only for local HTTP development.
 -  `STEAM_API_KEY` enables Steam profile and library imports.
 -  `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` enable factual enrichment.
--  `GEMINI_API_KEY` is optional and unused by the active application.
+- `GEMINI_API_KEY` is optional. The prompt assistant remains disabled unless
+  its feature flag, application budgets, and key are all explicitly configured;
+  the guided recommendation flow never requires it.
+- `GEMINI_RERANK_ENABLED` is the explicit assistant feature flag.
+- `GEMINI_PUBLIC_REQUESTS_PER_MINUTE`, `GEMINI_PUBLIC_REQUESTS_PER_DAY`, and
+  optional `GEMINI_PUBLIC_DAILY_CEILING` define the application quota policy;
+  they do not replace provider-side limits.
 
 Frontend configuration:
 

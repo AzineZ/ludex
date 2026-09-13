@@ -5,8 +5,10 @@ import pytest
 
 import app.gemini.dependencies as dependencies
 from app.gemini.dependencies import (
+    GEMINI_RERANK_MODEL_ID,
     GeminiConfigurationError,
     get_gemini_client,
+    get_gemini_rerank_runtime,
 )
 
 
@@ -15,13 +17,14 @@ class FakeGeminiClient:
 
     instances: list[Self] = []
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, **options: object) -> None:
         """Record the configured API key.
 
         Args:
             api_key: Secret value unwrapped by the dependency.
         """
         self.api_key = api_key
+        self.options = options
         self.entered = False
         self.exited = False
         self.exit_exception_type: type[BaseException] | None = None
@@ -109,3 +112,49 @@ def test_gemini_dependency_closes_after_consumer_failure(
 
     assert client.exited is True
     assert client.exit_exception_type is RuntimeError
+
+
+def test_public_reranker_is_disabled_unless_every_guard_is_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(dependencies.settings, "gemini_rerank_enabled", False)
+
+    dependency = get_gemini_rerank_runtime()
+
+    assert next(dependency) is None
+    with pytest.raises(StopIteration):
+        next(dependency)
+
+
+def test_public_reranker_uses_selected_model_and_configured_budgets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    FakeGeminiClient.instances.clear()
+    monkeypatch.setattr(dependencies, "GeminiClient", FakeGeminiClient)
+    monkeypatch.setattr(dependencies.settings, "gemini_rerank_enabled", True)
+    monkeypatch.setattr(
+        dependencies.settings,
+        "gemini_public_requests_per_minute",
+        5,
+    )
+    monkeypatch.setattr(
+        dependencies.settings,
+        "gemini_public_requests_per_day",
+        20,
+    )
+    monkeypatch.setattr(
+        dependencies.settings,
+        "gemini_public_daily_ceiling",
+        10,
+    )
+
+    dependency = get_gemini_rerank_runtime()
+    runtime = next(dependency)
+
+    assert runtime is not None
+    assert runtime.model_id == GEMINI_RERANK_MODEL_ID == "gemini-3.6-flash"
+    assert runtime.quota_policy.minute_budget == 4
+    assert runtime.quota_policy.daily_budget == 10
+    assert runtime.client.options == {"timeout_seconds": 20.0}
+    dependency.close()
+    assert runtime.client.exited is True

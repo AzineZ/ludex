@@ -30,6 +30,7 @@ class IssuedAccessSession:
 class ActiveAccessSession:
     """Identify an active session without exposing persistence details."""
 
+    id: int
     profile_id: int
     created_at: datetime
     expires_at: datetime
@@ -130,6 +131,7 @@ def resolve_access_session(
         return None
 
     return ActiveAccessSession(
+        id=stored_session.id,
         profile_id=stored_session.profile_id,
         created_at=_stored_time(stored_session.created_at),
         expires_at=_stored_time(stored_session.expires_at),

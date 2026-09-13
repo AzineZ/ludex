@@ -195,6 +195,11 @@ class GeminiPromptUsageEvent(Base):
             "expires_at > created_at",
             name="ck_gemini_prompt_usage_events_expiration_order",
         ),
+        CheckConstraint(
+            "provider_limited_until IS NULL "
+            "OR provider_limited_until >= created_at",
+            name="ck_gemini_prompt_usage_events_provider_limit_order",
+        ),
         Index(
             "ix_gemini_prompt_usage_events_created_at",
             "created_at",
@@ -204,6 +209,10 @@ class GeminiPromptUsageEvent(Base):
             "reservation_id",
             "created_at",
         ),
+        Index(
+            "ix_gemini_prompt_usage_events_limited_until",
+            "provider_limited_until",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -212,6 +221,10 @@ class GeminiPromptUsageEvent(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    provider_limited_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
 
 class Game(Base):

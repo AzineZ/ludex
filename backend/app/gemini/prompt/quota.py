@@ -36,6 +36,7 @@ class PromptQuotaReason(StrEnum):
     ATTEMPT_LIMIT = "attempt_limit"
     PROJECT_MINUTE_LIMIT = "project_minute_limit"
     PROJECT_DAILY_LIMIT = "project_daily_limit"
+    PROVIDER_CIRCUIT_OPEN = "provider_circuit_open"
 
 
 class PromptQuotaExceeded(RuntimeError):
@@ -329,6 +330,20 @@ def reserve_prompt_attempt(
                 retry_after_seconds=1,
             )
 
+        limited_until = session.scalar(
+            select(func.max(GeminiPromptUsageEvent.provider_limited_until))
+        )
+        if (
+            limited_until is not None
+            and _stored_time(limited_until) > current_time
+        ):
+            raise PromptQuotaExceeded(
+                PromptQuotaReason.PROVIDER_CIRCUIT_OPEN,
+                retry_after_seconds=_retry_seconds(
+                    _stored_time(limited_until), current_time
+                ),
+            )
+
         attempt_count = session.scalar(
             select(func.count())
             .select_from(GeminiPromptUsageEvent)
@@ -384,6 +399,33 @@ def reserve_prompt_attempt(
         attempt_number=attempt_count + 1,
         reserved_at=current_time,
     )
+
+
+def open_prompt_provider_circuit(
+    session: Session,
+    *,
+    reservation_id: str,
+    now: datetime,
+    retry_after_seconds: int | None,
+) -> datetime:
+    """Persist a provider quota stop on the attempt that observed it."""
+    current_time = _utc_time(now)
+    _, next_day = _pacific_day_bounds(current_time)
+    limited_until = (
+        next_day
+        if retry_after_seconds is None
+        else current_time + timedelta(seconds=max(1, retry_after_seconds))
+    )
+    with _transaction(session):
+        usage_event = session.scalar(
+            select(GeminiPromptUsageEvent)
+            .where(GeminiPromptUsageEvent.reservation_id == reservation_id)
+            .order_by(GeminiPromptUsageEvent.created_at.desc())
+        )
+        if usage_event is None:
+            raise ValueError("A provider circuit requires a reserved attempt.")
+        usage_event.provider_limited_until = limited_until
+    return limited_until
 
 
 def complete_prompt_reservation(

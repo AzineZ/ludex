@@ -12,6 +12,7 @@ from app.gemini.prompt.quota import (
     PromptQuotaPolicy,
     PromptQuotaReason,
     complete_prompt_reservation,
+    open_prompt_provider_circuit,
     reserve_prompt_attempt,
     reserve_prompt_message,
 )
@@ -284,6 +285,47 @@ def test_revoked_session_cannot_reserve_a_message(quota_database) -> None:
     _assert_reason(error, PromptQuotaReason.INVALID_SESSION)
 
 
+def test_provider_rate_limit_opens_a_durable_circuit(quota_database) -> None:
+    session, access_session_id = quota_database
+    first = _reserve_message(session, access_session_id)
+    policy = PromptQuotaPolicy(15, 500)
+    reserve_prompt_attempt(
+        session,
+        reservation_id=first.reservation_id,
+        policy=policy,
+        now=NOW,
+    )
+    blocked_until = open_prompt_provider_circuit(
+        session,
+        reservation_id=first.reservation_id,
+        now=NOW,
+        retry_after_seconds=120,
+    )
+    complete_prompt_reservation(
+        session,
+        reservation_id=first.reservation_id,
+        now=NOW + timedelta(seconds=1),
+    )
+    second = _reserve_message(
+        session,
+        access_session_id,
+        now=NOW + timedelta(seconds=2),
+        reservation_id="second",
+    )
+
+    with pytest.raises(PromptQuotaExceeded) as error:
+        reserve_prompt_attempt(
+            session,
+            reservation_id=second.reservation_id,
+            policy=policy,
+            now=NOW + timedelta(seconds=2),
+        )
+
+    assert blocked_until == NOW + timedelta(seconds=120)
+    _assert_reason(error, PromptQuotaReason.PROVIDER_CIRCUIT_OPEN)
+    assert error.value.retry_after_seconds == 118
+
+
 def test_quota_rows_never_store_prompt_text() -> None:
     reservation_columns = set(GeminiPromptReservation.__table__.columns.keys())
     event_columns = set(GeminiPromptUsageEvent.__table__.columns.keys())
@@ -300,4 +342,5 @@ def test_quota_rows_never_store_prompt_text() -> None:
         "reservation_id",
         "created_at",
         "expires_at",
+        "provider_limited_until",
     }
