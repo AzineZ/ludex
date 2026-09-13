@@ -148,29 +148,70 @@ describe("responsive layout contract", () => {
       expect(sessionCss).not.toMatch(/\.app__workspace-nav--side\s*\{/);
       expect(sessionCss).not.toMatch(/\.app__workspace-nav\s*\{[^}]*position:\s*(?:sticky|fixed)/);
       expect(sessionCss).toMatch(
-         /\.app__workspace-nav button\[aria-current="page"\]\s*\{[^}]*background:/
+         /\.app__workspace-nav button\[aria-current="page"\]\s*\{[^}]*border-bottom-color:\s*var\(--color-alarm-red\)[^}]*color:\s*var\(--color-bone-cream\)/
       );
    });
 
    it("keeps the assistant bounded, fluid, and visually aligned with Ludex", () => {
       expect(recommendationCss).toMatch(
-         /\.assistant-workspace\s*\{[^}]*width:\s*min\(100%,\s*52rem\)[^}]*border-top:\s*2px solid var\(--color-alarm-red\)/
+         /\.assistant-workspace\s*\{[^}]*margin-top:\s*2rem[^}]*padding-top:\s*3rem[^}]*border-top:\s*2px solid var\(--color-alarm-red\)/
       );
       expect(recommendationCss).toMatch(
-         /\.assistant-step\s*\{[^}]*width:\s*min\(100%,\s*42\.5rem\)[^}]*border-top:/
+         /\.assistant-workspace__heading,\s*\.assistant-step\s*\{[^}]*width:\s*min\(100%,\s*42\.5rem\)[^}]*margin-inline:\s*auto/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-step__heading h4[^}]*font-family:\s*var\(--font-display\)/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-choice-list\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap[^}]*gap:\s*0\.625rem/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-choice-pill\s*\{[^}]*border:\s*2px solid var\(--color-bone-cream\)[^}]*border-radius:\s*999px/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-constraints\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-constraints\[open\] > \.recommendation-constraints__summary\s*\{[^}]*color:\s*var\(--color-void-black\)[^}]*background:\s*var\(--color-bone-cream\)/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-filters\s*\{[^}]*padding:\s*0[^}]*border:\s*0[^}]*background:\s*transparent/
       );
       expect(recommendationCss).toMatch(
          /\.assistant-option-grid--genres\s*\{[^}]*max-height:\s*24rem[^}]*overflow-y:\s*auto/
       );
       expect(recommendationCss).toMatch(
+         /\.recommendation-choice-grid--equal\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)[^}]*grid-auto-rows:\s*4\.25rem/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-option-grid--compact\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)[^}]*max-height:\s*15rem/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-option-grid--compact \.recommendation-choice-pill\s*\{[^}]*width:\s*100%/
+      );
+      expect(recommendationCss).not.toMatch(
+         /\.assistant-option-grid--compact\s*\{[^}]*grid-auto-rows/
+      );
+      expect(recommendationCss).not.toMatch(
+         /\.assistant-option-grid--compact \.recommendation-choice-pill\s*\{[^}]*height:\s*100%/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-scroll-frame\[data-has-overflow="true"\]\[data-at-end="false"\]::after\s*\{[^}]*opacity:\s*1/
+      );
+      expect(recommendationCss).toMatch(
          /\.assistant-prompt textarea\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*max-width:\s*100%/
       );
       expect(recommendationCss).toMatch(
-         /@media \(max-width:\s*36rem\)[\s\S]*\.assistant-option-grid--genres\s*\{[^}]*grid-template-columns:\s*1fr/
+         /@media \(max-width:\s*36rem\)[\s\S]*\.recommendation-choice-grid--equal\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)[\s\S]*\.assistant-option-grid--genres\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
       );
       expect(recommendationCss).toMatch(
          /\.assistant-data-use\s*\{[^}]*border-left:\s*3px solid var\(--color-alarm-red\)[^}]*color:\s*var\(--color-ash-taupe\)/
       );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-result-card__cover-fallback\s*\{[^}]*place-items:\s*start center[^}]*padding-top:\s*11rem/
+      );
+      expect(recommendationCss).not.toMatch(/\.assistant-result-card \.recommendation-result-card__cover-fallback/);
+      expect(recommendationCss).not.toMatch(/!important/);
    });
 
    it("lays recommendation cards out as a compact desktop deck", () => {

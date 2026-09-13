@@ -54,7 +54,7 @@ describe("RecommendationWorkspace", () => {
          .toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Preferences" }))
          .toHaveAttribute("aria-current", "page");
-      expect(screen.getByRole("button", { name: "Recommendations" }))
+      expect(screen.getByRole("button", { name: "Guided results" }))
          .toBeDisabled();
       expect(screen.getByRole("button", { name: "Guided recommendations" }))
          .toHaveAttribute("aria-current", "page");
@@ -83,7 +83,7 @@ describe("RecommendationWorkspace", () => {
       fireEvent.click(screen.getByRole("button", {
          name: "Make recommendations available",
       }));
-      expect(screen.getByRole("button", { name: "Recommendations" }))
+      expect(screen.getByRole("button", { name: "Guided results" }))
          .toHaveAttribute("aria-current", "page");
       expect(screen.getByText("Mock workspace view: recommendations"))
          .toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("RecommendationWorkspace", () => {
       fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
       expect(screen.getByText("Mock workspace view: preferences"))
          .toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Recommendations" }))
+      expect(screen.getByRole("button", { name: "Guided results" }))
          .toBeEnabled();
    });
 
@@ -107,7 +107,7 @@ describe("RecommendationWorkspace", () => {
 
       expect(screen.getByRole("button", { name: "Preferences" }))
          .toHaveAttribute("aria-current", "page");
-      expect(screen.getByRole("button", { name: "Recommendations" }))
+      expect(screen.getByRole("button", { name: "Guided results" }))
          .toBeDisabled();
       expect(screen.getByText("Mock workspace view: preferences"))
          .toBeInTheDocument();
@@ -124,7 +124,7 @@ describe("RecommendationWorkspace", () => {
       await waitFor(() => {
          expect(screen.getByRole("button", { name: "Preferences" }))
             .toHaveAttribute("aria-current", "page");
-         expect(screen.getByRole("button", { name: "Recommendations" }))
+         expect(screen.getByRole("button", { name: "Guided results" }))
             .toBeDisabled();
       });
       expect(screen.getByText("Recommendation epoch: 5")).toBeInTheDocument();

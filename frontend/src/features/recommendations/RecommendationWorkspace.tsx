@@ -40,7 +40,7 @@ function WorkspaceNavigation({
             disabled={!recommendationsAvailable}
             onClick={() => onSelect("recommendations")}
          >
-            Recommendations
+            Guided results
          </button>
       </nav>
    );

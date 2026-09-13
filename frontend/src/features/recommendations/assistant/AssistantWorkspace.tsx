@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+   useCallback,
+   useEffect,
+   useMemo,
+   useRef,
+   useState,
+   type ReactNode,
+} from "react";
 
 import {
    getAssistantFilterOptions,
@@ -30,6 +37,79 @@ const EMPTY_FILTER_OPTIONS: AssistantFilterOptionsResponse = {
    game_modes: [],
 };
 
+function ScrollableOptionGrid({
+   children,
+   className,
+   itemCount,
+}: {
+   children: ReactNode;
+   className: string;
+   itemCount: number;
+}) {
+   const viewportRef = useRef<HTMLDivElement>(null);
+   const [scrollState, setScrollState] = useState({
+      atEnd: true,
+      atStart: true,
+      hasOverflow: false,
+   });
+
+   const updateScrollState = useCallback(() => {
+      const viewport = viewportRef.current;
+      if (viewport === null) {
+         return;
+      }
+
+      const maximumScroll = Math.max(
+         0,
+         viewport.scrollHeight - viewport.clientHeight
+      );
+      const nextState = {
+         atEnd: viewport.scrollTop >= maximumScroll - 1,
+         atStart: viewport.scrollTop <= 1,
+         hasOverflow: maximumScroll > 1,
+      };
+      setScrollState((current) => (
+         current.atEnd === nextState.atEnd
+         && current.atStart === nextState.atStart
+         && current.hasOverflow === nextState.hasOverflow
+            ? current
+            : nextState
+      ));
+   }, []);
+
+   useEffect(() => {
+      updateScrollState();
+
+      if (typeof ResizeObserver === "undefined") {
+         window.addEventListener("resize", updateScrollState);
+         return () => window.removeEventListener("resize", updateScrollState);
+      }
+
+      const observer = new ResizeObserver(updateScrollState);
+      if (viewportRef.current !== null) {
+         observer.observe(viewportRef.current);
+      }
+      return () => observer.disconnect();
+   }, [itemCount, updateScrollState]);
+
+   return (
+      <div
+         className="assistant-scroll-frame"
+         data-at-end={scrollState.atEnd}
+         data-at-start={scrollState.atStart}
+         data-has-overflow={scrollState.hasOverflow}
+      >
+         <div
+            ref={viewportRef}
+            className={className}
+            onScroll={updateScrollState}
+         >
+            {children}
+         </div>
+      </div>
+   );
+}
+
 function errorMessage(error: unknown, fallback: string): string {
    return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -57,13 +137,17 @@ function OptionButtons({
          {options.length === 0 ? (
             <p className="assistant-filters__empty">No options in this pool.</p>
          ) : (
-            <div className="assistant-option-grid assistant-option-grid--compact">
+            <ScrollableOptionGrid
+               className="recommendation-choice-grid assistant-option-grid assistant-option-grid--compact"
+               itemCount={options.length}
+            >
                {options.map((option) => {
                   const isSelected = selectedIds.includes(option.igdb_id);
                   const selectionLimitReached = selectedIds.length >= 8;
                   return (
                      <button
                         key={option.igdb_id}
+                        className="recommendation-choice-pill"
                         type="button"
                         aria-label={`${option.name}, ${option.eligible_count} eligible games`}
                         aria-pressed={isSelected}
@@ -71,13 +155,40 @@ function OptionButtons({
                         onClick={() => onToggle(option.igdb_id)}
                      >
                         <span>{option.name}</span>
-                        <span>{option.eligible_count}</span>
+                        <span>{option.eligible_count} games</span>
                      </button>
                   );
                })}
-            </div>
+            </ScrollableOptionGrid>
          )}
       </fieldset>
+   );
+}
+
+function AssistantNavigation({
+   activeView,
+   onOpenPrompt,
+}: {
+   activeView: "prompt" | "recommendations";
+   onOpenPrompt: () => void;
+}) {
+   return (
+      <nav className="app__workspace-nav" aria-label="AI recommendation workspace">
+         <button
+            type="button"
+            aria-current={activeView === "prompt" ? "page" : undefined}
+            onClick={onOpenPrompt}
+         >
+            Prompt
+         </button>
+         <button
+            type="button"
+            aria-current={activeView === "recommendations" ? "page" : undefined}
+            disabled={activeView !== "recommendations"}
+         >
+            AI results
+         </button>
+      </nav>
    );
 }
 
@@ -263,19 +374,25 @@ function AssistantWorkspaceSession({
 
    if (response?.status === "ranked" && response.items.length > 0) {
       return (
-         <AssistantResults
-            key={response.items.map((item) => item.steam_app_id).join("-")}
-            items={response.items}
-            eligibleCount={response.eligible_count}
-            onStartOver={resetResults}
-            onReject={(steamAppId) => {
-               setFilterState("loading");
-               setFilterError(null);
-               setRejectedSteamAppIds((ids) => (
-                  ids.includes(steamAppId) ? ids : [...ids, steamAppId]
-               ));
-            }}
-         />
+         <>
+            <AssistantNavigation
+               activeView="recommendations"
+               onOpenPrompt={resetResults}
+            />
+            <AssistantResults
+               key={response.items.map((item) => item.steam_app_id).join("-")}
+               items={response.items}
+               eligibleCount={response.eligible_count}
+               onStartOver={resetResults}
+               onReject={(steamAppId) => {
+                  setFilterState("loading");
+                  setFilterError(null);
+                  setRejectedSteamAppIds((ids) => (
+                     ids.includes(steamAppId) ? ids : [...ids, steamAppId]
+                  ));
+               }}
+            />
+         </>
       );
    }
 
@@ -286,9 +403,10 @@ function AssistantWorkspaceSession({
       && submissionState !== "loading";
 
    return (
-      <section className="assistant-workspace" aria-labelledby="assistant-heading">
+      <>
+         <AssistantNavigation activeView="prompt" onOpenPrompt={() => {}} />
+         <section className="assistant-workspace" aria-labelledby="assistant-heading">
          <header className="assistant-workspace__heading">
-            <p className="assistant-workspace__eyebrow">Optional Gemini assistant</p>
             <h3 id="assistant-heading">Ask Ludex</h3>
             <p>
                Pick a genre from your owned library, narrow the factual pool if
@@ -302,7 +420,7 @@ function AssistantWorkspaceSession({
 
          <div className="assistant-step" data-step="1">
             <header className="assistant-step__heading">
-               <span aria-hidden="true">01</span>
+               <span className="assistant-step__number">Step 1</span>
                <div>
                   <h4>Choose a genre from your library</h4>
                   <p>Counts include only owned games with ready IGDB metadata.</p>
@@ -329,27 +447,31 @@ function AssistantWorkspaceSession({
                </div>
             )}
             {genres.items.length > 0 && (
-               <div className="assistant-option-grid assistant-option-grid--genres">
+               <ScrollableOptionGrid
+                  className="recommendation-choice-grid assistant-option-grid assistant-option-grid--genres"
+                  itemCount={genres.items.length}
+               >
                   {genres.items.map((genre) => (
                      <button
                         key={genre.igdb_id}
+                        className="recommendation-choice-pill"
                         type="button"
                         aria-label={`${genre.name}, ${genre.eligible_count} eligible games`}
                         aria-pressed={selectedGenreId === genre.igdb_id}
                         onClick={() => selectGenre(genre.igdb_id)}
                      >
                         <span>{genre.name}</span>
-                        <span>{genre.eligible_count}</span>
+                        <span>{genre.eligible_count} games</span>
                      </button>
                   ))}
-               </div>
+               </ScrollableOptionGrid>
             )}
          </div>
 
          {selectedGenre !== null && (
             <div className="assistant-step" data-step="2">
                <header className="assistant-step__heading">
-                  <span aria-hidden="true">02</span>
+                  <span className="assistant-step__number">Step 2</span>
                   <div>
                      <h4>Narrow {selectedGenre.name}</h4>
                      <p>
@@ -410,7 +532,7 @@ function AssistantWorkspaceSession({
          {selectedGenre !== null && (
             <div className="assistant-step" data-step="3">
                <header className="assistant-step__heading">
-                  <span aria-hidden="true">03</span>
+                  <span className="assistant-step__number">Step 3</span>
                   <div>
                      <h4>Describe the kind of game you want</h4>
                      <p>Your wording influences ranking, not hard eligibility.</p>
@@ -501,7 +623,8 @@ function AssistantWorkspaceSession({
                </div>
             </div>
          )}
-      </section>
+         </section>
+      </>
    );
 }
 

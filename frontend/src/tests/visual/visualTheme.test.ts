@@ -36,15 +36,18 @@ describe("retro visual theme contract", () => {
       );
    });
 
-   it("uses compact cream workspace tabs without a competing underline", () => {
+   it("separates the recommendation method from its quieter step navigation", () => {
       expect(sessionCss).toMatch(
-         /\.app__workspace-nav\s*\{[^}]*gap:\s*0[^}]*padding:\s*0[^}]*backdrop-filter:\s*none/
+         /\.app__recommendation-mode-nav\s*\{[^}]*border-color:\s*var\(--color-alarm-red\)[^}]*background:\s*rgb\(0 0 0 \/ 92%\)/
       );
       expect(sessionCss).toMatch(
-         /\.app__workspace-nav button\[aria-current="page"\]\s*\{[^}]*color:\s*var\(--color-void-black\)[^}]*background:\s*var\(--color-bone-cream\)/
+         /\.app__recommendation-mode-nav button\[aria-current="page"\]\s*\{[^}]*color:\s*var\(--color-void-black\)[^}]*background:\s*var\(--color-bone-cream\)/
       );
-      expect(sessionCss).not.toMatch(
-         /\.app__workspace-nav button\[aria-current="page"\]::after/
+      expect(sessionCss).toMatch(
+         /\.app__workspace-nav\s*\{[^}]*width:\s*min\(100%,\s*28rem\)[^}]*border:\s*0[^}]*background:\s*transparent/
+      );
+      expect(sessionCss).toMatch(
+         /\.app__workspace-nav button\[aria-current="page"\]\s*\{[^}]*border-bottom-color:\s*var\(--color-alarm-red\)[^}]*color:\s*var\(--color-bone-cream\)/
       );
    });
 
@@ -112,7 +115,7 @@ describe("retro visual theme contract", () => {
       expect(recommendationCss).toMatch(
          /\.reference-game-card\s*\{[^}]*background:\s*rgb\(0 0 0 \/ 96%\)/
       );
-      expect(recommendationCss).toMatch(
+      expect(recommendationCss).not.toMatch(
          /\.recommendation-constraints\s*\{[^}]*background:\s*rgb\(0 0 0 \/ 94%\)/
       );
       expect(recommendationCss).toMatch(
@@ -143,13 +146,13 @@ describe("retro visual theme contract", () => {
          /\.recommendation-constraints__group\s*\{[^}]*margin:\s*0[^}]*padding:\s*0[^}]*border:\s*0/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-constraints__choices\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/
+         /\.recommendation-choice-list\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-constraints__choices button,\s*\.recommendation-constraints__clear\s*\{[^}]*min-height:\s*2\.5rem[^}]*border:\s*1px solid var\(--color-bone-cream\)[^}]*background:\s*transparent/
+         /\.recommendation-choice-pill\s*\{[^}]*min-height:\s*2\.5rem[^}]*border:\s*2px solid var\(--color-bone-cream\)[^}]*background:\s*transparent/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-constraints__choices button\[aria-pressed="true"\]\s*\{[^}]*color:\s*var\(--color-void-black\)[^}]*background:\s*var\(--color-bone-cream\)/
+         /\.recommendation-choice-pill\[aria-pressed="true"\]\s*\{[^}]*color:\s*var\(--color-void-black\)[^}]*background:\s*var\(--color-bone-cream\)/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-constraints__unknown-note\s*\{[^}]*color:\s*var\(--color-ash-taupe\)/

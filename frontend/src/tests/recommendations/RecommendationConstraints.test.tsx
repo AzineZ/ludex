@@ -18,7 +18,12 @@ describe("RecommendationConstraints", () => {
       render(<RecommendationConstraints value={defaults} onChange={vi.fn()} />);
 
       const disclosure = screen.getByText("Narrow your results").closest("details");
+      const summary = screen.getByText("Narrow your results").closest("summary");
       expect(disclosure).not.toHaveAttribute("open");
+      expect(summary).toHaveClass(
+         "recommendation-choice-pill",
+         "recommendation-constraints__summary"
+      );
       expect(screen.getByText("Any length · Any game"))
          .toBeInTheDocument();
       expect(screen.queryByRole("spinbutton")).toBeNull();

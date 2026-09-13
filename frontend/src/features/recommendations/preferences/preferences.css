@@ -1,29 +1,43 @@
 .recommendation-constraints {
    min-width: 0;
-   border: 1px solid var(--color-ash-taupe);
+   margin-top: 2rem;
+   padding: 0;
+   border: 0;
+   background: transparent;
 }
-.recommendation-constraints,
+
 .preference-validation {
    margin-top: 2rem;
    padding: 1.25rem;
 }
 
-.recommendation-constraints {
-   background: rgb(0 0 0 / 94%);
+.recommendation-constraints__summary {
+   width: 100%;
+   list-style: none;
 }
 
-.recommendation-constraints > summary {
-   display: flex;
-   justify-content: space-between;
-   gap: 1rem;
-   font-weight: 900;
-   cursor: pointer;
+.recommendation-constraints__summary::-webkit-details-marker {
+   display: none;
+}
+
+.recommendation-constraints__summary:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 3px;
+}
+
+.recommendation-constraints[open] > .recommendation-constraints__summary {
+   color: var(--color-void-black);
+   background: var(--color-bone-cream);
 }
 
 .recommendation-constraints__summary-value {
    color: var(--color-ash-taupe);
    font-size: 0.8rem;
    text-align: right;
+}
+
+.recommendation-constraints[open] .recommendation-constraints__summary-value {
+   color: var(--color-void-black);
 }
 
 .recommendation-constraints__content {
@@ -53,35 +67,6 @@
    text-transform: uppercase;
 }
 
-.recommendation-constraints__choices {
-   display: flex;
-   flex-wrap: wrap;
-   gap: 0.6rem;
-}
-
-.recommendation-constraints__choices button,
-.recommendation-constraints__clear {
-   min-height: 2.5rem;
-   padding: 0.55rem 0.8rem;
-   border: 1px solid var(--color-bone-cream);
-   border-radius: 999px;
-   color: var(--color-bone-cream);
-   background: transparent;
-   font: inherit;
-   font-size: 0.875rem;
-   font-weight: 800;
-   cursor: pointer;
-}
-
-.recommendation-constraints__choices button {
-   flex: 1 1 8rem;
-}
-
-.recommendation-constraints__choices button[aria-pressed="true"] {
-   color: var(--color-void-black);
-   background: var(--color-bone-cream);
-}
-
 .recommendation-constraints__custom-length {
    display: grid;
    width: min(100%, 20rem);
@@ -107,14 +92,6 @@
 
 .recommendation-constraints__clear {
    justify-self: start;
-}
-
-@media (hover: hover) {
-   .recommendation-constraints__choices button:hover:not([aria-pressed="true"]),
-   .recommendation-constraints__clear:hover {
-      color: var(--color-void-black);
-      background: var(--color-bone-cream);
-   }
 }
 
 .preference-validation {
@@ -169,7 +146,6 @@
 }
 
 @media (max-width: 36rem) {
-   .recommendation-constraints,
    .preference-validation {
       padding: 0.85rem;
    }
@@ -178,7 +154,7 @@
       grid-template-columns: 1fr;
    }
 
-   .recommendation-constraints > summary {
+   .recommendation-constraints__summary {
       flex-direction: column;
       gap: 0.35rem;
    }

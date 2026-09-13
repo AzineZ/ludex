@@ -44,7 +44,6 @@ function AssistantResults({
          aria-live="polite"
       >
          <header className="recommendation-results__header">
-            <p className="assistant-results__eyebrow">Gemini-ranked · owned games only</p>
             <h3 id={headingId}>
                {queue.accepted === null ? "Your AI recommendations" : "Your choice"}
             </h3>

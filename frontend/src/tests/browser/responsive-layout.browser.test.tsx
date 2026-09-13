@@ -19,18 +19,27 @@ vi.mock("../../api", async (importOriginal) => {
    return {
       ...actual,
       getAssistantGenres: vi.fn().mockResolvedValue({
-         items: [
-            { igdb_id: 31, name: "Adventure", eligible_count: 42 },
-            { igdb_id: 12, name: "Role-playing", eligible_count: 18 },
-         ],
+         items: Array.from({ length: 20 }, (_, index) => ({
+            igdb_id: index === 0 ? 31 : 100 + index,
+            name: index === 0 ? "Adventure" : `Responsive genre ${index + 1}`,
+            eligible_count: 42 - index,
+         })),
       }),
       getAssistantFilterOptions: vi.fn().mockResolvedValue({
          themes: [
             { igdb_id: 17, name: "Fantasy", eligible_count: 16 },
             { igdb_id: 18, name: "Science fiction", eligible_count: 9 },
+            {
+               igdb_id: 19,
+               name: "Long-form atmospheric exploration",
+               eligible_count: 7,
+            },
+            { igdb_id: 20, name: "Relaxing", eligible_count: 6 },
          ],
          game_modes: [
             { igdb_id: 1, name: "Single player", eligible_count: 35 },
+            { igdb_id: 2, name: "Split screen cooperative", eligible_count: 8 },
+            { igdb_id: 3, name: "Multiplayer", eligible_count: 5 },
          ],
       }),
       getAssistantRecommendations: vi.fn().mockResolvedValue({
@@ -377,6 +386,70 @@ describe("responsive layout contracts", () => {
             document.documentElement.scrollWidth,
             `assistant results width at ${viewportName(viewport)}`
          ).toBeLessThanOrEqual(viewport.width);
+      }
+   });
+
+   it("signals bounded option overflow and aligns narrowing choices with genre pills", async () => {
+      const { container } = render(<AssistantFixture />);
+      await setTestViewport({ width: 1280, height: 720 });
+
+      const genreFrame = container.querySelector<HTMLElement>(
+         ".assistant-scroll-frame"
+      );
+      expect(genreFrame).not.toBeNull();
+      expect(genreFrame?.dataset.hasOverflow).toBe("true");
+      expect(genreFrame?.dataset.atEnd).toBe("false");
+
+      fireEvent.click(await screen.findByRole("button", {
+         name: "Adventure, 42 eligible games",
+      }));
+      await screen.findByRole("group", { name: "Theme filters" });
+
+      for (const viewport of [
+         { width: 320, height: 568 },
+         { width: 1280, height: 720 },
+         { width: 3840, height: 2160 },
+      ]) {
+         await setTestViewport(viewport);
+         const themeButtons = Array.from(container.querySelectorAll<HTMLElement>(
+            '.assistant-filters__group[aria-label="Theme filters"] .recommendation-choice-pill'
+         ));
+         const genreButton = screen.getByRole("button", {
+            name: "Adventure, 42 eligible games",
+         });
+         const first = themeButtons[0].getBoundingClientRect();
+         const genreRectangle = genreButton.getBoundingClientRect();
+         expect(
+            first.height,
+            `standard filter and genre pill height at ${viewportName(viewport)}`
+         ).toBeCloseTo(genreRectangle.height, 1);
+         for (const button of themeButtons.slice(1)) {
+            const rectangle = button.getBoundingClientRect();
+            expect(
+               rectangle.width,
+               `theme pill width at ${viewportName(viewport)}`
+            ).toBeCloseTo(first.width, 1);
+            expect(
+               rectangle.height,
+               `wrapped theme pill height at ${viewportName(viewport)}`
+            ).toBeGreaterThanOrEqual(first.height);
+            expect(
+               button.scrollHeight,
+               `theme pill content at ${viewportName(viewport)}`
+            ).toBeLessThanOrEqual(button.clientHeight);
+         }
+
+         const longModeButton = screen.getByRole("button", {
+            name: "Split screen cooperative, 8 eligible games",
+         });
+         expect(
+            longModeButton.getBoundingClientRect().height,
+            `long filter pill height at ${viewportName(viewport)}`
+         ).toBeGreaterThanOrEqual(first.height);
+         expect(
+            longModeButton.scrollHeight,
+            `long filter pill content at ${viewportName(viewport)}`
+         ).toBeLessThanOrEqual(longModeButton.clientHeight);
       }
    });
 });

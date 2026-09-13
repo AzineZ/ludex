@@ -66,7 +66,7 @@ function RecommendationConstraints({
 
    return (
       <details className="recommendation-constraints">
-         <summary>
+         <summary className="recommendation-choice-pill recommendation-constraints__summary">
             <span>Narrow your results</span>
             <span className="recommendation-constraints__summary-value">
                {maximumCompletionSummary(value.maximum_completion_minutes)} ·{" "}
@@ -77,10 +77,11 @@ function RecommendationConstraints({
          <div className="recommendation-constraints__content">
             <fieldset className="recommendation-constraints__group">
                <legend>How long should the game be?</legend>
-               <div className="recommendation-constraints__choices">
+               <div className="recommendation-constraints__choices recommendation-choice-grid recommendation-choice-grid--equal">
                   {LENGTH_PRESETS.map((preset) => (
                      <button
                         key={preset.label}
+                        className="recommendation-choice-pill"
                         type="button"
                         aria-pressed={
                            !isCustomLength
@@ -99,6 +100,7 @@ function RecommendationConstraints({
                   ))}
                   <button
                      type="button"
+                     className="recommendation-choice-pill"
                      aria-pressed={isCustomLength}
                      onClick={() => setIsCustomLength(true)}
                   >
@@ -149,10 +151,11 @@ function RecommendationConstraints({
 
             <fieldset className="recommendation-constraints__group">
                <legend>Have you played it before?</legend>
-               <div className="recommendation-constraints__choices">
+               <div className="recommendation-constraints__choices recommendation-choice-grid recommendation-choice-grid--equal">
                   {PLAY_STATUS_OPTIONS.map((option) => (
                      <button
                         key={option.value}
+                        className="recommendation-choice-pill"
                         type="button"
                         aria-pressed={value.play_status === option.value}
                         onClick={() => {
@@ -168,7 +171,7 @@ function RecommendationConstraints({
             {hasActiveConstraints && (
                <button
                   type="button"
-                  className="recommendation-constraints__clear"
+                  className="recommendation-choice-pill recommendation-constraints__clear"
                   onClick={() => {
                      setIsCustomLength(false);
                      onChange(EMPTY_CONSTRAINTS);

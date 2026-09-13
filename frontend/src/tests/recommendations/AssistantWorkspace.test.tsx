@@ -77,6 +77,14 @@ describe("AssistantWorkspace", () => {
    it("loads profile genres and provider-free filters", async () => {
       render(<AssistantWorkspace sessionEpoch={7} onUseGuided={vi.fn()} />);
 
+      const navigation = screen.getByRole("navigation", {
+         name: "AI recommendation workspace",
+      });
+      expect(within(navigation).getByRole("button", { name: "Prompt" }))
+         .toHaveAttribute("aria-current", "page");
+      expect(within(navigation).getByRole("button", {
+         name: "AI results",
+      })).toBeDisabled();
       expect(await screen.findByText("Choose a genre from your library"))
          .toBeInTheDocument();
       await chooseAdventure();
@@ -105,6 +113,14 @@ describe("AssistantWorkspace", () => {
       fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
 
       const firstCard = await screen.findByRole("article", { name: "Game 1" });
+      const navigation = screen.getByRole("navigation", {
+         name: "AI recommendation workspace",
+      });
+      expect(within(navigation).getByRole("button", {
+         name: "AI results",
+      })).toHaveAttribute("aria-current", "page");
+      expect(within(navigation).getByRole("button", { name: "Prompt" }))
+         .toBeEnabled();
       expect(mockedRecommendations).toHaveBeenCalledWith({
          prompt: "Something relaxing after work",
          selected_genre_id: 31,
