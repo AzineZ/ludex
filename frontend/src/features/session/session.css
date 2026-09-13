@@ -233,6 +233,7 @@
    box-sizing: border-box;
 }
 
+.app__recommendation-mode-nav,
 .app__workspace-nav {
    display: grid;
    grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -243,6 +244,12 @@
    backdrop-filter: none;
 }
 
+.app__recommendation-mode-nav {
+   margin-bottom: 0.75rem;
+   border-color: var(--color-alarm-red);
+}
+
+.app__recommendation-mode-nav button,
 .app__workspace-nav button {
    position: relative;
    min-height: 2.75rem;
@@ -255,13 +262,20 @@
    cursor: pointer;
 }
 
+.app__recommendation-mode-nav button + button,
 .app__workspace-nav button + button {
    border-left-color: rgb(235 228 216 / 55%);
 }
 
+.app__recommendation-mode-nav button[aria-current="page"],
 .app__workspace-nav button[aria-current="page"] {
    color: var(--color-void-black);
    background: var(--color-bone-cream);
+}
+
+.app__recommendation-mode-nav button:disabled,
+.app__workspace-nav button:disabled {
+   cursor: not-allowed;
 }
 
 .app__profile-summary {
@@ -434,6 +448,12 @@
 
    .app__profile-actions .app__secondary-button {
       width: 100%;
+   }
+
+   .app__recommendation-mode-nav button,
+   .app__workspace-nav button {
+      padding-inline: 0.55rem;
+      font-size: 0.8rem;
    }
 }
 

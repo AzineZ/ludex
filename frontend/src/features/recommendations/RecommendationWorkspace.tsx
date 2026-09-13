@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import "./recommendations.css";
+import AssistantWorkspace from "./assistant/AssistantWorkspace";
 import ReferenceSelectionSection from "./references/ReferenceSelectionSection";
 import type { RecommendationWorkspaceView } from "./recommendationWorkspaceTypes";
 
@@ -48,6 +49,7 @@ function WorkspaceNavigation({
 function RecommendationWorkspaceSession({
    sessionEpoch,
 }: RecommendationWorkspaceProps) {
+   const [mode, setMode] = useState<"guided" | "assistant">("guided");
    const [activeView, setActiveView] =
       useState<RecommendationWorkspaceView>("preferences");
    const [recommendationsAvailable, setRecommendationsAvailable] =
@@ -65,20 +67,51 @@ function RecommendationWorkspaceSession({
 
    return (
       <div className="app__recommendation-workspace">
-         <WorkspaceNavigation
-            activeView={activeView}
-            recommendationsAvailable={recommendationsAvailable}
-            onSelect={setActiveView}
-         />
+         <nav
+            className="app__recommendation-mode-nav"
+            aria-label="Recommendation method"
+         >
+            <button
+               type="button"
+               aria-current={mode === "guided" ? "page" : undefined}
+               onClick={() => setMode("guided")}
+            >
+               Guided recommendations
+            </button>
+            <button
+               type="button"
+               aria-current={mode === "assistant" ? "page" : undefined}
+               onClick={() => setMode("assistant")}
+            >
+               Ask Ludex AI
+            </button>
+         </nav>
 
-         <div className="app__recommendation-workspace__body">
-            <ReferenceSelectionSection
+         {mode === "guided" ? (
+            <>
+               <WorkspaceNavigation
+                  activeView={activeView}
+                  recommendationsAvailable={recommendationsAvailable}
+                  onSelect={setActiveView}
+               />
+               <div className="app__recommendation-workspace__body">
+                  <ReferenceSelectionSection
+                     sessionEpoch={sessionEpoch}
+                     activeView={activeView}
+                     onRecommendationsReady={handleRecommendationsReady}
+                     onRecommendationsReset={handleRecommendationsReset}
+                  />
+               </div>
+            </>
+         ) : (
+            <AssistantWorkspace
                sessionEpoch={sessionEpoch}
-               activeView={activeView}
-               onRecommendationsReady={handleRecommendationsReady}
-               onRecommendationsReset={handleRecommendationsReset}
+               onUseGuided={() => {
+                  setActiveView("preferences");
+                  setMode("guided");
+               }}
             />
-         </div>
+         )}
       </div>
    );
 }

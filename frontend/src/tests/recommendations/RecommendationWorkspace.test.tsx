@@ -3,6 +3,23 @@ import { describe, expect, it, vi } from "vitest";
 
 import RecommendationWorkspace from "../../features/recommendations/RecommendationWorkspace";
 
+vi.mock("../../features/recommendations/assistant/AssistantWorkspace", () => ({
+   default: ({
+      onUseGuided,
+      sessionEpoch,
+   }: {
+      onUseGuided: () => void;
+      sessionEpoch: number | null;
+   }) => (
+      <div>
+         <p>Assistant epoch: {sessionEpoch ?? "none"}</p>
+         <button type="button" onClick={onUseGuided}>
+            Mock guided fallback
+         </button>
+      </div>
+   ),
+}));
+
 vi.mock("../../features/recommendations/references/ReferenceSelectionSection", () => ({
    default: ({
       activeView,
@@ -39,6 +56,25 @@ describe("RecommendationWorkspace", () => {
          .toHaveAttribute("aria-current", "page");
       expect(screen.getByRole("button", { name: "Recommendations" }))
          .toBeDisabled();
+      expect(screen.getByRole("button", { name: "Guided recommendations" }))
+         .toHaveAttribute("aria-current", "page");
+   });
+
+   it("opens the optional assistant and returns through its guided fallback", () => {
+      render(<RecommendationWorkspace sessionEpoch={4} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Ask Ludex AI" }));
+      expect(screen.getByText("Assistant epoch: 4")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Ask Ludex AI" }))
+         .toHaveAttribute("aria-current", "page");
+      expect(screen.queryByRole("button", { name: "Preferences" }))
+         .not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Mock guided fallback" }));
+      expect(screen.getByRole("button", { name: "Guided recommendations" }))
+         .toHaveAttribute("aria-current", "page");
+      expect(screen.getByRole("button", { name: "Preferences" }))
+         .toBeInTheDocument();
    });
 
    it("opens completed recommendations and preserves access after returning to preferences", () => {

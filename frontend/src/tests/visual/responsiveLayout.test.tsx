@@ -15,6 +15,7 @@ const recommendationCss = [
    "src/features/recommendations/references/references.css",
    "src/features/recommendations/preferences/preferences.css",
    "src/features/recommendations/results/results.css",
+   "src/features/recommendations/assistant/assistant.css",
 ].map((path) => readFileSync(path, "utf8")).join("\n");
 const sessionCss = readFileSync(
    "src/features/session/session.css",
@@ -148,6 +149,27 @@ describe("responsive layout contract", () => {
       expect(sessionCss).not.toMatch(/\.app__workspace-nav\s*\{[^}]*position:\s*(?:sticky|fixed)/);
       expect(sessionCss).toMatch(
          /\.app__workspace-nav button\[aria-current="page"\]\s*\{[^}]*background:/
+      );
+   });
+
+   it("keeps the assistant bounded, fluid, and visually aligned with Ludex", () => {
+      expect(recommendationCss).toMatch(
+         /\.assistant-workspace\s*\{[^}]*width:\s*min\(100%,\s*52rem\)[^}]*border-top:\s*2px solid var\(--color-alarm-red\)/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-step\s*\{[^}]*width:\s*min\(100%,\s*42\.5rem\)[^}]*border-top:/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-option-grid--genres\s*\{[^}]*max-height:\s*24rem[^}]*overflow-y:\s*auto/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-prompt textarea\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*max-width:\s*100%/
+      );
+      expect(recommendationCss).toMatch(
+         /@media \(max-width:\s*36rem\)[\s\S]*\.assistant-option-grid--genres\s*\{[^}]*grid-template-columns:\s*1fr/
+      );
+      expect(recommendationCss).toMatch(
+         /\.assistant-data-use\s*\{[^}]*border-left:\s*3px solid var\(--color-alarm-red\)[^}]*color:\s*var\(--color-ash-taupe\)/
       );
    });
 

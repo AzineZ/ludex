@@ -18,6 +18,7 @@ export type RecommendationErrorCode =
    | "too_many_rejected_games"
    | "invalid_query"
    | "profile_not_found"
+   | "assistant_option_unavailable"
    | "reference_not_owned"
    | "reference_metadata_unavailable"
    | "facet_not_on_reference";
@@ -174,6 +175,69 @@ export type RecommendationRefinementRequest = {
    rejected_steam_app_ids: number[];
 };
 
+export type AssistantOptionResponse = {
+   igdb_id: number;
+   name: string;
+   eligible_count: number;
+};
+
+export type AssistantGenreOptionsResponse = {
+   items: AssistantOptionResponse[];
+};
+
+export type AssistantFilterContextRequest = {
+   selected_genre_id: number;
+   play_status: PlayStatus;
+   maximum_completion_minutes: number | null;
+   rejected_steam_app_ids: number[];
+};
+
+export type AssistantFilterOptionsResponse = {
+   themes: AssistantOptionResponse[];
+   game_modes: AssistantOptionResponse[];
+};
+
+export type AssistantFilters = {
+   play_status: PlayStatus;
+   maximum_completion_minutes: number | null;
+   theme_ids: number[];
+   game_mode_ids: number[];
+};
+
+export type AssistantRecommendationSubmission = {
+   prompt: string;
+   selected_genre_id: number;
+   filters: AssistantFilters;
+   rejected_steam_app_ids: number[];
+};
+
+export type AssistantRecommendationStatus =
+   | "ranked"
+   | "no_match"
+   | "empty"
+   | "needs_refinement"
+   | "unavailable";
+
+export type AssistantRecommendationItemResponse = {
+   rank: number;
+   steam_app_id: number;
+   title: string;
+   cover_url: string | null;
+   profile_playtime_minutes: number;
+   normal_completion_seconds: number | null;
+   reason: string;
+   reason_source: "ai_generated";
+};
+
+export type AssistantRecommendationResponse = {
+   status: AssistantRecommendationStatus;
+   eligible_count: number;
+   candidate_limit: number;
+   items: AssistantRecommendationItemResponse[];
+   message: string | null;
+   guided_fallback_available: true;
+};
+
 const recommendationPath = "/recommendations";
 
 function queryString(query: string): string {
@@ -261,6 +325,42 @@ export function refineFinalRecommendations(
             "Content-Type": "application/json",
          },
          body: JSON.stringify(refinement),
+      }
+   );
+}
+
+export function getAssistantGenres(): Promise<AssistantGenreOptionsResponse> {
+   return requestJson<AssistantGenreOptionsResponse>(
+      `${recommendationPath}/assistant/genres`
+   );
+}
+
+export function getAssistantFilterOptions(
+   context: AssistantFilterContextRequest
+): Promise<AssistantFilterOptionsResponse> {
+   return requestJson<AssistantFilterOptionsResponse>(
+      `${recommendationPath}/assistant/filters`,
+      {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         body: JSON.stringify(context),
+      }
+   );
+}
+
+export function getAssistantRecommendations(
+   submission: AssistantRecommendationSubmission
+): Promise<AssistantRecommendationResponse> {
+   return requestJson<AssistantRecommendationResponse>(
+      `${recommendationPath}/assistant`,
+      {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         body: JSON.stringify(submission),
       }
    );
 }

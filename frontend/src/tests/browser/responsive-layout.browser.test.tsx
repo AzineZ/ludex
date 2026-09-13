@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { page } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 
@@ -6,11 +6,52 @@ import type { SessionProfileResponse } from "../../api";
 import Hero from "../../components/Hero";
 import PublicDataNotice from "../../components/PublicDataNotice";
 import ServerStatus from "../../components/ServerStatus";
+import AssistantWorkspace from "../../features/recommendations/assistant/AssistantWorkspace";
 import SessionGameLibrary from "../../features/session/SessionGameLibrary";
 import SteamSessionForm from "../../features/session/SteamSessionForm";
 import "../../index.css";
 import "../../App.css";
 import "../../features/session/session.css";
+import "../../features/recommendations/recommendations.css";
+
+vi.mock("../../api", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("../../api")>();
+   return {
+      ...actual,
+      getAssistantGenres: vi.fn().mockResolvedValue({
+         items: [
+            { igdb_id: 31, name: "Adventure", eligible_count: 42 },
+            { igdb_id: 12, name: "Role-playing", eligible_count: 18 },
+         ],
+      }),
+      getAssistantFilterOptions: vi.fn().mockResolvedValue({
+         themes: [
+            { igdb_id: 17, name: "Fantasy", eligible_count: 16 },
+            { igdb_id: 18, name: "Science fiction", eligible_count: 9 },
+         ],
+         game_modes: [
+            { igdb_id: 1, name: "Single player", eligible_count: 35 },
+         ],
+      }),
+      getAssistantRecommendations: vi.fn().mockResolvedValue({
+         status: "ranked",
+         eligible_count: 6,
+         candidate_limit: 30,
+         message: null,
+         guided_fallback_available: true,
+         items: Array.from({ length: 6 }, (_, index) => ({
+            rank: index + 1,
+            steam_app_id: 800 + index,
+            title: `Responsive Assistant Game ${index + 1}`,
+            cover_url: null,
+            profile_playtime_minutes: index * 60,
+            normal_completion_seconds: 7_200,
+            reason: "A bounded AI-generated reason for this responsive fixture.",
+            reason_source: "ai_generated",
+         })),
+      }),
+   };
+});
 
 type Viewport = {
    width: number;
@@ -137,6 +178,19 @@ function LibraryBackdropFixture() {
             refreshSucceeded={false}
             onRefresh={vi.fn().mockResolvedValue(true)}
          />
+      </div>
+   );
+}
+
+function AssistantFixture() {
+   return (
+      <div className="app">
+         <main className="app__content">
+            <section className="app__session">
+               <div className="app__current-profile" />
+               <AssistantWorkspace sessionEpoch={7} onUseGuided={vi.fn()} />
+            </section>
+         </main>
       </div>
    );
 }
@@ -293,6 +347,36 @@ describe("responsive layout contracts", () => {
             secondCard.bottom,
             `second/third row overlap at ${viewportName(viewport)}`
          ).toBeLessThanOrEqual(thirdCard.top);
+      }
+   });
+
+   it("keeps the assistant form and result deck within every supported width", async () => {
+      render(<AssistantFixture />);
+      fireEvent.click(await screen.findByRole("button", {
+         name: "Adventure, 42 eligible games",
+      }));
+      await screen.findByRole("group", { name: "Theme filters" });
+
+      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
+         await setTestViewport(viewport);
+         expect(
+            document.documentElement.scrollWidth,
+            `assistant form width at ${viewportName(viewport)}`
+         ).toBeLessThanOrEqual(viewport.width);
+      }
+
+      fireEvent.change(screen.getByLabelText("What are you in the mood to play?"), {
+         target: { value: "Something relaxed with a satisfying ending" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
+      await screen.findByRole("heading", { name: "Your AI recommendations" });
+
+      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
+         await setTestViewport(viewport);
+         expect(
+            document.documentElement.scrollWidth,
+            `assistant results width at ${viewportName(viewport)}`
+         ).toBeLessThanOrEqual(viewport.width);
       }
    });
 });
