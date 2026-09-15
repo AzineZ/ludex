@@ -52,6 +52,24 @@ describe("RecommendationConstraints", () => {
          .toHaveAttribute("aria-pressed", "true");
    });
 
+   it("can expose only play history when prompt text handles game length", () => {
+      render(
+         <RecommendationConstraints
+            value={defaults}
+            onChange={vi.fn()}
+            showMaximumCompletion={false}
+         />
+      );
+
+      expect(screen.getByText("Any game")).toBeInTheDocument();
+      expect(screen.queryByText("Any length")).not.toBeInTheDocument();
+      openConstraints();
+      expect(screen.queryByText("How long should the game be?"))
+         .not.toBeInTheDocument();
+      expect(screen.getByText("Have you played it before?"))
+         .toBeInTheDocument();
+   });
+
    it("converts preset and custom hours to integer minutes", () => {
       const onChange = vi.fn();
       const { rerender } = render(

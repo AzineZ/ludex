@@ -105,6 +105,12 @@ describe("AssistantWorkspace", () => {
       expect(screen.getByText(/games are in consideration/i)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fantasy, 16 eligible games" }))
          .toBeInTheDocument();
+      expect(screen.queryByText("Any length")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByText("Narrow your results"));
+      expect(screen.queryByText("How long should the game be?"))
+         .not.toBeInTheDocument();
+      expect(screen.getByText("Have you played it before?"))
+         .toBeInTheDocument();
    });
 
    it("submits one bounded prompt and runs the returned queue locally", async () => {

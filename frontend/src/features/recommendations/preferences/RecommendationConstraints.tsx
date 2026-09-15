@@ -5,6 +5,7 @@ import type { PlayStatus, PreferenceConstraints } from "../../../api";
 type RecommendationConstraintsProps = {
    value: PreferenceConstraints;
    onChange: (value: PreferenceConstraints) => void;
+   showMaximumCompletion?: boolean;
 };
 
 const PLAY_STATUS_OPTIONS: { value: PlayStatus; label: string }[] = [
@@ -57,11 +58,14 @@ function playStatusSummary(playStatus: PlayStatus): string {
 function RecommendationConstraints({
    value,
    onChange,
+   showMaximumCompletion = true,
 }: RecommendationConstraintsProps) {
    const [isCustomLength, setIsCustomLength] = useState(
       () => !isPresetLength(value.maximum_completion_minutes)
    );
-   const hasActiveConstraints = value.maximum_completion_minutes !== null
+   const hasActiveConstraints = (
+      showMaximumCompletion && value.maximum_completion_minutes !== null
+   )
       || value.play_status !== "either";
 
    return (
@@ -69,85 +73,89 @@ function RecommendationConstraints({
          <summary className="recommendation-choice-pill recommendation-constraints__summary">
             <span>Narrow your results</span>
             <span className="recommendation-constraints__summary-value">
-               {maximumCompletionSummary(value.maximum_completion_minutes)} ·{" "}
+               {showMaximumCompletion && (
+                  <>{maximumCompletionSummary(value.maximum_completion_minutes)} ·{" "}</>
+               )}
                {playStatusSummary(value.play_status)}
             </span>
          </summary>
 
          <div className="recommendation-constraints__content">
-            <fieldset className="recommendation-constraints__group">
-               <legend>How long should the game be?</legend>
-               <div className="recommendation-constraints__choices recommendation-choice-grid recommendation-choice-grid--equal">
-                  {LENGTH_PRESETS.map((preset) => (
+            {showMaximumCompletion && (
+               <fieldset className="recommendation-constraints__group">
+                  <legend>How long should the game be?</legend>
+                  <div className="recommendation-constraints__choices recommendation-choice-grid recommendation-choice-grid--equal">
+                     {LENGTH_PRESETS.map((preset) => (
+                        <button
+                           key={preset.label}
+                           className="recommendation-choice-pill"
+                           type="button"
+                           aria-pressed={
+                              !isCustomLength
+                              && value.maximum_completion_minutes === preset.minutes
+                           }
+                           onClick={() => {
+                              setIsCustomLength(false);
+                              onChange({
+                                 ...value,
+                                 maximum_completion_minutes: preset.minutes,
+                              });
+                           }}
+                        >
+                           {preset.label}
+                        </button>
+                     ))}
                      <button
-                        key={preset.label}
-                        className="recommendation-choice-pill"
                         type="button"
-                        aria-pressed={
-                           !isCustomLength
-                           && value.maximum_completion_minutes === preset.minutes
-                        }
-                        onClick={() => {
-                           setIsCustomLength(false);
-                           onChange({
-                              ...value,
-                              maximum_completion_minutes: preset.minutes,
-                           });
-                        }}
+                        className="recommendation-choice-pill"
+                        aria-pressed={isCustomLength}
+                        onClick={() => setIsCustomLength(true)}
                      >
-                        {preset.label}
+                        Custom
                      </button>
-                  ))}
-                  <button
-                     type="button"
-                     className="recommendation-choice-pill"
-                     aria-pressed={isCustomLength}
-                     onClick={() => setIsCustomLength(true)}
-                  >
-                     Custom
-                  </button>
-               </div>
-
-               {isCustomLength && (
-                  <div className="recommendation-constraints__custom-length">
-                     <label htmlFor="maximum-completion-hours">
-                        Custom maximum in hours
-                     </label>
-                     <input
-                        id="maximum-completion-hours"
-                        type="number"
-                        min={0.5}
-                        max={1000}
-                        step={0.5}
-                        value={
-                           value.maximum_completion_minutes === null
-                              ? ""
-                              : value.maximum_completion_minutes / 60
-                        }
-                        aria-describedby="maximum-completion-help"
-                        onChange={(event) => {
-                           const nextValue = event.target.value;
-                           onChange({
-                              ...value,
-                              maximum_completion_minutes: nextValue === ""
-                                 ? null
-                                 : Math.round(Number(nextValue) * 60),
-                           });
-                        }}
-                     />
-                     <p id="maximum-completion-help">
-                        Enter 0.5 to 1,000 hours.
-                     </p>
                   </div>
-               )}
 
-               {value.maximum_completion_minutes !== null && (
-                  <p className="recommendation-constraints__unknown-note">
-                     Games without a known completion time won’t be included
-                     when a limit is set.
-                  </p>
-               )}
-            </fieldset>
+                  {isCustomLength && (
+                     <div className="recommendation-constraints__custom-length">
+                        <label htmlFor="maximum-completion-hours">
+                           Custom maximum in hours
+                        </label>
+                        <input
+                           id="maximum-completion-hours"
+                           type="number"
+                           min={0.5}
+                           max={1000}
+                           step={0.5}
+                           value={
+                              value.maximum_completion_minutes === null
+                                 ? ""
+                                 : value.maximum_completion_minutes / 60
+                           }
+                           aria-describedby="maximum-completion-help"
+                           onChange={(event) => {
+                              const nextValue = event.target.value;
+                              onChange({
+                                 ...value,
+                                 maximum_completion_minutes: nextValue === ""
+                                    ? null
+                                    : Math.round(Number(nextValue) * 60),
+                              });
+                           }}
+                        />
+                        <p id="maximum-completion-help">
+                           Enter 0.5 to 1,000 hours.
+                        </p>
+                     </div>
+                  )}
+
+                  {value.maximum_completion_minutes !== null && (
+                     <p className="recommendation-constraints__unknown-note">
+                        Games without a known completion time won’t be included
+                        when a limit is set.
+                     </p>
+                  )}
+               </fieldset>
+            )}
 
             <fieldset className="recommendation-constraints__group">
                <legend>Have you played it before?</legend>

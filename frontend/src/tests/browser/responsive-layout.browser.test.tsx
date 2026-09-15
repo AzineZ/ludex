@@ -391,6 +391,34 @@ describe("responsive layout contracts", () => {
             document.documentElement.scrollWidth,
             `assistant results width at ${viewportName(viewport)}`
          ).toBeLessThanOrEqual(viewport.width);
+
+         const firstCard = screen.getByRole("article", {
+            name: "Responsive Assistant Game 1",
+         });
+         const stage = firstCard.querySelector<HTMLElement>(
+            ".recommendation-result-card__stage"
+         );
+         const actions = firstCard.querySelector<HTMLElement>(
+            ".assistant-result-card__actions"
+         );
+         const explanation = firstCard.querySelector<HTMLElement>(
+            ".assistant-result-card__explanation"
+         );
+         expect(stage).not.toBeNull();
+         expect(actions).not.toBeNull();
+         expect(explanation).not.toBeNull();
+         expect(
+            (actions as HTMLElement).getBoundingClientRect().top,
+            `assistant actions after image stage at ${viewportName(viewport)}`
+         ).toBeGreaterThanOrEqual(
+            (stage as HTMLElement).getBoundingClientRect().bottom - 1
+         );
+         expect(
+            (explanation as HTMLElement).getBoundingClientRect().bottom,
+            `assistant explanation inside image stage at ${viewportName(viewport)}`
+         ).toBeLessThanOrEqual(
+            (stage as HTMLElement).getBoundingClientRect().bottom
+         );
       }
    });
 

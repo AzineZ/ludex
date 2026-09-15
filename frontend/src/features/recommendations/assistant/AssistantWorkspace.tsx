@@ -503,6 +503,7 @@ function AssistantWorkspaceSession({
 
                <RecommendationConstraints
                   value={constraints}
+                  showMaximumCompletion={false}
                   onChange={(value) => {
                      setConstraints(value);
                      setFilterState("loading");

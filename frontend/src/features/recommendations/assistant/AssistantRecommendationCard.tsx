@@ -100,33 +100,33 @@ function AssistantRecommendationCard({
                   </section>
                </div>
             </div>
-
-            {(onChoose !== undefined || onShowAnother !== undefined) && (
-               <div className="recommendation-result-card__actions">
-                  {onChoose !== undefined && (
-                     <button
-                        className="app__primary-button"
-                        type="button"
-                        aria-label={`Choose ${item.title}`}
-                        onClick={onChoose}
-                     >
-                        Choose this game
-                     </button>
-                  )}
-                  {onShowAnother !== undefined && (
-                     <button
-                        className="app__secondary-button"
-                        type="button"
-                        aria-label={`Show another instead of ${item.title}`}
-                        onClick={onShowAnother}
-                        disabled={remainingAlternatives === 0}
-                     >
-                        {alternativesText}
-                     </button>
-                  )}
-               </div>
-            )}
          </div>
+
+         {(onChoose !== undefined || onShowAnother !== undefined) && (
+            <div className="recommendation-result-card__actions assistant-result-card__actions">
+               {onChoose !== undefined && (
+                  <button
+                     className="app__primary-button"
+                     type="button"
+                     aria-label={`Choose ${item.title}`}
+                     onClick={onChoose}
+                  >
+                     Choose this game
+                  </button>
+               )}
+               {onShowAnother !== undefined && (
+                  <button
+                     className="app__secondary-button"
+                     type="button"
+                     aria-label={`Show another instead of ${item.title}`}
+                     onClick={onShowAnother}
+                     disabled={remainingAlternatives === 0}
+                  >
+                     {alternativesText}
+                  </button>
+               )}
+            </div>
+         )}
 
          <details className="recommendation-result-card__details">
             <summary>Game details</summary>
