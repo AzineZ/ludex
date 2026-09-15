@@ -316,12 +316,11 @@ Backend configuration:
 -  `STEAM_API_KEY` enables Steam profile and library imports.
 -  `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` enable factual enrichment.
 - `GEMINI_API_KEY` is optional. The prompt assistant remains disabled unless
-  its feature flag, application budgets, and key are all explicitly configured;
-  the guided recommendation flow never requires it.
+  its feature flag and key are both explicitly configured; the guided
+  recommendation flow never requires it. Google enforces the Gemini project
+  limits. When those limits are reached, Ludex asks the visitor to try again
+  the next day or use guided recommendations.
 - `GEMINI_RERANK_ENABLED` is the explicit assistant feature flag.
-- `GEMINI_PUBLIC_REQUESTS_PER_MINUTE`, `GEMINI_PUBLIC_REQUESTS_PER_DAY`, and
-  optional `GEMINI_PUBLIC_DAILY_CEILING` define the application quota policy;
-  they do not replace provider-side limits.
 
 Frontend configuration:
 
