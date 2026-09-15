@@ -53,8 +53,8 @@ function AssistantResults({
                   : `You chose ${queue.accepted.title}. Have fun!`}
             </p>
             <p className="assistant-results__disclosure">
-               Recommendation reasons are AI-generated suggestions, not verified
-               IGDB facts.
+               Summaries and match reasoning are AI-generated suggestions, not
+               verified IGDB facts.
             </p>
             <button
                className="app__secondary-button recommendation-results__start-over"

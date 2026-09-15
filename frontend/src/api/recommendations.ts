@@ -189,10 +189,14 @@ export type AssistantFilterContextRequest = {
    selected_genre_id: number;
    play_status: PlayStatus;
    maximum_completion_minutes: number | null;
+   theme_ids: number[];
+   game_mode_ids: number[];
    rejected_steam_app_ids: number[];
 };
 
 export type AssistantFilterOptionsResponse = {
+   eligible_count: number;
+   candidate_limit: number;
    themes: AssistantOptionResponse[];
    game_modes: AssistantOptionResponse[];
 };
@@ -225,8 +229,9 @@ export type AssistantRecommendationItemResponse = {
    cover_url: string | null;
    profile_playtime_minutes: number;
    normal_completion_seconds: number | null;
-   reason: string;
-   reason_source: "ai_generated";
+   summary: string;
+   reasoning: string;
+   content_source: "ai_generated";
 };
 
 export type AssistantRecommendationResponse = {

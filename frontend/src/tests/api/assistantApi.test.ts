@@ -45,9 +45,16 @@ describe("assistant API", () => {
          selected_genre_id: 31,
          play_status: "unplayed",
          maximum_completion_minutes: 600,
+         theme_ids: [17],
+         game_mode_ids: [1],
          rejected_steam_app_ids: [101],
       };
-      const response = { themes: [], game_modes: [] };
+      const response = {
+         eligible_count: 4,
+         candidate_limit: 200,
+         themes: [],
+         game_modes: [],
+      };
       fetchMock.mockResolvedValue(jsonResponse(response));
 
       await expect(getAssistantFilterOptions(request)).resolves.toEqual(response);
@@ -77,7 +84,7 @@ describe("assistant API", () => {
       const response = {
          status: "no_match",
          eligible_count: 4,
-         candidate_limit: 30,
+         candidate_limit: 200,
          items: [],
          message: "No close fit was found.",
          guided_fallback_available: true,

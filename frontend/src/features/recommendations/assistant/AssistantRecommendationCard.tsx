@@ -89,10 +89,16 @@ function AssistantRecommendationCard({
                <header>
                   <h3 id={headingId}>{item.title}</h3>
                </header>
-               <section className="recommendation-result-card__reason">
-                  <h4>AI-generated reason</h4>
-                  <p>{item.reason}</p>
-               </section>
+               <div className="assistant-result-card__explanation">
+                  <section className="recommendation-result-card__reason">
+                     <h4>Summary</h4>
+                     <p>{item.summary}</p>
+                  </section>
+                  <section className="recommendation-result-card__reason">
+                     <h4>Reasoning</h4>
+                     <p>{item.reasoning}</p>
+                  </section>
+               </div>
             </div>
 
             {(onChoose !== undefined || onShowAnother !== undefined) && (

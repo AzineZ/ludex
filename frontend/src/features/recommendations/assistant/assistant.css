@@ -208,6 +208,29 @@
    margin-top: 1rem;
 }
 
+.assistant-pool-count {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0.35rem;
+   align-items: baseline;
+   margin: 1rem 0 0;
+   color: var(--color-ash-taupe);
+   font-size: 0.85rem;
+   line-height: 1.4;
+}
+
+.assistant-pool-count strong {
+   color: var(--color-bone-cream);
+   font-family: var(--font-display);
+   font-size: 1.5rem;
+   font-weight: 900;
+   line-height: 1;
+}
+
+.assistant-pool-count--over-limit strong {
+   color: var(--color-alarm-red);
+}
+
 .assistant-state {
    margin-bottom: 1.25rem;
    padding: 1rem;
@@ -305,6 +328,22 @@
    padding-left: 0.75rem;
    border-left: 3px solid var(--color-alarm-red);
    text-align: left;
+}
+
+.assistant-result-card__explanation {
+   display: grid;
+   gap: 1rem;
+   margin-top: 1.25rem;
+}
+
+.assistant-result-card__explanation .recommendation-result-card__reason {
+   margin-top: 0;
+}
+
+.assistant-result-card__explanation .recommendation-result-card__reason +
+   .recommendation-result-card__reason {
+   padding-top: 1rem;
+   border-top: 1px solid var(--color-ash-taupe);
 }
 
 @media (max-width: 48rem) {

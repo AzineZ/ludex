@@ -33,6 +33,8 @@ const DEFAULT_CONSTRAINTS: PreferenceConstraints = {
 };
 
 const EMPTY_FILTER_OPTIONS: AssistantFilterOptionsResponse = {
+   eligible_count: 0,
+   candidate_limit: 200,
    themes: [],
    game_modes: [],
 };
@@ -118,6 +120,11 @@ function toggleId(values: readonly number[], value: number): number[] {
    return values.includes(value)
       ? values.filter((candidate) => candidate !== value)
       : [...values, value];
+}
+
+function retainAvailableIds(values: number[], availableIds: Set<number>): number[] {
+   const retained = values.filter((id) => availableIds.has(id));
+   return retained.length === values.length ? values : retained;
 }
 
 function OptionButtons({
@@ -224,12 +231,16 @@ function AssistantWorkspaceSession({
       selectedGenreId,
       playStatus: constraints.play_status,
       maximumCompletionMinutes: constraints.maximum_completion_minutes,
+      selectedThemeIds,
+      selectedGameModeIds,
       rejectedSteamAppIds,
    }), [
       constraints.maximum_completion_minutes,
       constraints.play_status,
       rejectedSteamAppIds,
+      selectedGameModeIds,
       selectedGenreId,
+      selectedThemeIds,
       sessionEpoch,
    ]);
    const selectedGenre = genres.items.find(
@@ -270,6 +281,8 @@ function AssistantWorkspaceSession({
          selected_genre_id: selectedGenreId,
          play_status: constraints.play_status,
          maximum_completion_minutes: constraints.maximum_completion_minutes,
+         theme_ids: [...selectedThemeIds],
+         game_mode_ids: [...selectedGameModeIds],
          rejected_steam_app_ids: [...rejectedSteamAppIds],
       }).then(
          (result) => {
@@ -280,9 +293,9 @@ function AssistantWorkspaceSession({
             const gameModeIds = new Set(
                result.game_modes.map((item) => item.igdb_id)
             );
-            setSelectedThemeIds((values) => values.filter((id) => themeIds.has(id)));
+            setSelectedThemeIds((values) => retainAvailableIds(values, themeIds));
             setSelectedGameModeIds((values) => (
-               values.filter((id) => gameModeIds.has(id))
+               retainAvailableIds(values, gameModeIds)
             ));
             setFilterOptions(result);
             setFilterState("ready");
@@ -300,7 +313,14 @@ function AssistantWorkspaceSession({
       return () => {
          current = false;
       };
-   }, [filterContextKey, selectedGenreId, constraints, rejectedSteamAppIds]);
+   }, [
+      constraints,
+      filterContextKey,
+      rejectedSteamAppIds,
+      selectedGameModeIds,
+      selectedGenreId,
+      selectedThemeIds,
+   ]);
 
    function selectGenre(genreId: number): void {
       setSelectedGenreId(genreId);
@@ -503,28 +523,54 @@ function AssistantWorkspaceSession({
                   </p>
                )}
                {filterState === "ready" && (
-                  <div className="assistant-filters">
-                     <OptionButtons
-                        label="Theme filters"
-                        options={filterOptions.themes}
-                        selectedIds={selectedThemeIds}
-                        onToggle={(id) => {
-                           setSelectedThemeIds((values) => toggleId(values, id));
-                           setResponse(null);
-                           setSubmissionState("idle");
-                        }}
-                     />
-                     <OptionButtons
-                        label="Game mode filters"
-                        options={filterOptions.game_modes}
-                        selectedIds={selectedGameModeIds}
-                        onToggle={(id) => {
-                           setSelectedGameModeIds((values) => toggleId(values, id));
-                           setResponse(null);
-                           setSubmissionState("idle");
-                        }}
-                     />
-                  </div>
+                  <>
+                     <p
+                        className={`assistant-pool-count${
+                           filterOptions.eligible_count > filterOptions.candidate_limit
+                              ? " assistant-pool-count--over-limit"
+                              : ""
+                        }`}
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                     >
+                        <strong>{filterOptions.eligible_count}</strong>
+                        <span>
+                           {filterOptions.eligible_count === 1
+                              ? "game is"
+                              : "games are"} in consideration
+                           {filterOptions.eligible_count > filterOptions.candidate_limit
+                              ? ` — narrow to ${filterOptions.candidate_limit} or fewer`
+                              : ""}
+                        </span>
+                     </p>
+                     <div className="assistant-filters">
+                        <OptionButtons
+                           label="Theme filters"
+                           options={filterOptions.themes}
+                           selectedIds={selectedThemeIds}
+                           onToggle={(id) => {
+                              setSelectedThemeIds((values) => toggleId(values, id));
+                              setFilterState("loading");
+                              setFilterError(null);
+                              setResponse(null);
+                              setSubmissionState("idle");
+                           }}
+                        />
+                        <OptionButtons
+                           label="Game mode filters"
+                           options={filterOptions.game_modes}
+                           selectedIds={selectedGameModeIds}
+                           onToggle={(id) => {
+                              setSelectedGameModeIds((values) => toggleId(values, id));
+                              setFilterState("loading");
+                              setFilterError(null);
+                              setResponse(null);
+                              setSubmissionState("idle");
+                           }}
+                        />
+                     </div>
+                  </>
                )}
             </div>
          )}

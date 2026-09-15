@@ -28,7 +28,7 @@ function rankedResponse(): AssistantRecommendationResponse {
    return {
       status: "ranked",
       eligible_count: 6,
-      candidate_limit: 30,
+      candidate_limit: 200,
       message: null,
       guided_fallback_available: true,
       items: Array.from({ length: 6 }, (_, index) => ({
@@ -38,8 +38,9 @@ function rankedResponse(): AssistantRecommendationResponse {
          cover_url: null,
          profile_playtime_minutes: index * 60,
          normal_completion_seconds: index === 0 ? null : 7_200,
-         reason: `AI reason ${index + 1}.`,
-         reason_source: "ai_generated" as const,
+         summary: `Game summary ${index + 1}.`,
+         reasoning: `It matches your request for relaxing play ${index + 1}.`,
+         content_source: "ai_generated" as const,
       })),
    };
 }
@@ -62,7 +63,9 @@ describe("AssistantWorkspace", () => {
             { igdb_id: 12, name: "Role-playing", eligible_count: 18 },
          ],
       });
-      mockedFilters.mockResolvedValue({
+      mockedFilters.mockImplementation(async (context) => ({
+         eligible_count: context.theme_ids.includes(17) ? 16 : 42,
+         candidate_limit: 200,
          themes: [
             { igdb_id: 17, name: "Fantasy", eligible_count: 16 },
             { igdb_id: 18, name: "Science fiction", eligible_count: 9 },
@@ -70,7 +73,7 @@ describe("AssistantWorkspace", () => {
          game_modes: [
             { igdb_id: 1, name: "Single player", eligible_count: 35 },
          ],
-      });
+      }));
       mockedRecommendations.mockResolvedValue(rankedResponse());
    });
 
@@ -94,8 +97,12 @@ describe("AssistantWorkspace", () => {
          selected_genre_id: 31,
          play_status: "either",
          maximum_completion_minutes: null,
+         theme_ids: [],
+         game_mode_ids: [],
          rejected_steam_app_ids: [],
       });
+      expect(screen.getByText("42")).toBeInTheDocument();
+      expect(screen.getByText(/games are in consideration/i)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fantasy, 16 eligible games" }))
          .toBeInTheDocument();
    });
@@ -107,6 +114,16 @@ describe("AssistantWorkspace", () => {
       fireEvent.click(screen.getByRole("button", {
          name: "Fantasy, 16 eligible games",
       }));
+      expect(await screen.findByText("16")).toBeInTheDocument();
+      expect(mockedFilters).toHaveBeenLastCalledWith({
+         selected_genre_id: 31,
+         play_status: "either",
+         maximum_completion_minutes: null,
+         theme_ids: [17],
+         game_mode_ids: [],
+         rejected_steam_app_ids: [],
+      });
+      expect(mockedRecommendations).not.toHaveBeenCalled();
       fireEvent.change(screen.getByLabelText("What are you in the mood to play?"), {
          target: { value: "Something relaxing after work" },
       });
@@ -132,8 +149,15 @@ describe("AssistantWorkspace", () => {
          },
          rejected_steam_app_ids: [],
       });
-      expect(within(firstCard).getByText("AI-generated reason"))
+      expect(within(firstCard).getByRole("heading", { name: "Summary" }))
          .toBeInTheDocument();
+      expect(within(firstCard).getByText("Game summary 1."))
+         .toBeInTheDocument();
+      expect(within(firstCard).getByRole("heading", { name: "Reasoning" }))
+         .toBeInTheDocument();
+      expect(within(firstCard).getByText(
+         "It matches your request for relaxing play 1."
+      )).toBeInTheDocument();
       expect(screen.getAllByRole("article")).toHaveLength(3);
 
       fireEvent.click(within(firstCard).getByRole("button", {
@@ -156,8 +180,8 @@ describe("AssistantWorkspace", () => {
    it("keeps an oversized pool provider-free and asks for factual refinement", async () => {
       mockedRecommendations.mockResolvedValue({
          status: "needs_refinement",
-         eligible_count: 42,
-         candidate_limit: 30,
+         eligible_count: 242,
+         candidate_limit: 200,
          items: [],
          message: "Choose another factual filter so every eligible game can be considered.",
          guided_fallback_available: true,
@@ -170,9 +194,9 @@ describe("AssistantWorkspace", () => {
       fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
 
       expect(await screen.findByRole("heading", {
-         name: "Narrow your 42-game pool",
+         name: "Narrow your 242-game pool",
       })).toBeInTheDocument();
-      expect(screen.getByText(/30-game assistant limit/i)).toBeInTheDocument();
+      expect(screen.getByText(/200-game assistant limit/i)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Ask Ludex" })).toBeEnabled();
    });
 
@@ -181,9 +205,9 @@ describe("AssistantWorkspace", () => {
       mockedRecommendations.mockResolvedValue({
          status: "unavailable",
          eligible_count: 18,
-         candidate_limit: 30,
+         candidate_limit: 200,
          items: [],
-         message: "AI recommendations are temporarily unavailable. Try guided recommendations instead.",
+         message: "Ludex AI has reached Gemini's current usage limit. Please try again tomorrow, or use guided recommendations now.",
          guided_fallback_available: true,
       });
       render(<AssistantWorkspace sessionEpoch={7} onUseGuided={onUseGuided} />);
@@ -196,6 +220,7 @@ describe("AssistantWorkspace", () => {
       expect(await screen.findByRole("heading", {
          name: "AI recommendations unavailable",
       })).toBeInTheDocument();
+      expect(screen.getByText(/please try again tomorrow/i)).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", {
          name: "Use guided recommendations",
       }));

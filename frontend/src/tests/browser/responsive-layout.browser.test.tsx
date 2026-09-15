@@ -26,6 +26,8 @@ vi.mock("../../api", async (importOriginal) => {
          })),
       }),
       getAssistantFilterOptions: vi.fn().mockResolvedValue({
+         eligible_count: 42,
+         candidate_limit: 200,
          themes: [
             { igdb_id: 17, name: "Fantasy", eligible_count: 16 },
             { igdb_id: 18, name: "Science fiction", eligible_count: 9 },
@@ -45,7 +47,7 @@ vi.mock("../../api", async (importOriginal) => {
       getAssistantRecommendations: vi.fn().mockResolvedValue({
          status: "ranked",
          eligible_count: 6,
-         candidate_limit: 30,
+         candidate_limit: 200,
          message: null,
          guided_fallback_available: true,
          items: Array.from({ length: 6 }, (_, index) => ({
@@ -55,8 +57,11 @@ vi.mock("../../api", async (importOriginal) => {
             cover_url: null,
             profile_playtime_minutes: index * 60,
             normal_completion_seconds: 7_200,
-            reason: "A bounded AI-generated reason for this responsive fixture.",
-            reason_source: "ai_generated",
+            summary: "A bounded AI-generated summary for this responsive fixture.",
+            reasoning: (
+               "Its relaxed pacing matches your request for something relaxing."
+            ),
+            content_source: "ai_generated",
          })),
       }),
    };
