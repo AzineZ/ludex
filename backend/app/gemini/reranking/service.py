@@ -1,20 +1,11 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from enum import StrEnum
 
 from pydantic import Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.gemini.client import GeminiAPIError, GeminiClient, GeminiRateLimitError
-from app.gemini.prompt.quota import (
-    PromptQuotaExceeded,
-    PromptQuotaPolicy,
-    complete_prompt_reservation,
-    open_prompt_provider_circuit,
-    reserve_prompt_attempt,
-    reserve_prompt_message,
-)
 from app.gemini.reranking.candidate_pool import (
     RerankCandidatePoolState,
     build_rerank_candidate_pool,
@@ -25,14 +16,15 @@ from app.gemini.reranking.contracts import (
     RerankFilters,
 )
 from app.gemini.reranking.reranker import (
+    MAX_RERANK_REQUEST_BYTES,
     RerankRequestTooLarge,
     RerankResponseError,
+    rerank_user_prompt_size_bytes,
     rerank_with_metadata,
 )
 from app.recommendations.contracts import PositiveIdentifier
 
 
-RERANK_RESERVATION_LEASE = timedelta(seconds=90)
 RerankCall = Callable[..., object]
 
 
@@ -68,7 +60,6 @@ class RerankSubmission(FrozenContract):
 class GeminiRerankRuntime:
     client: GeminiClient
     model_id: str
-    quota_policy: PromptQuotaPolicy
 
 
 class RerankAssistantStatus(StrEnum):
@@ -87,7 +78,8 @@ class RerankAssistantItem:
     cover_url: str | None
     profile_playtime_minutes: int
     normal_completion_seconds: int | None
-    reason: str
+    summary: str
+    reasoning: str
 
 
 @dataclass(frozen=True)
@@ -109,17 +101,26 @@ def _unavailable(eligible_count: int) -> RerankAssistantResult:
     )
 
 
+def _rate_limited(eligible_count: int) -> RerankAssistantResult:
+    return RerankAssistantResult(
+        status=RerankAssistantStatus.UNAVAILABLE,
+        eligible_count=eligible_count,
+        message=(
+            "Ludex AI has reached Gemini's current usage limit. "
+            "Please try again tomorrow, or use guided recommendations now."
+        ),
+    )
+
+
 def recommend_with_gemini(
     session: Session,
     *,
-    access_session_id: int,
     profile_id: int,
     submission: RerankSubmission,
     runtime: GeminiRerankRuntime | None,
-    now: datetime,
     rerank: RerankCall = rerank_with_metadata,
 ) -> RerankAssistantResult:
-    """Run at most one guarded provider call over one immutable snapshot."""
+    """Run one provider-enforced call over one immutable candidate snapshot."""
     pool = build_rerank_candidate_pool(
         session,
         profile_id=profile_id,
@@ -152,50 +153,23 @@ def recommend_with_gemini(
         return _unavailable(pool.eligible_count)
     if pool.request is None:
         raise RuntimeError("A ready candidate pool requires a request snapshot.")
+    if rerank_user_prompt_size_bytes(pool.request) > MAX_RERANK_REQUEST_BYTES:
+        return _unavailable(pool.eligible_count)
 
-    reservation_id: str | None = None
     try:
-        reservation = reserve_prompt_message(
-            session,
-            access_session_id=access_session_id,
-            now=now,
-            lease_duration=RERANK_RESERVATION_LEASE,
-        )
-        reservation_id = reservation.reservation_id
-        reserve_prompt_attempt(
-            session,
-            reservation_id=reservation_id,
-            policy=runtime.quota_policy,
-            now=now,
-        )
         response, _metadata = rerank(
             runtime.client,
             model_id=runtime.model_id,
             request=pool.request,
         )
-    except GeminiRateLimitError as error:
-        if reservation_id is not None:
-            open_prompt_provider_circuit(
-                session,
-                reservation_id=reservation_id,
-                now=now,
-                retry_after_seconds=error.retry_after_seconds,
-            )
-        return _unavailable(pool.eligible_count)
+    except GeminiRateLimitError:
+        return _rate_limited(pool.eligible_count)
     except (
-        PromptQuotaExceeded,
         GeminiAPIError,
         RerankRequestTooLarge,
         RerankResponseError,
     ):
         return _unavailable(pool.eligible_count)
-    finally:
-        if reservation_id is not None:
-            complete_prompt_reservation(
-                session,
-                reservation_id=reservation_id,
-                now=now,
-            )
 
     if response.status.value == "no_match":
         return RerankAssistantResult(
@@ -219,7 +193,8 @@ def recommend_with_gemini(
             normal_completion_seconds=presentations[
                 recommendation.steam_app_id
             ].normal_completion_seconds,
-            reason=recommendation.reason,
+            summary=recommendation.summary,
+            reasoning=recommendation.reasoning,
         )
         for rank, recommendation in enumerate(
             response.recommendations, start=1

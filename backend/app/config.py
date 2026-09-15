@@ -1,6 +1,6 @@
 from typing import Literal, Self
 
-from pydantic import PositiveInt, SecretStr, model_validator
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,9 +18,6 @@ class Settings(BaseSettings):
     igdb_client_secret: SecretStr
     gemini_api_key: SecretStr | None = None
     gemini_rerank_enabled: bool = False
-    gemini_public_requests_per_minute: PositiveInt | None = None
-    gemini_public_requests_per_day: PositiveInt | None = None
-    gemini_public_daily_ceiling: PositiveInt | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

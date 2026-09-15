@@ -595,7 +595,7 @@ def run_rerank_evaluation(
             )
             latency_ms = round((clock() - last_call_started) * 1000)
             recommendations = tuple(
-                (item.steam_app_id, item.reason)
+                (item.steam_app_id, item.reasoning)
                 for item in response.recommendations
             )
             top_ids = tuple(item[0] for item in recommendations[:3])

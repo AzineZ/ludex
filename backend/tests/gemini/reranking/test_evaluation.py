@@ -50,7 +50,8 @@ def test_perfect_outputs_pass_automated_gates_then_human_review(monkeypatch) -> 
                 "recommendations": [
                     {
                         "steam_app_id": steam_app_id,
-                        "reason": "It fits the requested experience.",
+                        "summary": "A concise game-focused summary.",
+                        "reasoning": "It fits the requested experience.",
                     }
                     for steam_app_id in high_fit[:3]
                 ],
@@ -142,7 +143,11 @@ def test_repeat_gate_requires_two_shared_top_three_ids(monkeypatch) -> None:
             content = {
                 "status": "ranked",
                 "recommendations": [
-                    {"steam_app_id": value, "reason": "A possible fit."}
+                    {
+                        "steam_app_id": value,
+                        "summary": "A concise game-focused summary.",
+                        "reasoning": "A possible fit for the visitor request.",
+                    }
                     for value in ids
                 ],
                 "no_match_reason": None,

@@ -8,11 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.recommendations.contracts import CompletionMinutes, PlayStatus
 
 
-MAX_RERANK_CANDIDATES = 30
+MAX_RERANK_CANDIDATES = 200
 MAX_RERANK_RESULTS = 6
 MAX_RERANK_PROMPT_CHARACTERS = 500
 MAX_RERANK_SUMMARY_CHARACTERS = 1200
-MAX_RERANK_REASON_CHARACTERS = 240
+MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS = 240
+MAX_RERANK_REASONING_CHARACTERS = 240
 MAX_RERANK_NO_MATCH_CHARACTERS = 240
 MAX_RERANK_SESSION_EXCLUSIONS = 30
 
@@ -151,14 +152,21 @@ class RerankStatus(StrEnum):
 
 class RerankRecommendation(FrozenContract):
     steam_app_id: PositiveID
-    reason: str = Field(min_length=1, max_length=MAX_RERANK_REASON_CHARACTERS)
+    summary: str = Field(
+        min_length=1,
+        max_length=MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS,
+    )
+    reasoning: str = Field(
+        min_length=1,
+        max_length=MAX_RERANK_REASONING_CHARACTERS,
+    )
 
-    @field_validator("reason")
+    @field_validator("summary", "reasoning")
     @classmethod
-    def normalize_reason(cls, value: str) -> str:
+    def normalize_recommendation_text(cls, value: str) -> str:
         normalized = _single_line(value)
         if not normalized:
-            raise ValueError("Recommendation reason must not be blank.")
+            raise ValueError("Recommendation text must not be blank.")
         return normalized
 
 

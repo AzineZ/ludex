@@ -36,9 +36,9 @@ def request(count: int = 6) -> RerankRequest:
     )
 
 
-def test_request_accepts_at_most_thirty_unique_candidates() -> None:
-    assert MAX_RERANK_CANDIDATES == 30
-    assert len(request(MAX_RERANK_CANDIDATES).candidates) == 30
+def test_request_accepts_at_most_two_hundred_unique_candidates() -> None:
+    assert MAX_RERANK_CANDIDATES == 200
+    assert len(request(MAX_RERANK_CANDIDATES).candidates) == 200
 
     with pytest.raises(ValidationError):
         request(MAX_RERANK_CANDIDATES + 1)
@@ -60,11 +60,17 @@ def test_response_requires_consistent_ranked_or_no_match_shape() -> None:
     ranked = RerankResponse(
         status=RerankStatus.RANKED,
         recommendations=(
-            {"steam_app_id": 1, "reason": "Fits the requested mood."},
+            {
+                "steam_app_id": 1,
+                "summary": "A gentle exploration game.",
+                "reasoning": "Its gentle pace fits your request for relaxing play.",
+            },
         ),
         no_match_reason=None,
     )
     assert ranked.recommendations[0].steam_app_id == 1
+    assert ranked.recommendations[0].summary == "A gentle exploration game."
+    assert "relaxing" in ranked.recommendations[0].reasoning
 
     no_match = RerankResponse(
         status=RerankStatus.NO_MATCH,
@@ -77,10 +83,48 @@ def test_response_requires_consistent_ranked_or_no_match_shape() -> None:
         RerankResponse(
             status=RerankStatus.NO_MATCH,
             recommendations=(
-                {"steam_app_id": 1, "reason": "Contradictory."},
+                {
+                    "steam_app_id": 1,
+                    "summary": "A game summary.",
+                    "reasoning": "A contradictory match explanation.",
+                },
             ),
             no_match_reason="None fit.",
         )
+
+
+def test_response_requires_distinct_bounded_summary_and_reasoning() -> None:
+    base = {
+        "status": "ranked",
+        "recommendations": [
+            {
+                "steam_app_id": 1,
+                "summary": "  A gentle\n exploration game.  ",
+                "reasoning": "  Fits your request\tfor relaxing play.  ",
+            }
+        ],
+        "no_match_reason": None,
+    }
+
+    response = RerankResponse.model_validate(base)
+    assert response.recommendations[0].summary == "A gentle exploration game."
+    assert response.recommendations[0].reasoning == (
+        "Fits your request for relaxing play."
+    )
+
+    for field in ("summary", "reasoning"):
+        for invalid_value in (" ", "x" * 241):
+            invalid = {
+                **base,
+                "recommendations": [
+                    {
+                        **base["recommendations"][0],
+                        field: invalid_value,
+                    }
+                ],
+            }
+            with pytest.raises(ValidationError):
+                RerankResponse.model_validate(invalid)
 
 
 def test_candidate_text_is_bounded_and_normalized() -> None:

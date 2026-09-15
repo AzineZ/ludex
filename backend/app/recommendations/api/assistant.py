@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import Depends, status
@@ -63,7 +62,18 @@ class RerankFilterContextRequest(RecommendationHTTPModel):
     selected_genre_id: int = Field(strict=True, gt=0)
     play_status: PlayStatus
     maximum_completion_minutes: CompletionMinutes | None
+    theme_ids: tuple[PositiveIdentifier, ...] = Field(default=(), max_length=8)
+    game_mode_ids: tuple[PositiveIdentifier, ...] = Field(
+        default=(), max_length=8
+    )
     rejected_steam_app_ids: tuple[PositiveIdentifier, ...] = ()
+
+    @field_validator("theme_ids", "game_mode_ids")
+    @classmethod
+    def validate_filter_ids(cls, values: tuple[int, ...]) -> tuple[int, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("Filter IDs must be unique.")
+        return values
 
     @field_validator("rejected_steam_app_ids")
     @classmethod
@@ -78,6 +88,8 @@ class RerankFilterContextRequest(RecommendationHTTPModel):
 
 
 class RerankFilterOptionsResponse(RecommendationHTTPModel):
+    eligible_count: int
+    candidate_limit: int = MAX_RERANK_CANDIDATES
     themes: tuple[RerankOptionResponse, ...]
     game_modes: tuple[RerankOptionResponse, ...]
 
@@ -89,8 +101,9 @@ class RerankAssistantItemResponse(RecommendationHTTPModel):
     cover_url: str | None
     profile_playtime_minutes: int
     normal_completion_seconds: int | None
-    reason: str
-    reason_source: Literal["ai_generated"] = "ai_generated"
+    summary: str
+    reasoning: str
+    content_source: Literal["ai_generated"] = "ai_generated"
 
 
 class RerankAssistantResponse(RecommendationHTTPModel):
@@ -112,6 +125,7 @@ def _option(item: RerankGenreOption | RerankFacetOption) -> RerankOptionResponse
 
 def _filter_response(options: RerankFilterOptions) -> RerankFilterOptionsResponse:
     return RerankFilterOptionsResponse(
+        eligible_count=options.eligible_count,
         themes=tuple(_option(item) for item in options.themes),
         game_modes=tuple(_option(item) for item in options.game_modes),
     )
@@ -125,7 +139,8 @@ def _item(item: RerankAssistantItem) -> RerankAssistantItemResponse:
         cover_url=item.cover_url,
         profile_playtime_minutes=item.profile_playtime_minutes,
         normal_completion_seconds=item.normal_completion_seconds,
-        reason=item.reason,
+        summary=item.summary,
+        reasoning=item.reasoning,
     )
 
 
@@ -187,11 +202,13 @@ def get_assistant_filter_options(
             selected_genre_id=request.selected_genre_id,
             play_status=request.play_status,
             maximum_completion_minutes=request.maximum_completion_minutes,
+            theme_ids=request.theme_ids,
+            game_mode_ids=request.game_mode_ids,
             session_excluded_steam_app_ids=frozenset(
                 request.rejected_steam_app_ids
             ),
         )
-    except RerankGenreUnavailableError as error:
+    except (RerankGenreUnavailableError, RerankFilterUnavailableError) as error:
         _raise_unavailable_option(error)
     return _filter_response(options)
 
@@ -214,11 +231,9 @@ def create_assistant_recommendations(
     try:
         result = recommend_with_gemini(
             database_session,
-            access_session_id=access_session.id,
             profile_id=access_session.profile_id,
             submission=submission,
             runtime=runtime,
-            now=datetime.now(UTC),
         )
     except (RerankGenreUnavailableError, RerankFilterUnavailableError) as error:
         _raise_unavailable_option(error)

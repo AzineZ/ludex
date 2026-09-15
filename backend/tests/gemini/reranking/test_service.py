@@ -1,8 +1,7 @@
-from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.database import Base
@@ -11,7 +10,6 @@ from app.gemini.client import (
     GeminiStructuredContent,
     GeminiUnavailableError,
 )
-from app.gemini.prompt.quota import PromptQuotaPolicy
 from app.gemini.reranking.contracts import RerankFilters, RerankResponse
 from app.gemini.reranking.service import (
     GeminiRerankRuntime,
@@ -19,43 +17,27 @@ from app.gemini.reranking.service import (
     RerankSubmission,
     recommend_with_gemini,
 )
-from app.models import GeminiPromptReservation, GeminiPromptUsageEvent, Profile
-from app.sessions.service import issue_access_session, resolve_access_session
+from app.models import Profile
 from tests.gemini.reranking.test_candidate_pool import _add_game
 
 
-NOW = datetime(2026, 9, 12, 17, tzinfo=UTC)
-
-
 @pytest.fixture
-def session_and_access() -> tuple[Session, int, int]:
+def session_and_profile() -> tuple[Session, int]:
     engine = create_engine("sqlite://")
     Base.metadata.create_all(engine)
     session = Session(engine, expire_on_commit=False)
     profile = Profile(steam_id="76561198000000000", display_name="Player")
     session.add(profile)
     session.commit()
-    issued = issue_access_session(
-        session,
-        profile.id,
-        clock=lambda: NOW,
-        token_generator=lambda: "assistant-session",
-    )
-    active = resolve_access_session(session, issued.token, clock=lambda: NOW)
-    assert active is not None
     try:
-        yield session, profile.id, active.id
+        yield session, profile.id
     finally:
         session.close()
         engine.dispose()
 
 
 def _runtime() -> GeminiRerankRuntime:
-    return GeminiRerankRuntime(
-        client=Mock(),
-        model_id="gemini-3.6-flash",
-        quota_policy=PromptQuotaPolicy(5, 20),
-    )
+    return GeminiRerankRuntime(client=Mock(), model_id="gemini-3.6-flash")
 
 
 def _submission() -> RerankSubmission:
@@ -67,10 +49,23 @@ def _submission() -> RerankSubmission:
     )
 
 
-def test_success_reserves_exactly_one_call_and_maps_snapshot_presentation(
-    session_and_access: tuple[Session, int, int],
+def _no_match_response() -> tuple[RerankResponse, GeminiStructuredContent]:
+    return (
+        RerankResponse(
+            status="no_match",
+            recommendations=(),
+            no_match_reason="No supplied game fits.",
+        ),
+        GeminiStructuredContent(
+            content={}, input_tokens=None, output_tokens=None, total_tokens=None
+        ),
+    )
+
+
+def test_success_uses_one_call_and_maps_snapshot_presentation(
+    session_and_profile: tuple[Session, int],
 ) -> None:
-    session, profile_id, access_session_id = session_and_access
+    session, profile_id = session_and_profile
     _add_game(
         session,
         profile_id=profile_id,
@@ -83,7 +78,14 @@ def test_success_reserves_exactly_one_call_and_maps_snapshot_presentation(
             RerankResponse(
                 status="ranked",
                 recommendations=(
-                    {"steam_app_id": 1, "reason": "A calm, focused fit."},
+                    {
+                        "steam_app_id": 1,
+                        "summary": "A focused, low-pressure adventure.",
+                        "reasoning": (
+                            "Its calm pace fits your request for something "
+                            "calm after work."
+                        ),
+                    },
                 ),
                 no_match_reason=None,
             ),
@@ -95,11 +97,9 @@ def test_success_reserves_exactly_one_call_and_maps_snapshot_presentation(
 
     result = recommend_with_gemini(
         session,
-        access_session_id=access_session_id,
         profile_id=profile_id,
         submission=_submission(),
         runtime=runtime,
-        now=NOW,
         rerank=rerank,
     )
 
@@ -107,28 +107,103 @@ def test_success_reserves_exactly_one_call_and_maps_snapshot_presentation(
     assert result.eligible_count == 1
     assert result.items[0].steam_app_id == 1
     assert result.items[0].cover_url.endswith("cover-1.jpg")
-    assert result.items[0].reason == "A calm, focused fit."
+    assert result.items[0].summary == "A focused, low-pressure adventure."
+    assert result.items[0].reasoning == (
+        "Its calm pace fits your request for something calm after work."
+    )
     assert rerank.call_count == 1
     assert rerank.call_args.kwargs["request"].candidates[0].steam_app_id == 1
-    assert session.scalar(select(GeminiPromptUsageEvent)) is not None
-    reservation = session.scalar(select(GeminiPromptReservation))
-    assert reservation is not None
-    assert reservation.completed_at is not None
+
+
+def test_two_hundred_game_pool_still_uses_exactly_one_provider_call(
+    session_and_profile: tuple[Session, int],
+) -> None:
+    session, profile_id = session_and_profile
+    for steam_app_id in range(1, 201):
+        _add_game(
+            session,
+            profile_id=profile_id,
+            steam_app_id=steam_app_id,
+            summary="A" * 1_200,
+        )
+    rerank = Mock(
+        return_value=(
+            RerankResponse(
+                status="ranked",
+                recommendations=(
+                    {
+                        "steam_app_id": 100,
+                        "summary": "A focused, low-pressure adventure.",
+                        "reasoning": (
+                            "Its calm pace fits your request for something "
+                            "calm after work."
+                        ),
+                    },
+                ),
+                no_match_reason=None,
+            ),
+            GeminiStructuredContent(
+                content={}, input_tokens=8_000, output_tokens=40, total_tokens=8_040
+            ),
+        )
+    )
+
+    result = recommend_with_gemini(
+        session,
+        profile_id=profile_id,
+        submission=_submission(),
+        runtime=_runtime(),
+        rerank=rerank,
+    )
+
+    assert result.status is RerankAssistantStatus.RANKED
+    assert result.eligible_count == 200
+    assert rerank.call_count == 1
+    request = rerank.call_args.kwargs["request"]
+    assert len(request.candidates) == 200
+    assert all(
+        len(candidate.summary or "") <= 160 for candidate in request.candidates
+    )
+
+
+def test_oversized_payload_falls_back_before_provider_call(
+    session_and_profile: tuple[Session, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session, profile_id = session_and_profile
+    _add_game(session, profile_id=profile_id, steam_app_id=1)
+    monkeypatch.setattr(
+        "app.gemini.reranking.service.rerank_user_prompt_size_bytes",
+        lambda _request: 120_001,
+    )
+    rerank = Mock()
+
+    result = recommend_with_gemini(
+        session,
+        profile_id=profile_id,
+        submission=_submission(),
+        runtime=_runtime(),
+        rerank=rerank,
+    )
+
+    assert result.status is RerankAssistantStatus.UNAVAILABLE
+    assert result.eligible_count == 1
+    rerank.assert_not_called()
 
 
 @pytest.mark.parametrize(
     ("game_count", "expected_status"),
     [
         (0, RerankAssistantStatus.EMPTY),
-        (31, RerankAssistantStatus.NEEDS_REFINEMENT),
+        (201, RerankAssistantStatus.NEEDS_REFINEMENT),
     ],
 )
-def test_stopped_pool_states_make_no_call_and_consume_no_quota(
-    session_and_access: tuple[Session, int, int],
+def test_stopped_pool_states_make_no_provider_call(
+    session_and_profile: tuple[Session, int],
     game_count: int,
     expected_status: RerankAssistantStatus,
 ) -> None:
-    session, profile_id, access_session_id = session_and_access
+    session, profile_id = session_and_profile
     if game_count == 0:
         _add_game(
             session,
@@ -137,69 +212,55 @@ def test_stopped_pool_states_make_no_call_and_consume_no_quota(
             playtime_minutes=10,
         )
         submission = _submission().model_copy(
-            update={
-                "filters": RerankFilters(play_status="unplayed"),
-            }
+            update={"filters": RerankFilters(play_status="unplayed")}
         )
     else:
         for steam_app_id in range(1, game_count + 1):
-            _add_game(
-                session,
-                profile_id=profile_id,
-                steam_app_id=steam_app_id,
-            )
+            _add_game(session, profile_id=profile_id, steam_app_id=steam_app_id)
         submission = _submission()
     rerank = Mock()
 
     result = recommend_with_gemini(
         session,
-        access_session_id=access_session_id,
         profile_id=profile_id,
         submission=submission,
         runtime=_runtime(),
-        now=NOW,
         rerank=rerank,
     )
 
     assert result.status is expected_status
     assert result.eligible_count == game_count
     rerank.assert_not_called()
-    assert session.scalar(select(GeminiPromptUsageEvent)) is None
 
 
-def test_missing_runtime_falls_back_before_quota_reservation(
-    session_and_access: tuple[Session, int, int],
+def test_missing_runtime_falls_back_before_provider_call(
+    session_and_profile: tuple[Session, int],
 ) -> None:
-    session, profile_id, access_session_id = session_and_access
+    session, profile_id = session_and_profile
     _add_game(session, profile_id=profile_id, steam_app_id=1)
 
     result = recommend_with_gemini(
         session,
-        access_session_id=access_session_id,
         profile_id=profile_id,
         submission=_submission(),
         runtime=None,
-        now=NOW,
     )
 
     assert result.status is RerankAssistantStatus.UNAVAILABLE
-    assert session.scalar(select(GeminiPromptReservation)) is None
 
 
-def test_provider_failure_releases_reservation_and_returns_safe_fallback(
-    session_and_access: tuple[Session, int, int],
+def test_provider_failure_returns_safe_fallback(
+    session_and_profile: tuple[Session, int],
 ) -> None:
-    session, profile_id, access_session_id = session_and_access
+    session, profile_id = session_and_profile
     _add_game(session, profile_id=profile_id, steam_app_id=1)
     rerank = Mock(side_effect=GeminiUnavailableError("private provider detail"))
 
     result = recommend_with_gemini(
         session,
-        access_session_id=access_session_id,
         profile_id=profile_id,
         submission=_submission(),
         runtime=_runtime(),
-        now=NOW,
         rerank=rerank,
     )
 
@@ -209,86 +270,49 @@ def test_provider_failure_releases_reservation_and_returns_safe_fallback(
         "Try guided recommendations instead."
     )
     assert "private" not in result.message
-    assert session.scalar(select(GeminiPromptUsageEvent)) is not None
-    reservation = session.scalar(select(GeminiPromptReservation))
-    assert reservation is not None
-    assert reservation.completed_at is not None
+    assert rerank.call_count == 1
 
 
-def test_session_daily_limit_falls_back_without_an_extra_provider_call(
-    session_and_access: tuple[Session, int, int],
+def test_repeated_submissions_are_not_counted_or_blocked_locally(
+    session_and_profile: tuple[Session, int],
 ) -> None:
-    session, profile_id, access_session_id = session_and_access
+    session, profile_id = session_and_profile
     _add_game(session, profile_id=profile_id, steam_app_id=1)
-    runtime = _runtime()
-    successful_rerank = Mock(
-        return_value=(
-            RerankResponse(
-                status="no_match",
-                recommendations=(),
-                no_match_reason="No supplied game fits.",
-            ),
-            GeminiStructuredContent(
-                content={}, input_tokens=None, output_tokens=None, total_tokens=None
-            ),
-        )
-    )
-    for index in range(5):
+    rerank = Mock(return_value=_no_match_response())
+
+    for _ in range(6):
         result = recommend_with_gemini(
             session,
-            access_session_id=access_session_id,
             profile_id=profile_id,
             submission=_submission(),
-            runtime=runtime,
-            now=NOW + timedelta(minutes=index * 2),
-            rerank=successful_rerank,
+            runtime=_runtime(),
+            rerank=rerank,
         )
         assert result.status is RerankAssistantStatus.NO_MATCH
 
-    limited = recommend_with_gemini(
-        session,
-        access_session_id=access_session_id,
-        profile_id=profile_id,
-        submission=_submission(),
-        runtime=runtime,
-        now=NOW + timedelta(minutes=11),
-        rerank=successful_rerank,
-    )
-
-    assert limited.status is RerankAssistantStatus.UNAVAILABLE
-    assert successful_rerank.call_count == 5
+    assert rerank.call_count == 6
 
 
-def test_provider_rate_limit_opens_circuit_for_the_next_submission(
-    session_and_access: tuple[Session, int, int],
+def test_provider_rate_limit_tells_user_to_try_again_tomorrow(
+    session_and_profile: tuple[Session, int],
 ) -> None:
-    session, profile_id, access_session_id = session_and_access
+    session, profile_id = session_and_profile
     _add_game(session, profile_id=profile_id, steam_app_id=1)
     rerank = Mock(
-        side_effect=GeminiRateLimitError(
-            "limited", retry_after_seconds=120
-        )
+        side_effect=GeminiRateLimitError("limited", retry_after_seconds=120)
     )
 
-    first = recommend_with_gemini(
+    result = recommend_with_gemini(
         session,
-        access_session_id=access_session_id,
         profile_id=profile_id,
         submission=_submission(),
         runtime=_runtime(),
-        now=NOW,
-        rerank=rerank,
-    )
-    second = recommend_with_gemini(
-        session,
-        access_session_id=access_session_id,
-        profile_id=profile_id,
-        submission=_submission(),
-        runtime=_runtime(),
-        now=NOW + timedelta(seconds=1),
         rerank=rerank,
     )
 
-    assert first.status is RerankAssistantStatus.UNAVAILABLE
-    assert second.status is RerankAssistantStatus.UNAVAILABLE
+    assert result.status is RerankAssistantStatus.UNAVAILABLE
+    assert result.message == (
+        "Ludex AI has reached Gemini's current usage limit. "
+        "Please try again tomorrow, or use guided recommendations now."
+    )
     assert rerank.call_count == 1

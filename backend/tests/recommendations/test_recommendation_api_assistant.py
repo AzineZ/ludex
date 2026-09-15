@@ -60,12 +60,16 @@ def test_assistant_filter_options_are_provider_free(
             "selected_genre_id": 31,
             "play_status": "either",
             "maximum_completion_minutes": None,
+            "theme_ids": [17],
+            "game_mode_ids": [1],
             "rejected_steam_app_ids": [],
         },
     )
 
     assert response.status_code == 200
     assert response.json() == {
+        "eligible_count": 1,
+        "candidate_limit": 200,
         "themes": [{"igdb_id": 17, "name": "Fantasy", "eligible_count": 1}],
         "game_modes": [
             {"igdb_id": 1, "name": "Single player", "eligible_count": 1}
@@ -73,7 +77,7 @@ def test_assistant_filter_options_are_provider_free(
     }
 
 
-def test_assistant_submit_maps_ranked_result_and_marks_ai_reason(
+def test_assistant_submit_maps_ai_summary_and_prompt_specific_reasoning(
     recommendation_api: RecommendationAPI,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -89,7 +93,10 @@ def test_assistant_submit_maps_ranked_result_and_marks_ai_reason(
                     cover_url="https://images.example/cover.jpg",
                     profile_playtime_minutes=0,
                     normal_completion_seconds=7_200,
-                    reason="A gentle, low-pressure fit.",
+                    summary="A gentle, low-pressure hiking adventure.",
+                    reasoning=(
+                        "Its gentle pace fits your request for something relaxing."
+                    ),
                 ),
             ),
         )
@@ -115,7 +122,7 @@ def test_assistant_submit_maps_ranked_result_and_marks_ai_reason(
     assert response.json() == {
         "status": "ranked",
         "eligible_count": 1,
-        "candidate_limit": 30,
+        "candidate_limit": 200,
         "items": [
             {
                 "rank": 1,
@@ -124,14 +131,16 @@ def test_assistant_submit_maps_ranked_result_and_marks_ai_reason(
                 "cover_url": "https://images.example/cover.jpg",
                 "profile_playtime_minutes": 0,
                 "normal_completion_seconds": 7200,
-                "reason": "A gentle, low-pressure fit.",
-                "reason_source": "ai_generated",
+                "summary": "A gentle, low-pressure hiking adventure.",
+                "reasoning": (
+                    "Its gentle pace fits your request for something relaxing."
+                ),
+                "content_source": "ai_generated",
             }
         ],
         "message": None,
         "guided_fallback_available": True,
     }
-    assert recommend.call_args.kwargs["access_session_id"] == 1
     assert recommend.call_args.kwargs["profile_id"] == 1
 
 

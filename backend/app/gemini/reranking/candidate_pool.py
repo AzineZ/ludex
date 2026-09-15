@@ -11,6 +11,10 @@ from app.gemini.reranking.contracts import (
     RerankFilters,
     RerankRequest,
 )
+from app.gemini.reranking.projection import (
+    project_rerank_candidates,
+    select_product_projection,
+)
 from app.integrations.igdb.images import igdb_cover_url
 from app.models import (
     Game,
@@ -61,8 +65,13 @@ class RerankFacetOption:
 
 @dataclass(frozen=True)
 class RerankFilterOptions:
+    eligible_count: int
     themes: tuple[RerankFacetOption, ...]
     game_modes: tuple[RerankFacetOption, ...]
+
+    def __post_init__(self) -> None:
+        if self.eligible_count < 0:
+            raise ValueError("Eligible count cannot be negative.")
 
 
 @dataclass(frozen=True)
@@ -150,9 +159,11 @@ def list_rerank_filter_options(
     selected_genre_id: int,
     play_status: PlayStatus,
     maximum_completion_minutes: int | None,
+    theme_ids: tuple[int, ...] = (),
+    game_mode_ids: tuple[int, ...] = (),
     session_excluded_steam_app_ids: frozenset[int] = frozenset(),
 ) -> RerankFilterOptions:
-    """List refinements after genre, play-status, and time constraints."""
+    """List refinements and count the current provider-free candidate pool."""
     genres = list_available_rerank_genres(session, profile_id=profile_id)
     if not any(item.igdb_id == selected_genre_id for item in genres):
         raise RerankGenreUnavailableError(
@@ -165,6 +176,17 @@ def list_rerank_filter_options(
             {FacetKind.GENRE, FacetKind.THEME, FacetKind.GAME_MODE}
         ),
     )
+    selected_filters = RerankFilters(
+        play_status=play_status,
+        maximum_completion_minutes=maximum_completion_minutes,
+        theme_ids=theme_ids,
+        game_mode_ids=game_mode_ids,
+    )
+    _validate_filter_ids(
+        facts,
+        selected_genre_id=selected_genre_id,
+        filters=selected_filters,
+    )
     eligible = _eligible_facts(
         facts,
         selected_genre_id=selected_genre_id,
@@ -173,6 +195,12 @@ def list_rerank_filter_options(
             maximum_completion_minutes=maximum_completion_minutes,
         ),
         session_excluded_steam_app_ids=session_excluded_steam_app_ids,
+    )
+    current_eligible_count = sum(
+        1
+        for item in eligible
+        if _matches_any(item.theme_ids, selected_filters.theme_ids)
+        and _matches_any(item.game_mode_ids, selected_filters.game_mode_ids)
     )
     counts: dict[tuple[FacetKind, int], int] = {}
     for item in eligible:
@@ -185,7 +213,11 @@ def list_rerank_filter_options(
                 counts[key] = counts.get(key, 0) + 1
 
     if not counts:
-        return RerankFilterOptions(themes=(), game_modes=())
+        return RerankFilterOptions(
+            eligible_count=current_eligible_count,
+            themes=(),
+            game_modes=(),
+        )
     rows = session.execute(
         select(
             IGDBMetadataTerm.kind,
@@ -218,6 +250,7 @@ def list_rerank_filter_options(
     for values in options.values():
         values.sort(key=lambda item: (item.name.casefold(), item.igdb_id))
     return RerankFilterOptions(
+        eligible_count=current_eligible_count,
         themes=tuple(options[FacetKind.THEME]),
         game_modes=tuple(options[FacetKind.GAME_MODE]),
     )
@@ -301,16 +334,17 @@ def _bounded_labels(
     return tuple(bounded)
 
 
-def _load_snapshot(
+def load_rerank_snapshot_data(
     session: Session,
     *,
     profile_id: int,
-    prompt: str,
     selected_genre_id: int,
-    selected_genre_name: str,
-    filters: RerankFilters,
     eligible: tuple[CandidateFacts, ...],
-) -> tuple[RerankRequest, tuple[RerankCandidatePresentation, ...]]:
+) -> tuple[
+    tuple[RerankCandidate, ...],
+    tuple[RerankCandidatePresentation, ...],
+]:
+    """Load the bounded provider projection for preselected cached games."""
     eligible_ids = tuple(item.steam_app_id for item in eligible)
     rows = session.execute(
         select(
@@ -391,6 +425,29 @@ def _load_snapshot(
             normal_completion_seconds=row.time_to_beat_normally_seconds,
         )
         for row in rows
+    )
+    return candidates, presentations
+
+
+def _load_snapshot(
+    session: Session,
+    *,
+    profile_id: int,
+    prompt: str,
+    selected_genre_id: int,
+    selected_genre_name: str,
+    filters: RerankFilters,
+    eligible: tuple[CandidateFacts, ...],
+) -> tuple[RerankRequest, tuple[RerankCandidatePresentation, ...]]:
+    candidates, presentations = load_rerank_snapshot_data(
+        session,
+        profile_id=profile_id,
+        selected_genre_id=selected_genre_id,
+        eligible=eligible,
+    )
+    candidates = project_rerank_candidates(
+        candidates,
+        select_product_projection(len(candidates)),
     )
     return (
         RerankRequest(

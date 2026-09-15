@@ -14,6 +14,10 @@ from app.gemini.reranking.candidate_pool import (
     list_rerank_filter_options,
 )
 from app.gemini.reranking.contracts import RerankFilters
+from app.gemini.reranking.reranker import (
+    MAX_RERANK_REQUEST_BYTES,
+    rerank_user_prompt_size_bytes,
+)
 from app.models import GameIGDBMetadataTerm, IGDBMetadataTerm, Profile
 from app.recommendations.contracts import PlayStatus
 from tests.recommendations.recommendation_api_support import (
@@ -226,6 +230,7 @@ def test_filter_options_are_scoped_to_genre_and_current_basic_constraints(
         maximum_completion_minutes=90,
     )
 
+    assert options.eligible_count == 2
     assert [
         (item.igdb_id, item.name, item.eligible_count)
         for item in options.themes
@@ -235,11 +240,25 @@ def test_filter_options_are_scoped_to_genre_and_current_basic_constraints(
         for item in options.game_modes
     ] == [(2, "Multiplayer", 1), (1, "Single player", 1)]
 
+    narrowed = list_rerank_filter_options(
+        database_session,
+        profile_id=1,
+        selected_genre_id=31,
+        play_status=PlayStatus.UNPLAYED,
+        maximum_completion_minutes=90,
+        theme_ids=(17,),
+        game_mode_ids=(1,),
+    )
+
+    assert narrowed.eligible_count == 1
+    assert narrowed.themes == options.themes
+    assert narrowed.game_modes == options.game_modes
+
 
 def test_zero_and_oversized_pools_never_build_a_provider_request(
     database_session: Session,
 ) -> None:
-    for steam_app_id in range(1, 32):
+    for steam_app_id in range(1, 202):
         _add_game(
             database_session,
             profile_id=1,
@@ -262,7 +281,7 @@ def test_zero_and_oversized_pools_never_build_a_provider_request(
     )
 
     assert oversized.state is RerankCandidatePoolState.NEEDS_REFINEMENT
-    assert oversized.eligible_count == 31
+    assert oversized.eligible_count == 201
     assert oversized.request is None
     assert oversized.presentations == ()
     assert empty.state is RerankCandidatePoolState.EMPTY
@@ -304,7 +323,7 @@ def test_submitted_genre_and_filter_ids_are_revalidated_for_profile(
 def test_session_exclusions_are_applied_before_the_complete_count(
     database_session: Session,
 ) -> None:
-    for steam_app_id in range(1, 32):
+    for steam_app_id in range(1, 202):
         _add_game(
             database_session,
             profile_id=1,
@@ -321,6 +340,52 @@ def test_session_exclusions_are_applied_before_the_complete_count(
     )
 
     assert pool.state is RerankCandidatePoolState.READY
-    assert pool.eligible_count == 30
+    assert pool.eligible_count == 200
     assert pool.request is not None
     assert 1 not in {item.steam_app_id for item in pool.request.candidates}
+
+
+@pytest.mark.parametrize(
+    ("game_count", "expected_summary_length"),
+    [
+        (30, 1200),
+        (31, 300),
+        (60, 300),
+        (61, 160),
+        (100, 160),
+        (101, 160),
+        (200, 160),
+    ],
+)
+def test_complete_pool_uses_the_approved_adaptive_projection(
+    database_session: Session,
+    game_count: int,
+    expected_summary_length: int,
+) -> None:
+    for steam_app_id in range(1, game_count + 1):
+        _add_game(
+            database_session,
+            profile_id=1,
+            steam_app_id=steam_app_id,
+            summary="s" * 1200,
+        )
+
+    pool = build_rerank_candidate_pool(
+        database_session,
+        profile_id=1,
+        prompt="x" * 500,
+        selected_genre_id=31,
+        filters=RerankFilters(),
+    )
+
+    assert pool.state is RerankCandidatePoolState.READY
+    assert pool.eligible_count == game_count
+    assert pool.request is not None
+    assert len(pool.request.candidates) == game_count
+    assert {
+        len(candidate.summary or "") for candidate in pool.request.candidates
+    } == {expected_summary_length}
+    assert (
+        rerank_user_prompt_size_bytes(pool.request)
+        <= MAX_RERANK_REQUEST_BYTES
+    )

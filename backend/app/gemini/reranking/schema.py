@@ -22,9 +22,10 @@ def build_rerank_response_schema(_request: RerankRequest) -> dict[str, Any]:
             "steam_app_id": {
                 "type": "integer",
             },
-            "reason": {"type": "string"},
+            "summary": {"type": "string"},
+            "reasoning": {"type": "string"},
         },
-        "required": ["steam_app_id", "reason"],
+        "required": ["steam_app_id", "summary", "reasoning"],
         "additionalProperties": False,
     }
     return {
