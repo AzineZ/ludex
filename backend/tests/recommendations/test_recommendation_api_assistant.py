@@ -139,6 +139,7 @@ def test_assistant_submit_maps_ai_summary_and_prompt_specific_reasoning(
             }
         ],
         "message": None,
+        "diagnostic_reference": None,
         "guided_fallback_available": True,
     }
     assert recommend.call_args.kwargs["profile_id"] == 1
@@ -170,6 +171,7 @@ def test_assistant_missing_configuration_is_a_successful_fallback_state(
 
     assert response.status_code == 200
     assert response.json()["status"] == "unavailable"
+    assert response.json()["diagnostic_reference"].startswith("GEM-")
     assert response.json()["guided_fallback_available"] is True
 
 

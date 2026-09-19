@@ -7,8 +7,10 @@ from app.gemini.client import (
     GeminiAPIError,
     GeminiAuthenticationError,
     GeminiClient,
+    GeminiConnectionError,
     GeminiRateLimitError,
     GeminiResponseError,
+    GeminiTimeoutError,
     GeminiUnavailableError,
 )
 
@@ -326,7 +328,7 @@ def test_sanitizes_provider_rejection_reason(
     assert message not in str(caught.value)
 
 
-def test_network_failure_is_reported_as_unavailable() -> None:
+def test_network_failure_is_reported_as_connection_error() -> None:
     """Translate transport failures without exposing HTTPX errors."""
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError(
@@ -341,8 +343,8 @@ def test_network_failure_is_reported_as_unavailable() -> None:
         transport=transport,
     ) as client:
         with pytest.raises(
-            GeminiUnavailableError,
-            match="currently unavailable",
+            GeminiConnectionError,
+            match="could not be reached",
         ):
             client.generate_structured_content(
                 model_id=MODEL_ID,
@@ -350,6 +352,29 @@ def test_network_failure_is_reported_as_unavailable() -> None:
                 user_prompt="User prompt",
                 response_schema=TEST_SCHEMA,
             )
+
+
+def test_timeout_is_distinguished_from_other_network_failures() -> None:
+    """Retain a safe timeout category for production diagnostics."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout(
+            "Simulated timeout.",
+            request=request,
+        )
+
+    transport = httpx.MockTransport(handler)
+
+    with GeminiClient("test-api-key", transport=transport) as client:
+        with pytest.raises(GeminiTimeoutError) as caught:
+            client.generate_structured_content(
+                model_id=MODEL_ID,
+                system_instruction="System instruction",
+                user_prompt="User prompt",
+                response_schema=TEST_SCHEMA,
+            )
+
+    assert caught.value.reason_code == "timeout"
+    assert caught.value.status_code is None
 
 
 @pytest.mark.parametrize(

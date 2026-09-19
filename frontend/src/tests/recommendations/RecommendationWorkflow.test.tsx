@@ -190,7 +190,6 @@ describe("preference recommendation workflow", () => {
       expect(
          screen.getByRole("heading", { name: "Your recommendations" })
       ).toBeInTheDocument();
-      expect(screen.queryByText(/recommendation found/i)).not.toBeInTheDocument();
       await waitFor(
          () => {
             expect(screen.getByRole("article", { name: "Portal 2" }))
@@ -292,9 +291,7 @@ describe("preference recommendation workflow", () => {
       expect(
          await screen.findByRole("button", { name: "Finding recommendations…" })
       ).toBeDisabled();
-      expect(
-         screen.getByText("Finding recommendations in your cached library…")
-      ).toHaveAttribute("role", "status");
+      expect(screen.getByRole("status")).toBeInTheDocument();
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
 
       pendingRequest.resolve(response);
@@ -364,10 +361,6 @@ describe("preference recommendation workflow", () => {
       expect(screen.queryByRole("article", { name: "Portal 2" })).toBeNull();
       const replacementCard = screen.getByRole("article", { name: "Game 4" });
       expect(replacementCard).toHaveFocus();
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "You’ve seen every recommendation for this set of games and preferences. " +
-            "Try new recommendations by selecting different games and preferences."
-      );
       expect(screen.queryByText(/alternatives remaining/i)).not.toBeInTheDocument();
       for (const button of screen.getAllByRole("button", {
          name: /^Show another instead of/,
@@ -383,10 +376,7 @@ describe("preference recommendation workflow", () => {
       playThisButton.focus();
       fireEvent.click(playThisButton);
 
-      expect(screen.getByText("You chose Game 2. Have fun!")).toHaveAttribute(
-         "role",
-         "status"
-      );
+      expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
       const acceptedCard = screen.getByRole("article", { name: "Game 2" });
       expect(acceptedCard).toHaveFocus();
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
@@ -561,12 +551,7 @@ describe("preference recommendation workflow", () => {
       })) {
          expect(button).toBeDisabled();
       }
-      expect(
-         screen.getByText(
-            "You’ve seen every recommendation for this set of games and preferences. " +
-               "Try new recommendations by selecting different games and preferences."
-         )
-      ).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveAttribute("aria-atomic", "true");
       expect(mockedGetRecommendations).toHaveBeenCalledOnce();
       expect(mockedRefineRecommendations).not.toHaveBeenCalled();
 

@@ -53,6 +53,14 @@ class GeminiUnavailableError(GeminiAPIError):
     """Indicate that Gemini is temporarily unavailable."""
 
 
+class GeminiTimeoutError(GeminiUnavailableError):
+    """Indicate that the Gemini request exceeded the client deadline."""
+
+
+class GeminiConnectionError(GeminiUnavailableError):
+    """Indicate that Gemini could not be reached over the network."""
+
+
 class GeminiResponseError(GeminiAPIError):
     """Indicate that Gemini returned invalid response data."""
 
@@ -204,9 +212,15 @@ class GeminiClient:
                 },
                 json=request_body,
             )
+        except httpx.TimeoutException:
+            raise GeminiTimeoutError(
+                "Gemini did not respond before the request deadline.",
+                reason_code="timeout",
+            ) from None
         except httpx.RequestError:
-            raise GeminiUnavailableError(
-                "Gemini is currently unavailable."
+            raise GeminiConnectionError(
+                "Gemini could not be reached.",
+                reason_code="connection_error",
             ) from None
 
         self._raise_api_error(response)

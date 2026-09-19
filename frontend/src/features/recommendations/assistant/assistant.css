@@ -243,6 +243,18 @@
    border-color: var(--color-alarm-red);
 }
 
+.assistant-state .assistant-state__reference {
+   overflow-wrap: anywhere;
+   color: var(--color-bone-cream);
+   font-size: 0.78rem;
+}
+
+.assistant-state__reference code {
+   font: inherit;
+   font-weight: 900;
+   letter-spacing: 0.04em;
+}
+
 .assistant-state .app__primary-button,
 .assistant-state .app__secondary-button {
    margin-top: 1rem;

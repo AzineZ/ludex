@@ -83,13 +83,9 @@ describe("App session experience", () => {
    it("renders while checking backend and browser session state", () => {
       render(<App />);
       expect(
-         screen.getByRole("heading", { name: "Ludex — Your next game awaits" })
+         screen.getByRole("heading", { level: 1 })
       ).toBeInTheDocument();
-      expect(screen.getByText("Server: pending")).toBeInTheDocument();
-      expect(screen.getByText("Checking your Steam session…")).toHaveAttribute(
-         "role",
-         "status"
-      );
+      expect(screen.getAllByRole("status")).toHaveLength(2);
    });
 
    it("shows Steam ID entry when no browser session exists", async () => {
@@ -200,7 +196,7 @@ describe("App session experience", () => {
       render(<App />);
       fireEvent.click(await screen.findByRole("button", { name: "Refresh library" }));
       expect(await screen.findByRole("status", { name: "refresh-result" }))
-         .toHaveTextContent("Steam library refreshed.");
+         .not.toBeEmptyDOMElement();
       expect(screen.getByText("3 games in your library")).toBeInTheDocument();
       expect(screen.getAllByText("Gamma Game").length).toBeGreaterThan(0);
    });

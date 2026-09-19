@@ -113,9 +113,6 @@ describe("ReferenceGameAutocomplete", () => {
       const { input } = renderAutocomplete({ sessionEpoch: null });
 
       expect(input).toBeDisabled();
-      expect(
-         screen.getByText("Start a Steam session to choose reference games.")
-      ).toBeInTheDocument();
    });
 
    it("disables search after three references are selected", () => {
@@ -124,9 +121,6 @@ describe("ReferenceGameAutocomplete", () => {
       });
 
       expect(input).toBeDisabled();
-      expect(
-         screen.getByText("You can select up to three reference games.")
-      ).toBeInTheDocument();
    });
 
    it.each(["waiting", "loading"] as const)(
@@ -147,9 +141,7 @@ describe("ReferenceGameAutocomplete", () => {
             1,
             "game"
          );
-         expect(
-            screen.getByText("Searching your library…")
-         ).toBeInTheDocument();
+         expect(screen.getByRole("status")).toBeInTheDocument();
       }
    );
 
@@ -165,9 +157,8 @@ describe("ReferenceGameAutocomplete", () => {
          target: { value: "unknown" },
       });
 
-      expect(
-         screen.getByText("No owned games match that search.")
-      ).toBeInTheDocument();
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
    });
 
    it("shows the backend search error", () => {

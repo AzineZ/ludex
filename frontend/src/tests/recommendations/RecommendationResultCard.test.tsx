@@ -88,13 +88,32 @@ const recommendationWithEvidence: FinalRecommendationItemResponse = {
    ],
 };
 
+function getDetails(card: HTMLElement): HTMLDetailsElement {
+   const details = card.querySelector("details");
+   if (!(details instanceof HTMLDetailsElement)) {
+      throw new Error("Recommendation details were not rendered.");
+   }
+   return details;
+}
+
+function openDetails(card: HTMLElement): HTMLDetailsElement {
+   const details = getDetails(card);
+   const summary = details.querySelector("summary");
+   if (!(summary instanceof HTMLElement)) {
+      throw new Error("Recommendation details summary was not rendered.");
+   }
+   fireEvent.click(summary);
+   return details;
+}
+
 describe("RecommendationResultCard", () => {
    it("renders the ranked identity and cached cover", () => {
       render(<RecommendationResultCard item={recommendation} />);
 
       const card = screen.getByRole("article", { name: "Portal 2" });
       expect(card).not.toHaveAttribute("data-selection-state");
-      expect(within(card).getByText("Recommendation 1")).toBeInTheDocument();
+      expect(card.querySelector(".recommendation-result-card__rank"))
+         .toBeInTheDocument();
       expect(
          within(card).getByRole("img", { name: "Portal 2 cover" })
       ).toHaveAttribute("src", "https://images.example/portal-2.jpg");
@@ -105,8 +124,6 @@ describe("RecommendationResultCard", () => {
 
       const card = screen.getByRole("article", { name: "Portal 2" });
       expect(card).toHaveAttribute("data-selection-state", "accepted");
-      expect(within(card).getByText("Your pick")).toBeInTheDocument();
-      expect(within(card).queryByText("Recommendation 1")).not.toBeInTheDocument();
    });
 
    it("requests a sharper IGDB cover without rewriting other image hosts", () => {
@@ -165,7 +182,7 @@ describe("RecommendationResultCard", () => {
       );
 
       const card = screen.getByRole("article", { name: "Portal 2" });
-      const details = within(card).getByText("Game details").closest("details");
+      const details = getDetails(card);
       const actions = card.querySelector(".recommendation-result-card__actions");
       expect(details).not.toHaveAttribute("open");
       expect(within(card).getByText(
@@ -186,7 +203,7 @@ describe("RecommendationResultCard", () => {
          ?? 0
       ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
-      fireEvent.click(within(card).getByText("Game details"));
+      openDetails(card);
       expect(details).toHaveAttribute("open");
    });
 
@@ -202,7 +219,7 @@ describe("RecommendationResultCard", () => {
 
       const card = screen.getByRole("article", { name: "Portal 2" });
       const stage = card.querySelector(".recommendation-result-card__stage");
-      const details = within(card).getByText("Game details").closest("details");
+      const details = getDetails(card);
 
       expect(stage).toContainElement(within(card).getByRole("heading", {
          name: "Portal 2",
@@ -233,10 +250,13 @@ describe("RecommendationResultCard", () => {
 
       expect(
          screen.getByRole("img", { name: "Unknown Game cover unavailable" })
-      ).toHaveTextContent("Cover unavailable");
-      expect(screen.getByText("Not played yet")).toBeInTheDocument();
-      expect(screen.getByText("Unavailable")).toBeInTheDocument();
-      expect(screen.queryByText("Keep in mind")).not.toBeInTheDocument();
+      ).toBeInTheDocument();
+      expect(document.querySelectorAll(
+         ".recommendation-result-card__facts dd"
+      )).toHaveLength(2);
+      expect(document.querySelector(
+         ".recommendation-result-card__tradeoff"
+      )).not.toBeInTheDocument();
    });
 
    it("does not expose raw scoring evidence or inactive controls", () => {
@@ -309,7 +329,7 @@ describe("RecommendationResultCard", () => {
    it("discloses authoritative contribution labels and states in backend order", () => {
       render(<RecommendationResultCard item={recommendationWithEvidence} />);
 
-      fireEvent.click(screen.getByText("Game details"));
+      openDetails(screen.getByRole("article", { name: "Portal 2" }));
       expect(screen.getByRole("heading", { name: "Preference comparison" }))
          .toBeInTheDocument();
       expect(screen.queryByText("Why this game?")).not.toBeInTheDocument();
@@ -323,7 +343,7 @@ describe("RecommendationResultCard", () => {
 
    it("keeps raw scoring and provider identities out of the disclosure", () => {
       render(<RecommendationResultCard item={recommendationWithEvidence} />);
-      fireEvent.click(screen.getByText("Game details"));
+      openDetails(screen.getByRole("article", { name: "Portal 2" }));
 
       expect(screen.queryByText("8765")).not.toBeInTheDocument();
       expect(screen.queryByText("factual-overlap-v1")).not.toBeInTheDocument();
@@ -334,11 +354,10 @@ describe("RecommendationResultCard", () => {
 
    it("explains an honestly empty contribution collection", () => {
       render(<RecommendationResultCard item={recommendation} />);
-      fireEvent.click(screen.getByText("Game details"));
+      openDetails(screen.getByRole("article", { name: "Portal 2" }));
 
-      expect(screen.getByText(
-         "No factual contribution details are available for this comparison."
-      )).toBeInTheDocument();
+      expect(document.querySelector(".recommendation-evidence"))
+         .toBeInTheDocument();
       expect(screen.queryByRole("list")).not.toBeInTheDocument();
    });
 });

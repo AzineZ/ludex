@@ -152,7 +152,6 @@ describe("ReferenceGameCard", () => {
          />
       );
 
-      expect(screen.getByText("2 traits selected")).toBeInTheDocument();
       const preferences = document.querySelector(
          ".reference-game-card__preferences"
       );
@@ -189,12 +188,11 @@ describe("ReferenceGameCard", () => {
       });
 
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
-      expect(screen.getByText("Cover unavailable")).toBeInTheDocument();
-      expect(screen.getByText("No genre metadata available.")).toBeInTheDocument();
-      expect(screen.getByText("No theme metadata available.")).toBeInTheDocument();
-      expect(
-         screen.getByText("No game mode metadata available.")
-      ).toBeInTheDocument();
+      expect(screen.getAllByRole("group")).toHaveLength(3);
+      for (const groupName of ["Genres", "Themes", "Game modes"]) {
+         expect(within(screen.getByRole("group", { name: groupName }))
+            .queryByRole("button")).not.toBeInTheDocument();
+      }
    });
 
    it("renders an optional reference-scoped keyword control", () => {

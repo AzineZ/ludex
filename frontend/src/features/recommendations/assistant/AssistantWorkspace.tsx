@@ -611,6 +611,11 @@ function AssistantWorkspaceSession({
                   <div className="assistant-state assistant-state--error" role="status">
                      <h4>AI recommendations unavailable</h4>
                      <p>{response.message}</p>
+                     {response.diagnostic_reference && (
+                        <p className="assistant-state__reference">
+                           Reference: <code>{response.diagnostic_reference}</code>
+                        </p>
+                     )}
                      <button className="app__primary-button" type="button" onClick={onUseGuided}>
                         Use guided recommendations
                      </button>

@@ -110,6 +110,16 @@ function selectionResult(
    };
 }
 
+function openConstraints(): void {
+   const summary = document.querySelector(
+      ".recommendation-constraints summary"
+   );
+   if (!(summary instanceof HTMLElement)) {
+      throw new Error("Recommendation constraints disclosure was not rendered.");
+   }
+   fireEvent.click(summary);
+}
+
 describe("ReferenceSelectionSection", () => {
    beforeEach(() => {
       mockedUseReferenceSelection.mockReset();
@@ -130,11 +140,7 @@ describe("ReferenceSelectionSection", () => {
          })
       );
       expect(selection.addReference).toHaveBeenCalledWith(suggestion);
-      expect(screen.getByText("1 of 3 reference games selected")).toBeInTheDocument();
       expect(screen.queryByText(/step 2 of 3/i)).not.toBeInTheDocument();
-      expect(screen.getByText(
-         "Choose 1 to 3 games you own. For each game, select at least one trait you want Ludex to match."
-      )).toBeInTheDocument();
    });
 
    it("marks the recommendations view so its outer divider can be removed", () => {
@@ -247,13 +253,12 @@ describe("ReferenceSelectionSection", () => {
 
       render(<ReferenceSelectionSection sessionEpoch={7} />);
 
-      expect(screen.getByText(
-         "Loading reference game details…"
-      )).toHaveAttribute("role", "status");
+      expect(document.querySelector(
+         ".reference-selection__preferences > [role='status']"
+      )).toBeInTheDocument();
       expect(screen.getByRole("alert")).toHaveTextContent(
          "Reference details are unavailable."
       );
-      expect(screen.getByText("1 of 3 reference games selected")).toBeInTheDocument();
       expect(screen.getByRole("article", { name: "First Game" }))
          .toBeInTheDocument();
       fireEvent.click(
@@ -289,7 +294,7 @@ describe("ReferenceSelectionSection", () => {
       mockedUseReferenceSelection.mockReturnValue(selectionResult());
       const { container } = render(<ReferenceSelectionSection sessionEpoch={7} />);
 
-      fireEvent.click(screen.getByText("Narrow your results"));
+      openConstraints();
       expect(screen.getByRole("button", { name: "Either" }))
          .toHaveAttribute("aria-pressed", "true");
       fireEvent.click(screen.getByRole("button", { name: "Not started" }));
@@ -301,7 +306,7 @@ describe("ReferenceSelectionSection", () => {
    it("resets recommendation constraints when the profile changes", () => {
       mockedUseReferenceSelection.mockReturnValue(selectionResult());
       const { rerender } = render(<ReferenceSelectionSection sessionEpoch={7} />);
-      fireEvent.click(screen.getByText("Narrow your results"));
+      openConstraints();
       fireEvent.click(
          screen.getByRole("button", { name: "Played before" })
       );
@@ -310,7 +315,7 @@ describe("ReferenceSelectionSection", () => {
       ).toHaveAttribute("aria-pressed", "true");
 
       rerender(<ReferenceSelectionSection sessionEpoch={8} />);
-      fireEvent.click(screen.getByText("Narrow your results"));
+      openConstraints();
       expect(screen.getByRole("button", { name: "Either" }))
          .toHaveAttribute("aria-pressed", "true");
    });

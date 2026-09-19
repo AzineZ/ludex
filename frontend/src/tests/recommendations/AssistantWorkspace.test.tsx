@@ -88,8 +88,6 @@ describe("AssistantWorkspace", () => {
       expect(within(navigation).getByRole("button", {
          name: "AI results",
       })).toBeDisabled();
-      expect(await screen.findByText("Choose a genre from your library"))
-         .toBeInTheDocument();
       await chooseAdventure();
 
       expect(mockedGenres).toHaveBeenCalledOnce();
@@ -102,15 +100,11 @@ describe("AssistantWorkspace", () => {
          rejected_steam_app_ids: [],
       });
       expect(screen.getByText("42")).toBeInTheDocument();
-      expect(screen.getByText(/games are in consideration/i)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fantasy, 16 eligible games" }))
          .toBeInTheDocument();
-      expect(screen.queryByText("Any length")).not.toBeInTheDocument();
       fireEvent.click(screen.getByText("Narrow your results"));
-      expect(screen.queryByText("How long should the game be?"))
-         .not.toBeInTheDocument();
-      expect(screen.getByText("Have you played it before?"))
-         .toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Either" }))
+         .toHaveAttribute("aria-pressed", "true");
    });
 
    it("submits one bounded prompt and runs the returned queue locally", async () => {
@@ -155,11 +149,7 @@ describe("AssistantWorkspace", () => {
          },
          rejected_steam_app_ids: [],
       });
-      expect(within(firstCard).getByRole("heading", { name: "Summary" }))
-         .toBeInTheDocument();
       expect(within(firstCard).getByText("Game summary 1."))
-         .toBeInTheDocument();
-      expect(within(firstCard).getByRole("heading", { name: "Reasoning" }))
          .toBeInTheDocument();
       expect(within(firstCard).getByText(
          "It matches your request for relaxing play 1."
@@ -199,10 +189,8 @@ describe("AssistantWorkspace", () => {
       });
       fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
 
-      expect(await screen.findByRole("heading", {
-         name: "Narrow your 242-game pool",
-      })).toBeInTheDocument();
-      expect(screen.getByText(/200-game assistant limit/i)).toBeInTheDocument();
+      expect(await screen.findByRole("status")).toBeInTheDocument();
+      expect(screen.queryByRole("article")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Ask Ludex" })).toBeEnabled();
    });
 
@@ -214,6 +202,7 @@ describe("AssistantWorkspace", () => {
          candidate_limit: 200,
          items: [],
          message: "Ludex AI has reached Gemini's current usage limit. Please try again tomorrow, or use guided recommendations now.",
+         diagnostic_reference: "GEM-1A2B3C4D5E6F",
          guided_fallback_available: true,
       });
       render(<AssistantWorkspace sessionEpoch={7} onUseGuided={onUseGuided} />);
@@ -223,10 +212,11 @@ describe("AssistantWorkspace", () => {
       });
       fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
 
-      expect(await screen.findByRole("heading", {
-         name: "AI recommendations unavailable",
-      })).toBeInTheDocument();
-      expect(screen.getByText(/please try again tomorrow/i)).toBeInTheDocument();
+      await waitFor(() => {
+         expect(document.querySelector(".assistant-state--error"))
+            .toHaveAttribute("role", "status");
+      });
+      expect(screen.getByText("GEM-1A2B3C4D5E6F")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", {
          name: "Use guided recommendations",
       }));

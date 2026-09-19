@@ -112,6 +112,10 @@ class RerankAssistantResponse(RecommendationHTTPModel):
     candidate_limit: int = MAX_RERANK_CANDIDATES
     items: tuple[RerankAssistantItemResponse, ...]
     message: str | None
+    diagnostic_reference: str | None = Field(
+        default=None,
+        pattern=r"^GEM-[A-F0-9]{12}$",
+    )
     guided_fallback_available: Literal[True] = True
 
 
@@ -150,6 +154,7 @@ def _assistant_response(result: RerankAssistantResult) -> RerankAssistantRespons
         eligible_count=result.eligible_count,
         items=tuple(_item(item) for item in result.items),
         message=result.message,
+        diagnostic_reference=result.diagnostic_reference,
     )
 
 

@@ -1,3 +1,5 @@
+import logging
+import re
 from unittest.mock import Mock
 
 import pytest
@@ -6,8 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.gemini.client import (
+    GeminiAPIError,
+    GeminiAuthenticationError,
+    GeminiConnectionError,
     GeminiRateLimitError,
+    GeminiResponseError,
     GeminiStructuredContent,
+    GeminiTimeoutError,
     GeminiUnavailableError,
 )
 from app.gemini.reranking.contracts import RerankFilters, RerankResponse
@@ -64,6 +71,7 @@ def _no_match_response() -> tuple[RerankResponse, GeminiStructuredContent]:
 
 def test_success_uses_one_call_and_maps_snapshot_presentation(
     session_and_profile: tuple[Session, int],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     session, profile_id = session_and_profile
     _add_game(
@@ -95,13 +103,14 @@ def test_success_uses_one_call_and_maps_snapshot_presentation(
         )
     )
 
-    result = recommend_with_gemini(
-        session,
-        profile_id=profile_id,
-        submission=_submission(),
-        runtime=runtime,
-        rerank=rerank,
-    )
+    with caplog.at_level(logging.INFO, logger="ludex.gemini"):
+        result = recommend_with_gemini(
+            session,
+            profile_id=profile_id,
+            submission=_submission(),
+            runtime=runtime,
+            rerank=rerank,
+        )
 
     assert result.status is RerankAssistantStatus.RANKED
     assert result.eligible_count == 1
@@ -113,6 +122,14 @@ def test_success_uses_one_call_and_maps_snapshot_presentation(
     )
     assert rerank.call_count == 1
     assert rerank.call_args.kwargs["request"].candidates[0].steam_app_id == 1
+    record = caplog.records[-1]
+    assert record.event == "gemini_rerank_succeeded"
+    assert record.model_id == "gemini-3.6-flash"
+    assert record.candidate_count == 1
+    assert record.input_tokens == 400
+    assert record.output_tokens == 40
+    assert record.total_tokens == 440
+    assert "Something calm after work" not in record.getMessage()
 
 
 def test_two_hundred_game_pool_still_uses_exactly_one_provider_call(
@@ -251,18 +268,20 @@ def test_missing_runtime_falls_back_before_provider_call(
 
 def test_provider_failure_returns_safe_fallback(
     session_and_profile: tuple[Session, int],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     session, profile_id = session_and_profile
     _add_game(session, profile_id=profile_id, steam_app_id=1)
     rerank = Mock(side_effect=GeminiUnavailableError("private provider detail"))
 
-    result = recommend_with_gemini(
-        session,
-        profile_id=profile_id,
-        submission=_submission(),
-        runtime=_runtime(),
-        rerank=rerank,
-    )
+    with caplog.at_level(logging.ERROR, logger="ludex.gemini"):
+        result = recommend_with_gemini(
+            session,
+            profile_id=profile_id,
+            submission=_submission(),
+            runtime=_runtime(),
+            rerank=rerank,
+        )
 
     assert result.status is RerankAssistantStatus.UNAVAILABLE
     assert result.message == (
@@ -270,7 +289,70 @@ def test_provider_failure_returns_safe_fallback(
         "Try guided recommendations instead."
     )
     assert "private" not in result.message
+    assert result.diagnostic_reference is not None
+    assert re.fullmatch(
+        r"GEM-[A-F0-9]{12}", result.diagnostic_reference
+    )
     assert rerank.call_count == 1
+    record = caplog.records[-1]
+    assert record.event == "gemini_rerank_failed"
+    assert record.reference == result.diagnostic_reference
+    assert record.failure_category == "provider_unavailable"
+    assert record.candidate_count == 1
+    assert record.request_bytes > 0
+    assert "private provider detail" not in record.getMessage()
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_category"),
+    [
+        (
+            GeminiTimeoutError("late", reason_code="timeout"),
+            "timeout",
+        ),
+        (
+            GeminiConnectionError(
+                "offline", reason_code="connection_error"
+            ),
+            "connection_error",
+        ),
+        (
+            GeminiAuthenticationError("bad key", status_code=403),
+            "authentication_rejected",
+        ),
+        (
+            GeminiResponseError(
+                "bad response", reason_code="invalid_output_json"
+            ),
+            "invalid_response",
+        ),
+        (
+            GeminiAPIError("bad request", status_code=400),
+            "provider_rejected",
+        ),
+    ],
+)
+def test_provider_failures_keep_distinct_safe_categories(
+    session_and_profile: tuple[Session, int],
+    caplog: pytest.LogCaptureFixture,
+    error: GeminiAPIError,
+    expected_category: str,
+) -> None:
+    session, profile_id = session_and_profile
+    _add_game(session, profile_id=profile_id, steam_app_id=1)
+
+    with caplog.at_level(logging.ERROR, logger="ludex.gemini"):
+        result = recommend_with_gemini(
+            session,
+            profile_id=profile_id,
+            submission=_submission(),
+            runtime=_runtime(),
+            rerank=Mock(side_effect=error),
+        )
+
+    assert result.status is RerankAssistantStatus.UNAVAILABLE
+    assert result.diagnostic_reference is not None
+    assert caplog.records[-1].failure_category == expected_category
 
 
 def test_repeated_submissions_are_not_counted_or_blocked_locally(
@@ -295,6 +377,7 @@ def test_repeated_submissions_are_not_counted_or_blocked_locally(
 
 def test_provider_rate_limit_tells_user_to_try_again_tomorrow(
     session_and_profile: tuple[Session, int],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     session, profile_id = session_and_profile
     _add_game(session, profile_id=profile_id, steam_app_id=1)
@@ -302,17 +385,22 @@ def test_provider_rate_limit_tells_user_to_try_again_tomorrow(
         side_effect=GeminiRateLimitError("limited", retry_after_seconds=120)
     )
 
-    result = recommend_with_gemini(
-        session,
-        profile_id=profile_id,
-        submission=_submission(),
-        runtime=_runtime(),
-        rerank=rerank,
-    )
+    with caplog.at_level(logging.ERROR, logger="ludex.gemini"):
+        result = recommend_with_gemini(
+            session,
+            profile_id=profile_id,
+            submission=_submission(),
+            runtime=_runtime(),
+            rerank=rerank,
+        )
 
     assert result.status is RerankAssistantStatus.UNAVAILABLE
     assert result.message == (
         "Ludex AI has reached Gemini's current usage limit. "
         "Please try again tomorrow, or use guided recommendations now."
     )
+    assert result.diagnostic_reference is not None
     assert rerank.call_count == 1
+    record = caplog.records[-1]
+    assert record.failure_category == "rate_limited"
+    assert record.retry_after_seconds == 120

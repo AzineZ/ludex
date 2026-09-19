@@ -240,6 +240,7 @@ export type AssistantRecommendationResponse = {
    candidate_limit: number;
    items: AssistantRecommendationItemResponse[];
    message: string | null;
+   diagnostic_reference?: string | null;
    guided_fallback_available: true;
 };
 

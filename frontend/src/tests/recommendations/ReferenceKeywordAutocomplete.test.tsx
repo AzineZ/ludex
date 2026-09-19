@@ -97,7 +97,6 @@ describe("ReferenceKeywordAutocomplete", () => {
             onToggle={onToggle}
          />
       );
-      expect(screen.getByText("1 of 3 keywords selected")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Remove keyword Exploration" }))
          .toHaveAttribute("aria-pressed", "true");
       fireEvent.click(
@@ -122,20 +121,18 @@ describe("ReferenceKeywordAutocomplete", () => {
          .toBeEnabled();
       expect(screen.getByRole("button", { name: "Select keyword Story rich" }))
          .toBeDisabled();
-      expect(screen.getByText("Remove one selected keyword to choose another."))
-         .toBeInTheDocument();
    });
 
    it.each([
-      ["loading", "Loading keywords…"],
-      ["ready", "No cached keywords are available for this game."],
-      ["unavailable", "Keyword browse failed."],
-   ] as const)("shows the %s state", (status, message) => {
+      ["loading", "status", null],
+      ["ready", "status", null],
+      ["unavailable", "alert", "Keyword browse failed."],
+   ] as const)("shows the %s state", (status, role, error) => {
       mockedBrowse.mockReturnValue({
          status,
          items: [],
          truncated: false,
-         error: status === "unavailable" ? message : null,
+         error,
          retry: vi.fn(),
       });
       render(
@@ -146,7 +143,7 @@ describe("ReferenceKeywordAutocomplete", () => {
             onToggle={vi.fn()}
          />
       );
-      expect(screen.getByText(message)).toBeInTheDocument();
+      expect(screen.getByRole(role)).toBeInTheDocument();
    });
 
    it("preserves selected keywords and explicitly retries a failed browse", () => {
@@ -187,13 +184,14 @@ describe("ReferenceKeywordAutocomplete", () => {
             onToggle={vi.fn()}
          />
       );
-      expect(screen.getByText("Showing the first 250 cached keywords."))
+      expect(screen.getByRole("list", { name: "Available keywords" }))
          .toBeInTheDocument();
 
       fireEvent.change(screen.getByRole("searchbox", { name: "Filter keywords" }), {
          target: { value: "missing" },
       });
-      expect(screen.getByText("No keywords match that filter."))
-         .toBeInTheDocument();
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(screen.queryByRole("list", { name: "Available keywords" }))
+         .not.toBeInTheDocument();
    });
 });

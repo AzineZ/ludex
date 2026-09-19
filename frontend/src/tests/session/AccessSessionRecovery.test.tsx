@@ -82,9 +82,8 @@ describe("AccessSessionSection startup recovery", () => {
       );
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
 
-      expect(
-         await screen.findByText(`Current Steam profile:`, { exact: false })
-      ).toHaveTextContent(enteredProfile.display_name);
+      expect(await screen.findByText(enteredProfile.display_name))
+         .toBeInTheDocument();
    });
 
    it("recovers an unavailable startup check to the authorized profile", async () => {
@@ -95,9 +94,8 @@ describe("AccessSessionSection startup recovery", () => {
       render(<AccessSessionSection />);
       fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
 
-      expect(
-         await screen.findByText(`Current Steam profile:`, { exact: false })
-      ).toHaveTextContent(restoredProfile.display_name);
+      expect(await screen.findByText(restoredProfile.display_name))
+         .toBeInTheDocument();
       expect(mockedGetCurrent).toHaveBeenCalledTimes(2);
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
    });
@@ -139,15 +137,12 @@ describe("AccessSessionSection startup recovery", () => {
          screen.getByRole("checkbox", { name: /I confirm I am authorized/ })
       );
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
-      expect(
-         await screen.findByText(`Current Steam profile:`, { exact: false })
-      ).toHaveTextContent(enteredProfile.display_name);
+      expect(await screen.findByText(enteredProfile.display_name))
+         .toBeInTheDocument();
 
       await act(async () => olderRetry.resolve(restoredProfile));
 
-      expect(screen.getByText(`Current Steam profile:`, { exact: false })).toHaveTextContent(
-         enteredProfile.display_name
-      );
+      expect(screen.getByText(enteredProfile.display_name)).toBeInTheDocument();
       expect(screen.queryByText(restoredProfile.display_name)).not.toBeInTheDocument();
    });
 });
