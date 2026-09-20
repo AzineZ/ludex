@@ -27,7 +27,7 @@ vi.mock("../../api", async (importOriginal) => {
       }),
       getAssistantFilterOptions: vi.fn().mockResolvedValue({
          eligible_count: 42,
-         candidate_limit: 200,
+         candidate_limit: 400,
          themes: [
             { igdb_id: 17, name: "Fantasy", eligible_count: 16 },
             { igdb_id: 18, name: "Science fiction", eligible_count: 9 },
@@ -47,7 +47,7 @@ vi.mock("../../api", async (importOriginal) => {
       getAssistantRecommendations: vi.fn().mockResolvedValue({
          status: "ranked",
          eligible_count: 6,
-         candidate_limit: 200,
+         candidate_limit: 400,
          message: null,
          guided_fallback_available: true,
          items: Array.from({ length: 6 }, (_, index) => ({
@@ -57,10 +57,8 @@ vi.mock("../../api", async (importOriginal) => {
             cover_url: null,
             profile_playtime_minutes: index * 60,
             normal_completion_seconds: 7_200,
-            summary: "A bounded AI-generated summary for this responsive fixture.",
-            reasoning: (
-               "Its relaxed pacing matches your request for something relaxing."
-            ),
+            summary: "A bounded AI-generated summary describing the game's premise, setting, central activity, and moment-to-moment play for this responsive fixture. ".repeat(3),
+            reasoning: "Its relaxed pacing, low-pressure exploration, and gentle progression directly match your request for something relaxing after work. ".repeat(2),
             content_source: "ai_generated",
          })),
       }),
@@ -404,6 +402,12 @@ describe("responsive layout contracts", () => {
          const explanation = firstCard.querySelector<HTMLElement>(
             ".assistant-result-card__explanation"
          );
+         const summaryRegion = screen.getByRole("region", {
+            name: "Responsive Assistant Game 1 summary",
+         });
+         const reasoningRegion = screen.getByRole("region", {
+            name: "Responsive Assistant Game 1 reasoning",
+         });
          expect(stage).not.toBeNull();
          expect(actions).not.toBeNull();
          expect(explanation).not.toBeNull();
@@ -419,6 +423,18 @@ describe("responsive layout contracts", () => {
          ).toBeLessThanOrEqual(
             (stage as HTMLElement).getBoundingClientRect().bottom
          );
+         expect(getComputedStyle(summaryRegion).overflowY).toBe("auto");
+         expect(getComputedStyle(reasoningRegion).overflowY).toBe("auto");
+         expect(summaryRegion.parentElement?.dataset.hasOverflow).toBe("true");
+         expect(summaryRegion.parentElement?.dataset.atEnd).toBe("false");
+         expect(
+            summaryRegion.getBoundingClientRect().height,
+            `summary/reasoning height at ${viewportName(viewport)}`
+         ).toBeGreaterThan(0);
+         expect(
+            reasoningRegion.getBoundingClientRect().height,
+            `reasoning scroll height at ${viewportName(viewport)}`
+         ).toBeGreaterThan(0);
       }
    });
 

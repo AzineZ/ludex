@@ -3,6 +3,8 @@ from pydantic import ValidationError
 
 from app.gemini.reranking.contracts import (
     MAX_RERANK_CANDIDATES,
+    MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS,
+    MAX_RERANK_REASONING_CHARACTERS,
     RerankCandidate,
     RerankFilters,
     RerankRequest,
@@ -36,9 +38,9 @@ def request(count: int = 6) -> RerankRequest:
     )
 
 
-def test_request_accepts_at_most_two_hundred_unique_candidates() -> None:
-    assert MAX_RERANK_CANDIDATES == 200
-    assert len(request(MAX_RERANK_CANDIDATES).candidates) == 200
+def test_request_accepts_at_most_four_hundred_unique_candidates() -> None:
+    assert MAX_RERANK_CANDIDATES == 400
+    assert len(request(MAX_RERANK_CANDIDATES).candidates) == 400
 
     with pytest.raises(ValidationError):
         request(MAX_RERANK_CANDIDATES + 1)
@@ -112,19 +114,48 @@ def test_response_requires_distinct_bounded_summary_and_reasoning() -> None:
         "Fits your request for relaxing play."
     )
 
+    assert MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS == 400
+    assert MAX_RERANK_REASONING_CHARACTERS == 240
+
     for field in ("summary", "reasoning"):
-        for invalid_value in (" ", "x" * 241):
-            invalid = {
-                **base,
-                "recommendations": [
-                    {
-                        **base["recommendations"][0],
-                        field: invalid_value,
-                    }
-                ],
+        invalid = {
+            **base,
+            "recommendations": [
+                {
+                    **base["recommendations"][0],
+                    field: " ",
+                }
+            ],
+        }
+        with pytest.raises(ValidationError):
+            RerankResponse.model_validate(invalid)
+
+    summary_at_limit = {
+        **base,
+        "recommendations": [
+            {
+                **base["recommendations"][0],
+                "summary": "x" * MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS,
             }
-            with pytest.raises(ValidationError):
-                RerankResponse.model_validate(invalid)
+        ],
+    }
+    RerankResponse.model_validate(summary_at_limit)
+
+    for field, maximum in (
+        ("summary", MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS),
+        ("reasoning", MAX_RERANK_REASONING_CHARACTERS),
+    ):
+        invalid = {
+            **base,
+            "recommendations": [
+                {
+                    **base["recommendations"][0],
+                    field: "x" * (maximum + 1),
+                }
+            ],
+        }
+        with pytest.raises(ValidationError):
+            RerankResponse.model_validate(invalid)
 
 
 def test_candidate_text_is_bounded_and_normalized() -> None:

@@ -60,6 +60,10 @@ describe("responsive layout contract", () => {
       expect(recommendationCss).toMatch(/\.reference-keywords__options[\s\S]*max-height:\s*16rem[\s\S]*overflow-y:\s*auto/);
       expect(recommendationCss).toMatch(/\.reference-game-suggestions span\s*\{[^}]*overflow-wrap:\s*anywhere/);
       expect(recommendationCss).toMatch(/\.recommendation-result-card__content h3\s*\{[^}]*overflow-wrap:\s*anywhere/);
+      expect(recommendationCss).toMatch(/\.assistant-result-card__explanation\s*\{[^}]*height:\s*clamp\(14rem,\s*24vw,\s*17rem\)[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+      expect(recommendationCss).toMatch(/\.assistant-result-card__scroll-region\s*\{[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/);
+      expect(recommendationCss).toMatch(/\.assistant-result-card__explanation \.assistant-scroll-frame\s*\{[^}]*--assistant-scroll-fade-height:\s*1\.5rem/);
+      expect(recommendationCss).toMatch(/\.assistant-scroll-frame\[data-has-overflow="true"\]\[data-at-end="false"\]::after\s*\{[^}]*opacity:\s*1/);
    });
 
    it("switches forms, game rows, cards, facts, and evidence to narrow layouts", () => {

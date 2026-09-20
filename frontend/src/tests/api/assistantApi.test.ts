@@ -51,7 +51,7 @@ describe("assistant API", () => {
       };
       const response = {
          eligible_count: 4,
-         candidate_limit: 200,
+         candidate_limit: 400,
          themes: [],
          game_modes: [],
       };
@@ -84,7 +84,7 @@ describe("assistant API", () => {
       const response = {
          status: "no_match",
          eligible_count: 4,
-         candidate_limit: 200,
+         candidate_limit: 400,
          items: [],
          message: "No close fit was found.",
          guided_fallback_available: true,

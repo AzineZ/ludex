@@ -35,6 +35,8 @@ def candidate(steam_app_id: int) -> RerankCandidate:
         (100, COMPACT_PROJECTION),
         (101, COMPACT_PROJECTION),
         (200, COMPACT_PROJECTION),
+        (201, COMPACT_PROJECTION),
+        (400, COMPACT_PROJECTION),
     ],
 )
 def test_product_projection_changes_only_at_approved_boundaries(
@@ -44,7 +46,7 @@ def test_product_projection_changes_only_at_approved_boundaries(
     assert select_product_projection(candidate_count) is expected
 
 
-@pytest.mark.parametrize("candidate_count", (0, 201))
+@pytest.mark.parametrize("candidate_count", (0, 401))
 def test_product_projection_rejects_stopped_pool_sizes(
     candidate_count: int,
 ) -> None:
@@ -57,7 +59,7 @@ def test_product_projection_rejects_stopped_pool_sizes(
     [
         (RICH_PROJECTION, 1200, (8, 8, 12, 8)),
         (BALANCED_PROJECTION, 300, (4, 4, 6, 4)),
-        (COMPACT_PROJECTION, 160, (3, 3, 4, 3)),
+        (COMPACT_PROJECTION, 240, (3, 3, 4, 3)),
     ],
 )
 def test_projection_compacts_facts_without_selecting_or_reordering_games(
@@ -82,3 +84,17 @@ def test_projection_compacts_facts_without_selecting_or_reordering_games(
         == label_lengths
         for item in projected
     )
+
+
+def test_projection_marks_truncated_summary_at_a_word_boundary() -> None:
+    source = candidate(1).model_copy(
+        update={
+            "summary": "complete " * 100
+        }
+    )
+
+    projected = project_rerank_candidates((source,), COMPACT_PROJECTION)[0]
+
+    assert projected.summary is not None
+    assert len(projected.summary) <= COMPACT_PROJECTION.summary_characters
+    assert projected.summary.endswith("complete…")

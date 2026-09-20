@@ -258,7 +258,7 @@ def test_filter_options_are_scoped_to_genre_and_current_basic_constraints(
 def test_zero_and_oversized_pools_never_build_a_provider_request(
     database_session: Session,
 ) -> None:
-    for steam_app_id in range(1, 202):
+    for steam_app_id in range(1, 402):
         _add_game(
             database_session,
             profile_id=1,
@@ -281,7 +281,7 @@ def test_zero_and_oversized_pools_never_build_a_provider_request(
     )
 
     assert oversized.state is RerankCandidatePoolState.NEEDS_REFINEMENT
-    assert oversized.eligible_count == 201
+    assert oversized.eligible_count == 401
     assert oversized.request is None
     assert oversized.presentations == ()
     assert empty.state is RerankCandidatePoolState.EMPTY
@@ -323,7 +323,7 @@ def test_submitted_genre_and_filter_ids_are_revalidated_for_profile(
 def test_session_exclusions_are_applied_before_the_complete_count(
     database_session: Session,
 ) -> None:
-    for steam_app_id in range(1, 202):
+    for steam_app_id in range(1, 402):
         _add_game(
             database_session,
             profile_id=1,
@@ -340,7 +340,7 @@ def test_session_exclusions_are_applied_before_the_complete_count(
     )
 
     assert pool.state is RerankCandidatePoolState.READY
-    assert pool.eligible_count == 200
+    assert pool.eligible_count == 400
     assert pool.request is not None
     assert 1 not in {item.steam_app_id for item in pool.request.candidates}
 
@@ -351,10 +351,12 @@ def test_session_exclusions_are_applied_before_the_complete_count(
         (30, 1200),
         (31, 300),
         (60, 300),
-        (61, 160),
-        (100, 160),
-        (101, 160),
-        (200, 160),
+        (61, 240),
+        (100, 240),
+        (101, 240),
+        (200, 240),
+        (201, 240),
+        (400, 240),
     ],
 )
 def test_complete_pool_uses_the_approved_adaptive_projection(

@@ -69,7 +69,7 @@ def test_assistant_filter_options_are_provider_free(
     assert response.status_code == 200
     assert response.json() == {
         "eligible_count": 1,
-        "candidate_limit": 200,
+        "candidate_limit": 400,
         "themes": [{"igdb_id": 17, "name": "Fantasy", "eligible_count": 1}],
         "game_modes": [
             {"igdb_id": 1, "name": "Single player", "eligible_count": 1}
@@ -122,7 +122,7 @@ def test_assistant_submit_maps_ai_summary_and_prompt_specific_reasoning(
     assert response.json() == {
         "status": "ranked",
         "eligible_count": 1,
-        "candidate_limit": 200,
+        "candidate_limit": 400,
         "items": [
             {
                 "rank": 1,

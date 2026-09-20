@@ -163,7 +163,10 @@
 }
 
 .assistant-scroll-frame {
+   --assistant-scroll-fade-height: 2.75rem;
+
    position: relative;
+   min-height: 0;
    min-width: 0;
 }
 
@@ -173,7 +176,7 @@
    z-index: 1;
    right: 0;
    left: 0;
-   height: 2.75rem;
+   height: var(--assistant-scroll-fade-height);
    opacity: 0;
    pointer-events: none;
    content: "";
@@ -344,11 +347,15 @@
 
 .assistant-result-card__explanation {
    display: grid;
-   gap: 1rem;
+   height: clamp(14rem, 24vw, 17rem);
+   grid-template-rows: repeat(2, minmax(0, 1fr));
    margin-top: 1.25rem;
 }
 
 .assistant-result-card__explanation .recommendation-result-card__reason {
+   display: grid;
+   min-height: 0;
+   grid-template-rows: auto minmax(0, 1fr);
    margin-top: 0;
 }
 
@@ -356,6 +363,30 @@
    .recommendation-result-card__reason {
    padding-top: 1rem;
    border-top: 1px solid var(--color-ash-taupe);
+}
+
+.assistant-result-card__scroll-region {
+   height: 100%;
+   min-height: 0;
+   padding-right: 0.4rem;
+   overflow-y: auto;
+   overscroll-behavior: contain;
+   scrollbar-gutter: stable;
+}
+
+.assistant-result-card__explanation .assistant-scroll-frame {
+   --assistant-scroll-fade-height: 1.5rem;
+
+   margin-top: 0.4rem;
+}
+
+.assistant-result-card__scroll-region p {
+   margin-top: 0;
+}
+
+.assistant-result-card__scroll-region:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 2px;
 }
 
 .assistant-result-card__actions {

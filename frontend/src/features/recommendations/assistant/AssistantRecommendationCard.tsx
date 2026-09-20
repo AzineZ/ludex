@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 
 import type { AssistantRecommendationItemResponse } from "../../../api";
+import ScrollFadeFrame from "./ScrollFadeFrame";
 
 type AssistantRecommendationCardProps = {
    item: AssistantRecommendationItemResponse;
@@ -92,11 +93,27 @@ function AssistantRecommendationCard({
                <div className="assistant-result-card__explanation">
                   <section className="recommendation-result-card__reason">
                      <h4>Summary</h4>
-                     <p>{item.summary}</p>
+                     <ScrollFadeFrame
+                        className="assistant-result-card__scroll-region"
+                        role="region"
+                        ariaLabel={`${item.title} summary`}
+                        tabIndex={0}
+                        updateKey={item.summary}
+                     >
+                        <p>{item.summary}</p>
+                     </ScrollFadeFrame>
                   </section>
                   <section className="recommendation-result-card__reason">
                      <h4>Reasoning</h4>
-                     <p>{item.reasoning}</p>
+                     <ScrollFadeFrame
+                        className="assistant-result-card__scroll-region"
+                        role="region"
+                        ariaLabel={`${item.title} reasoning`}
+                        tabIndex={0}
+                        updateKey={item.reasoning}
+                     >
+                        <p>{item.reasoning}</p>
+                     </ScrollFadeFrame>
                   </section>
                </div>
             </div>

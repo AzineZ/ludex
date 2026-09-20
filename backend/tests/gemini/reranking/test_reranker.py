@@ -8,6 +8,10 @@ from app.gemini.reranking.contracts import (
     RerankFilters,
     RerankRequest,
 )
+from app.gemini.reranking.projection import (
+    COMPACT_PROJECTION,
+    project_rerank_candidates,
+)
 from app.gemini.reranking.reranker import (
     MAX_RERANK_OUTPUT_TOKENS,
     MAX_RERANK_REQUEST_BYTES,
@@ -77,12 +81,15 @@ def test_reranker_sends_one_bounded_untrusted_snapshot() -> None:
     assert [item.steam_app_id for item in response.recommendations] == [2, 1]
     assert metadata.total_tokens == 550
     call = client.generate_structured_content_with_metadata.call_args.kwargs
+    normalized_instruction = " ".join(call["system_instruction"].split()).casefold()
     assert call["max_output_tokens"] == MAX_RERANK_OUTPUT_TOKENS
     assert len(call["user_prompt"].encode("utf-8")) <= MAX_RERANK_REQUEST_BYTES
     assert '"visitor_request":"Something relaxing"' in call["user_prompt"]
-    assert "untrusted" in call["system_instruction"].casefold()
-    assert "summary" in call["system_instruction"].casefold()
-    assert "reasoning must repeat" in call["system_instruction"].casefold()
+    assert "untrusted" in normalized_instruction
+    assert "summary" in normalized_instruction
+    assert "what the player does" in normalized_instruction
+    assert "release history" in normalized_instruction
+    assert "reasoning must repeat" in normalized_instruction
 
 
 @pytest.mark.parametrize(
@@ -153,6 +160,47 @@ def test_thirty_candidate_fixture_stays_within_request_budget() -> None:
     assert len(prompt.encode("utf-8")) <= MAX_RERANK_REQUEST_BYTES
 
 
+def test_four_hundred_compact_candidates_stay_within_request_budget() -> None:
+    candidates = tuple(
+        RerankCandidate(
+            steam_app_id=index,
+            title=f"Game {index}",
+            summary="s" * 1_200,
+            genres=("Adventure", "Role-playing", "Indie", "Action"),
+            themes=("Fantasy", "Drama", "Open world", "Science fiction"),
+            keywords=(
+                "Exploration",
+                "Story rich",
+                "Pixel graphics",
+                "Character customization",
+                "Atmospheric",
+            ),
+            game_modes=("Single player", "Multiplayer", "Co-operative"),
+            profile_playtime_minutes=0,
+            normal_completion_minutes=600,
+        )
+        for index in range(1, 401)
+    )
+    request_snapshot = RerankRequest(
+        prompt="x" * 500,
+        selected_genre_id=31,
+        selected_genre_name="Adventure",
+        filters=RerankFilters(),
+        candidates=project_rerank_candidates(
+            candidates,
+            COMPACT_PROJECTION,
+        ),
+    )
+
+    prompt = build_rerank_user_prompt(request_snapshot)
+
+    assert {
+        len(candidate.summary or "")
+        for candidate in request_snapshot.candidates
+    } == {240}
+    assert len(prompt.encode("utf-8")) <= MAX_RERANK_REQUEST_BYTES
+
+
 def test_explicit_evaluation_limit_does_not_weaken_default_payload_guard() -> None:
     base = request()
     large = RerankRequest.model_validate(
@@ -165,7 +213,7 @@ def test_explicit_evaluation_limit_does_not_weaken_default_payload_guard() -> No
                             "summary": "x" * 1_200,
                         }
                     )
-                    for index in range(100)
+                    for index in range(200)
                 )
             }
         ).model_dump()
@@ -174,8 +222,8 @@ def test_explicit_evaluation_limit_does_not_weaken_default_payload_guard() -> No
     with pytest.raises(RerankRequestTooLarge):
         build_rerank_user_prompt(large)
 
-    prompt = build_rerank_user_prompt(large, max_request_bytes=200_000)
-    assert MAX_RERANK_REQUEST_BYTES < len(prompt.encode("utf-8")) <= 200_000
+    prompt = build_rerank_user_prompt(large, max_request_bytes=400_000)
+    assert MAX_RERANK_REQUEST_BYTES < len(prompt.encode("utf-8")) <= 400_000
 
 
 def test_response_schema_uses_supported_shape_and_local_id_validation() -> None:

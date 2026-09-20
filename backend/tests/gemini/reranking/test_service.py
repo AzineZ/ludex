@@ -170,11 +170,11 @@ def test_gemini_success_diagnostics_use_uvicorn_output_handler() -> None:
     assert "event=gemini_rerank_succeeded" in stream.getvalue()
 
 
-def test_two_hundred_game_pool_still_uses_exactly_one_provider_call(
+def test_four_hundred_game_pool_still_uses_exactly_one_provider_call(
     session_and_profile: tuple[Session, int],
 ) -> None:
     session, profile_id = session_and_profile
-    for steam_app_id in range(1, 201):
+    for steam_app_id in range(1, 401):
         _add_game(
             session,
             profile_id=profile_id,
@@ -212,13 +212,11 @@ def test_two_hundred_game_pool_still_uses_exactly_one_provider_call(
     )
 
     assert result.status is RerankAssistantStatus.RANKED
-    assert result.eligible_count == 200
+    assert result.eligible_count == 400
     assert rerank.call_count == 1
     request = rerank.call_args.kwargs["request"]
-    assert len(request.candidates) == 200
-    assert all(
-        len(candidate.summary or "") <= 160 for candidate in request.candidates
-    )
+    assert len(request.candidates) == 400
+    assert all(len(candidate.summary or "") == 240 for candidate in request.candidates)
 
 
 def test_oversized_payload_falls_back_before_provider_call(
@@ -229,7 +227,7 @@ def test_oversized_payload_falls_back_before_provider_call(
     _add_game(session, profile_id=profile_id, steam_app_id=1)
     monkeypatch.setattr(
         "app.gemini.reranking.service.rerank_user_prompt_size_bytes",
-        lambda _request: 120_001,
+        lambda _request: 240_001,
     )
     rerank = Mock()
 
@@ -250,7 +248,7 @@ def test_oversized_payload_falls_back_before_provider_call(
     ("game_count", "expected_status"),
     [
         (0, RerankAssistantStatus.EMPTY),
-        (201, RerankAssistantStatus.NEEDS_REFINEMENT),
+        (401, RerankAssistantStatus.NEEDS_REFINEMENT),
     ],
 )
 def test_stopped_pool_states_make_no_provider_call(

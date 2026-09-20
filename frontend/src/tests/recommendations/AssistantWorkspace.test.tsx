@@ -28,7 +28,7 @@ function rankedResponse(): AssistantRecommendationResponse {
    return {
       status: "ranked",
       eligible_count: 6,
-      candidate_limit: 200,
+      candidate_limit: 400,
       message: null,
       guided_fallback_available: true,
       items: Array.from({ length: 6 }, (_, index) => ({
@@ -65,7 +65,7 @@ describe("AssistantWorkspace", () => {
       });
       mockedFilters.mockImplementation(async (context) => ({
          eligible_count: context.theme_ids.includes(17) ? 16 : 42,
-         candidate_limit: 200,
+         candidate_limit: 400,
          themes: [
             { igdb_id: 17, name: "Fantasy", eligible_count: 16 },
             { igdb_id: 18, name: "Science fiction", eligible_count: 9 },
@@ -154,6 +154,12 @@ describe("AssistantWorkspace", () => {
       expect(within(firstCard).getByText(
          "It matches your request for relaxing play 1."
       )).toBeInTheDocument();
+      expect(within(firstCard).getByRole("region", {
+         name: "Game 1 summary",
+      })).toHaveClass("assistant-result-card__scroll-region");
+      expect(within(firstCard).getByRole("region", {
+         name: "Game 1 reasoning",
+      })).toHaveClass("assistant-result-card__scroll-region");
       expect(screen.getAllByRole("article")).toHaveLength(3);
 
       fireEvent.click(within(firstCard).getByRole("button", {
@@ -177,7 +183,7 @@ describe("AssistantWorkspace", () => {
       mockedRecommendations.mockResolvedValue({
          status: "needs_refinement",
          eligible_count: 242,
-         candidate_limit: 200,
+         candidate_limit: 400,
          items: [],
          message: "Choose another factual filter so every eligible game can be considered.",
          guided_fallback_available: true,
@@ -199,7 +205,7 @@ describe("AssistantWorkspace", () => {
       mockedRecommendations.mockResolvedValue({
          status: "unavailable",
          eligible_count: 18,
-         candidate_limit: 200,
+         candidate_limit: 400,
          items: [],
          message: "Ludex AI has reached Gemini's current usage limit. Please try again tomorrow, or use guided recommendations now.",
          diagnostic_reference: "GEM-1A2B3C4D5E6F",

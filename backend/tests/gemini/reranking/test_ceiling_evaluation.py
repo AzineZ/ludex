@@ -64,7 +64,7 @@ def test_historical_ceiling_fixtures_fit_the_expanded_product_contract() -> None
 
     assert len(product_size.candidates) == 100
     assert len(evaluation_only.candidates) == 150
-    assert MAX_RERANK_CANDIDATES == 200
+    assert MAX_RERANK_CANDIDATES == 400
     assert len(
         RerankRequest.model_validate(product_size.model_dump()).candidates
     ) == 100
@@ -76,7 +76,8 @@ def test_historical_ceiling_fixtures_fit_the_expanded_product_contract() -> None
             {
                 **evaluation_only.model_dump(),
                 "candidates": tuple(evaluation_only.candidates)
-                + tuple(evaluation_only.candidates[:51]),
+                + tuple(evaluation_only.candidates)
+                + tuple(evaluation_only.candidates[:101]),
             }
         )
     with pytest.raises(ValidationError):

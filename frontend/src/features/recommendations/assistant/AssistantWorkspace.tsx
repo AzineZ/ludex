@@ -1,10 +1,8 @@
 import {
-   useCallback,
    useEffect,
    useMemo,
    useRef,
    useState,
-   type ReactNode,
 } from "react";
 
 import {
@@ -19,6 +17,7 @@ import {
 } from "../../../api";
 import RecommendationConstraints from "../preferences/RecommendationConstraints";
 import AssistantResults from "./AssistantResults";
+import ScrollFadeFrame from "./ScrollFadeFrame";
 
 type AssistantWorkspaceProps = {
    sessionEpoch: number | null;
@@ -34,83 +33,10 @@ const DEFAULT_CONSTRAINTS: PreferenceConstraints = {
 
 const EMPTY_FILTER_OPTIONS: AssistantFilterOptionsResponse = {
    eligible_count: 0,
-   candidate_limit: 200,
+   candidate_limit: 400,
    themes: [],
    game_modes: [],
 };
-
-function ScrollableOptionGrid({
-   children,
-   className,
-   itemCount,
-}: {
-   children: ReactNode;
-   className: string;
-   itemCount: number;
-}) {
-   const viewportRef = useRef<HTMLDivElement>(null);
-   const [scrollState, setScrollState] = useState({
-      atEnd: true,
-      atStart: true,
-      hasOverflow: false,
-   });
-
-   const updateScrollState = useCallback(() => {
-      const viewport = viewportRef.current;
-      if (viewport === null) {
-         return;
-      }
-
-      const maximumScroll = Math.max(
-         0,
-         viewport.scrollHeight - viewport.clientHeight
-      );
-      const nextState = {
-         atEnd: viewport.scrollTop >= maximumScroll - 1,
-         atStart: viewport.scrollTop <= 1,
-         hasOverflow: maximumScroll > 1,
-      };
-      setScrollState((current) =>
-         current.atEnd === nextState.atEnd &&
-         current.atStart === nextState.atStart &&
-         current.hasOverflow === nextState.hasOverflow
-            ? current
-            : nextState
-      );
-   }, []);
-
-   useEffect(() => {
-      updateScrollState();
-
-      if (typeof ResizeObserver === "undefined") {
-         window.addEventListener("resize", updateScrollState);
-         return () => window.removeEventListener("resize", updateScrollState);
-      }
-
-      const observer = new ResizeObserver(updateScrollState);
-      if (viewportRef.current !== null) {
-         observer.observe(viewportRef.current);
-      }
-      return () => observer.disconnect();
-   }, [itemCount, updateScrollState]);
-
-   return (
-      <div
-         className="assistant-scroll-frame"
-         data-at-end={scrollState.atEnd}
-         data-at-start={scrollState.atStart}
-         data-has-overflow={scrollState.hasOverflow}
-      >
-         <div
-            ref={viewportRef}
-            className={className}
-            onScroll={updateScrollState}
-         >
-            {children}
-         </div>
-      </div>
-   );
-}
 
 function errorMessage(error: unknown, fallback: string): string {
    return error instanceof Error && error.message ? error.message : fallback;
@@ -147,9 +73,9 @@ function OptionButtons({
          {options.length === 0 ? (
             <p className="assistant-filters__empty">No options in this pool.</p>
          ) : (
-            <ScrollableOptionGrid
+            <ScrollFadeFrame
                className="recommendation-choice-grid assistant-option-grid assistant-option-grid--compact"
-               itemCount={options.length}
+               updateKey={options.length}
             >
                {options.map((option) => {
                   const isSelected = selectedIds.includes(option.igdb_id);
@@ -169,7 +95,7 @@ function OptionButtons({
                      </button>
                   );
                })}
-            </ScrollableOptionGrid>
+            </ScrollFadeFrame>
          )}
       </fieldset>
    );
@@ -506,9 +432,9 @@ function AssistantWorkspaceSession({
                   </div>
                )}
                {genres.items.length > 0 && (
-                  <ScrollableOptionGrid
+                  <ScrollFadeFrame
                      className="recommendation-choice-grid assistant-option-grid assistant-option-grid--genres"
-                     itemCount={genres.items.length}
+                     updateKey={genres.items.length}
                   >
                      {genres.items.map((genre) => (
                         <button
@@ -523,7 +449,7 @@ function AssistantWorkspaceSession({
                            <span>{genre.eligible_count} games</span>
                         </button>
                      ))}
-                  </ScrollableOptionGrid>
+                  </ScrollFadeFrame>
                )}
             </div>
 
@@ -534,10 +460,10 @@ function AssistantWorkspaceSession({
                      <div>
                         <h4>Narrow {selectedGenre.name}</h4>
                         <p>
-                           These filters are based on game attributes. Select
-                           multiple themes or modes to match any option within
-                           each group. For best performance, keep the results
-                           under 200 games.
+                           These filters help Ludex narrow the selection to 400
+                           games or fewer to stay within Gemini’s limitations.
+                           Once that threshold is reached, additional filters
+                           are optional.
                         </p>
                      </div>
                   </header>

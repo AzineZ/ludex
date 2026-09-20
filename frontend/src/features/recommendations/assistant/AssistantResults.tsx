@@ -57,7 +57,7 @@ function AssistantResults({
                   : `You chose ${queue.accepted.title}. Have fun!`}
             </p>
             <p className="assistant-results__disclosure">
-               Always check Gemini suggestions for correctness.
+               Gemini can make mistakes. Always check for correctness!
             </p>
             <button
                className="app__secondary-button recommendation-results__start-over"
