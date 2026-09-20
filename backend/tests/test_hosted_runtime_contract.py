@@ -115,13 +115,6 @@ def test_staging_blueprint_is_free_isolated_and_manual() -> None:
     assert backend["autoDeployTrigger"] == "off"
 
 
-def test_failed_two_service_staging_blueprint_is_marked_obsolete() -> None:
-    legacy_blueprint = read_project_file("render.staging.yaml")
-
-    assert legacy_blueprint.startswith("# OBSOLETE:")
-    assert "Do not create or manually sync" in legacy_blueprint
-
-
 def test_staging_blueprint_uses_staging_only_secrets_and_origin() -> None:
     backend = service_named(load_staging_blueprint(), "ludex-staging-app")
     environment = environment_by_key(backend)

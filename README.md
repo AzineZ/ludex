@@ -222,11 +222,9 @@ Steam form and shared footer keep compact links to it from signed-out and
 signed-in states. Public launch remains gated on the owner's Render and Neon
 dashboard checks and the final release gate.
 
-The replacement temporary free staging package is defined in
-`render.staging-combined.yaml`. The original two-service rehearsal in
-`render.staging.yaml` is retained only as failure evidence and must not be
-resynced. The owner-operated replacement and hosted browser gate are documented
-in
+The temporary free staging package is defined in
+`render.staging-combined.yaml`. The owner-operated staging and hosted browser
+gates are documented in
 [`docs/components/hosted-deployment.md`](docs/components/hosted-deployment.md).
 Staging and production both require a separate generated
 `STEAM_RATE_LIMIT_HMAC_KEY`; the browser never receives it.
