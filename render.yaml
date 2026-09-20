@@ -28,3 +28,7 @@ services:
         sync: false
       - key: IGDB_CLIENT_SECRET
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_RERANK_ENABLED
+        value: "true"

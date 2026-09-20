@@ -154,10 +154,9 @@ The backend health endpoint should return:
 
 ## Hosted production package
 
-The reviewed `render.yaml` describes the provisional production package; it
-does not provision Render or Neon resources by itself. Do not sync it until the
-Checkpoint 9 provisioning gate has approved the current dashboard price,
-service-name availability, database setup, and secret values.
+The reviewed `render.yaml` describes the current production package; it does
+not provision, sync, or deploy Render or Neon resources by itself. The owner
+reviews and performs every Blueprint sync and deployment.
 
 The single `ludex` web service builds `frontend/dist` with
 `VITE_API_BASE_URL=/api`, serves those assets from FastAPI, and mounts the
@@ -174,8 +173,10 @@ The hosted web-worker command does not run Alembic. Before a hosted release,
 the owner-operated migration step must run exactly once through a direct Neon
 connection after the approved backup check. The running service receives a
 separate pooled Neon connection as `DATABASE_URL`. Render prompts for all
-backend credentials marked `sync: false`; no real credential or
-`GEMINI_API_KEY` belongs in the Blueprint, frontend build, or image layers.
+backend credentials marked `sync: false`, including `GEMINI_API_KEY`. The
+Blueprint records required variable names but contains no real credential
+values; no backend credential belongs in Git, the frontend build, or image
+layers.
 
 Local Docker Compose is intentionally unchanged: it still starts PostgreSQL,
 runs migrations, and then starts the API on port 8000 for development.

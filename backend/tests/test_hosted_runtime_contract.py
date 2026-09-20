@@ -94,10 +94,14 @@ def test_render_blueprint_separates_public_values_and_runtime_secrets() -> None:
         "STEAM_API_KEY",
         "IGDB_CLIENT_ID",
         "IGDB_CLIENT_SECRET",
+        "GEMINI_API_KEY",
     ):
         assert environment[key] == {"key": key, "sync": False}
 
-    assert "GEMINI_API_KEY" not in environment
+    assert environment["GEMINI_RERANK_ENABLED"] == {
+        "key": "GEMINI_RERANK_ENABLED",
+        "value": "true",
+    }
 
 
 def test_staging_blueprint_is_free_isolated_and_manual() -> None:
@@ -128,8 +132,15 @@ def test_staging_blueprint_uses_staging_only_secrets_and_origin() -> None:
         "key": "DATABASE_URL",
         "sync": False,
     }
+    assert environment["GEMINI_API_KEY"] == {
+        "key": "GEMINI_API_KEY",
+        "sync": False,
+    }
+    assert environment["GEMINI_RERANK_ENABLED"] == {
+        "key": "GEMINI_RERANK_ENABLED",
+        "value": "true",
+    }
     assert "MIGRATION_DATABASE_URL" not in environment
-    assert "GEMINI_API_KEY" not in environment
 
 
 def test_render_start_does_not_run_migrations_in_web_worker() -> None:
