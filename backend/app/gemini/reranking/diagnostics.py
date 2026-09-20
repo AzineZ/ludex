@@ -4,7 +4,10 @@ import logging
 from secrets import token_hex
 
 
-_LOGGER = logging.getLogger("ludex.gemini")
+GEMINI_DIAGNOSTIC_LOGGER = "uvicorn.error.ludex.gemini"
+
+
+_LOGGER = logging.getLogger(GEMINI_DIAGNOSTIC_LOGGER)
 _LOGGER.setLevel(logging.INFO)
 
 

@@ -1,5 +1,6 @@
 import logging
 import re
+from io import StringIO
 from unittest.mock import Mock
 
 import pytest
@@ -18,6 +19,10 @@ from app.gemini.client import (
     GeminiUnavailableError,
 )
 from app.gemini.reranking.contracts import RerankFilters, RerankResponse
+from app.gemini.reranking.diagnostics import (
+    GEMINI_DIAGNOSTIC_LOGGER,
+    log_rerank_success,
+)
 from app.gemini.reranking.service import (
     GeminiRerankRuntime,
     RerankAssistantStatus,
@@ -103,7 +108,7 @@ def test_success_uses_one_call_and_maps_snapshot_presentation(
         )
     )
 
-    with caplog.at_level(logging.INFO, logger="ludex.gemini"):
+    with caplog.at_level(logging.INFO, logger=GEMINI_DIAGNOSTIC_LOGGER):
         result = recommend_with_gemini(
             session,
             profile_id=profile_id,
@@ -132,9 +137,37 @@ def test_success_uses_one_call_and_maps_snapshot_presentation(
     assert "Something calm after work" not in record.getMessage()
 
 
-def test_gemini_success_diagnostics_are_enabled_at_runtime() -> None:
-    """Keep successful hosted calls visible without a global log override."""
-    assert logging.getLogger("ludex.gemini").getEffectiveLevel() == logging.INFO
+def test_gemini_success_diagnostics_use_uvicorn_output_handler() -> None:
+    """Route successful hosted calls through Uvicorn's configured handler."""
+    logger = logging.getLogger(GEMINI_DIAGNOSTIC_LOGGER)
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    stream = StringIO()
+    handler = logging.StreamHandler(stream)
+    original_handlers = uvicorn_logger.handlers[:]
+    original_level = uvicorn_logger.level
+    original_propagate = uvicorn_logger.propagate
+    try:
+        uvicorn_logger.handlers = [handler]
+        uvicorn_logger.setLevel(logging.INFO)
+        uvicorn_logger.propagate = False
+
+        log_rerank_success(
+            model_id="gemini-test-model",
+            candidate_count=2,
+            request_bytes=100,
+            duration_ms=25,
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+        )
+    finally:
+        uvicorn_logger.handlers = original_handlers
+        uvicorn_logger.setLevel(original_level)
+        uvicorn_logger.propagate = original_propagate
+
+    assert logger.parent is uvicorn_logger
+    assert logger.getEffectiveLevel() == logging.INFO
+    assert "event=gemini_rerank_succeeded" in stream.getvalue()
 
 
 def test_two_hundred_game_pool_still_uses_exactly_one_provider_call(
@@ -279,7 +312,7 @@ def test_provider_failure_returns_safe_fallback(
     _add_game(session, profile_id=profile_id, steam_app_id=1)
     rerank = Mock(side_effect=GeminiUnavailableError("private provider detail"))
 
-    with caplog.at_level(logging.ERROR, logger="ludex.gemini"):
+    with caplog.at_level(logging.ERROR, logger=GEMINI_DIAGNOSTIC_LOGGER):
         result = recommend_with_gemini(
             session,
             profile_id=profile_id,
@@ -346,7 +379,7 @@ def test_provider_failures_keep_distinct_safe_categories(
     session, profile_id = session_and_profile
     _add_game(session, profile_id=profile_id, steam_app_id=1)
 
-    with caplog.at_level(logging.ERROR, logger="ludex.gemini"):
+    with caplog.at_level(logging.ERROR, logger=GEMINI_DIAGNOSTIC_LOGGER):
         result = recommend_with_gemini(
             session,
             profile_id=profile_id,
@@ -390,7 +423,7 @@ def test_provider_rate_limit_tells_user_to_try_again_tomorrow(
         side_effect=GeminiRateLimitError("limited", retry_after_seconds=120)
     )
 
-    with caplog.at_level(logging.ERROR, logger="ludex.gemini"):
+    with caplog.at_level(logging.ERROR, logger=GEMINI_DIAGNOSTIC_LOGGER):
         result = recommend_with_gemini(
             session,
             profile_id=profile_id,
