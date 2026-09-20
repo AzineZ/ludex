@@ -23,10 +23,10 @@ from app.managed_database_bootstrap import (
     _to_psycopg_url,
     _validated_url_parts,
 )
+from app.migration_history import get_single_alembic_head
 
 
 POSTGRES_IMAGE = "postgres:18-alpine"
-EXPECTED_REVISION = "6a2f8e4c91bd"
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -208,8 +208,9 @@ def rehearse_managed_database_recovery(
     stage = "inspect_staging_source"
 
     try:
+        expected_revision = get_single_alembic_head()
         source_revision, source_table_count = _database_facts(migration_url)
-        if source_revision != EXPECTED_REVISION or source_table_count <= 0:
+        if source_revision != expected_revision or source_table_count <= 0:
             raise RuntimeError("The staging source is not at the expected head.")
 
         stage = "create_backup_archive"

@@ -11,11 +11,11 @@ import sys
 from typing import Callable, TextIO
 from urllib.parse import parse_qs, quote, unquote, urlsplit, urlunsplit
 
-from alembic.config import Config
-from alembic.script import ScriptDirectory
 from dotenv import dotenv_values
 import psycopg
 from psycopg import sql
+
+from app.migration_history import get_single_alembic_head
 
 
 MIGRATION_ROLE_NAME = "ludex_migrator"
@@ -320,12 +320,7 @@ def run_alembic_migrations(migration_url: str) -> str:
             check=True,
         )
 
-    alembic_config = Config(str(_BACKEND_ROOT / "alembic.ini"))
-    heads = ScriptDirectory.from_config(alembic_config).get_heads()
-    if len(heads) != 1:
-        raise RuntimeError("The migration history does not have one head.")
-
-    return heads[0]
+    return get_single_alembic_head()
 
 
 def finalize_and_verify_database(

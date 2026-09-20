@@ -55,5 +55,7 @@ def test_managed_rehearsal_uses_staging_credentials_only() -> None:
 
     assert 'choices=("staging",)' in source
     assert "_load_admin_connections" in source
+    assert "get_single_alembic_head" in source
+    assert "EXPECTED_REVISION" not in source
     assert "MIGRATION_DATABASE_URL" in source
     assert ".env.neon-production" not in source

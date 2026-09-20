@@ -38,6 +38,11 @@ database_url() {
         "postgresql+psycopg://ludex:ludex@localhost:${database_port}/$1"
 }
 
+expected_revision=$(
+    cd "$project_root/backend"
+    uv run python -m app.migration_history
+)
+
 verify_database() {
     rehearsal_database_url=$(database_url "$1")
 
@@ -95,7 +100,7 @@ restore_table_count=$(
         -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'"
 )
 
-test "$source_revision" = "6a2f8e4c91bd"
+test "$source_revision" = "$expected_revision"
 test "$restore_revision" = "$source_revision"
 test "$source_table_count" -gt 0
 test "$restore_table_count" = "$source_table_count"

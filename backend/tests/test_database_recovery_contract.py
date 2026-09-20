@@ -3,6 +3,8 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
+from app.migration_history import get_single_alembic_head
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -33,6 +35,10 @@ def test_migration_history_is_one_linear_chain() -> None:
     ]
 
 
+def test_shared_migration_head_resolver_matches_alembic_history() -> None:
+    assert get_single_alembic_head() == "8e1a4c9d7b20"
+
+
 def test_local_recovery_rehearsal_uses_only_generated_databases() -> None:
     rehearsal = read_project_file("scripts/rehearse_database_recovery.sh")
 
@@ -59,4 +65,7 @@ def test_local_recovery_rehearsal_verifies_backup_and_restored_schema() -> None:
     assert "pg_restore --exit-on-error" in rehearsal
     assert "alembic_version" in rehearsal
     assert "information_schema.tables" in rehearsal
+    assert "uv run python -m app.migration_history" in rehearsal
+    assert 'test "$source_revision" = "$expected_revision"' in rehearsal
+    assert 'test "$source_revision" = "6a2f8e4c91bd"' not in rehearsal
     assert "--clean" not in rehearsal
