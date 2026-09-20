@@ -5,6 +5,7 @@ from secrets import token_hex
 
 
 _LOGGER = logging.getLogger("ludex.gemini")
+_LOGGER.setLevel(logging.INFO)
 
 
 def create_diagnostic_reference() -> str:

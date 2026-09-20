@@ -132,6 +132,11 @@ def test_success_uses_one_call_and_maps_snapshot_presentation(
     assert "Something calm after work" not in record.getMessage()
 
 
+def test_gemini_success_diagnostics_are_enabled_at_runtime() -> None:
+    """Keep successful hosted calls visible without a global log override."""
+    assert logging.getLogger("ludex.gemini").getEffectiveLevel() == logging.INFO
+
+
 def test_two_hundred_game_pool_still_uses_exactly_one_provider_call(
     session_and_profile: tuple[Session, int],
 ) -> None:
