@@ -5,7 +5,7 @@ from app.gemini.client import GeminiClient
 from app.gemini.reranking.service import GeminiRerankRuntime
 
 
-GEMINI_RERANK_MODEL_ID = "gemini-3.5-flash"
+GEMINI_RERANK_MODEL_ID = "gemini-3.5-flash-lite"
 
 
 class GeminiConfigurationError(RuntimeError):

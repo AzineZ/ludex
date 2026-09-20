@@ -149,7 +149,11 @@ def test_public_reranker_uses_selected_model(
     runtime = next(dependency)
 
     assert runtime is not None
-    assert runtime.model_id == GEMINI_RERANK_MODEL_ID == "gemini-3.5-flash"
+    assert (
+        runtime.model_id
+        == GEMINI_RERANK_MODEL_ID
+        == "gemini-3.5-flash-lite"
+    )
     assert runtime.client.options == {"timeout_seconds": 20.0}
     dependency.close()
     assert runtime.client.exited is True
