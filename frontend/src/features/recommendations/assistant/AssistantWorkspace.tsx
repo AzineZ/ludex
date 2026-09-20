@@ -70,13 +70,13 @@ function ScrollableOptionGrid({
          atStart: viewport.scrollTop <= 1,
          hasOverflow: maximumScroll > 1,
       };
-      setScrollState((current) => (
-         current.atEnd === nextState.atEnd
-         && current.atStart === nextState.atStart
-         && current.hasOverflow === nextState.hasOverflow
+      setScrollState((current) =>
+         current.atEnd === nextState.atEnd &&
+         current.atStart === nextState.atStart &&
+         current.hasOverflow === nextState.hasOverflow
             ? current
             : nextState
-      ));
+      );
    }, []);
 
    useEffect(() => {
@@ -122,7 +122,10 @@ function toggleId(values: readonly number[], value: number): number[] {
       : [...values, value];
 }
 
-function retainAvailableIds(values: number[], availableIds: Set<number>): number[] {
+function retainAvailableIds(
+   values: number[],
+   availableIds: Set<number>
+): number[] {
    const retained = values.filter((id) => availableIds.has(id));
    return retained.length === values.length ? values : retained;
 }
@@ -162,7 +165,7 @@ function OptionButtons({
                         onClick={() => onToggle(option.igdb_id)}
                      >
                         <span>{option.name}</span>
-                        <span>{option.eligible_count} games</span>
+                        <span> Found on {option.eligible_count} games</span>
                      </button>
                   );
                })}
@@ -180,7 +183,10 @@ function AssistantNavigation({
    onOpenPrompt: () => void;
 }) {
    return (
-      <nav className="app__workspace-nav" aria-label="AI recommendation workspace">
+      <nav
+         className="app__workspace-nav"
+         aria-label="AI recommendation workspace"
+      >
          <button
             type="button"
             aria-current={activeView === "prompt" ? "page" : undefined}
@@ -221,31 +227,35 @@ function AssistantWorkspaceSession({
    const [submissionState, setSubmissionState] = useState<
       "idle" | "loading" | "ready" | "error"
    >("idle");
-   const [response, setResponse] = useState<AssistantRecommendationResponse | null>(null);
+   const [response, setResponse] =
+      useState<AssistantRecommendationResponse | null>(null);
    const [submissionError, setSubmissionError] = useState<string | null>(null);
    const [rejectedSteamAppIds, setRejectedSteamAppIds] = useState<number[]>([]);
    const submissionGeneration = useRef(0);
    const submissionInFlight = useRef(false);
-   const filterContextKey = useMemo(() => JSON.stringify({
-      sessionEpoch,
-      selectedGenreId,
-      playStatus: constraints.play_status,
-      maximumCompletionMinutes: constraints.maximum_completion_minutes,
-      selectedThemeIds,
-      selectedGameModeIds,
-      rejectedSteamAppIds,
-   }), [
-      constraints.maximum_completion_minutes,
-      constraints.play_status,
-      rejectedSteamAppIds,
-      selectedGameModeIds,
-      selectedGenreId,
-      selectedThemeIds,
-      sessionEpoch,
-   ]);
-   const selectedGenre = genres.items.find(
-      (genre) => genre.igdb_id === selectedGenreId
-   ) ?? null;
+   const filterContextKey = useMemo(
+      () =>
+         JSON.stringify({
+            sessionEpoch,
+            selectedGenreId,
+            playStatus: constraints.play_status,
+            maximumCompletionMinutes: constraints.maximum_completion_minutes,
+            selectedThemeIds,
+            selectedGameModeIds,
+            rejectedSteamAppIds,
+         }),
+      [
+         constraints.maximum_completion_minutes,
+         constraints.play_status,
+         rejectedSteamAppIds,
+         selectedGameModeIds,
+         selectedGenreId,
+         selectedThemeIds,
+         sessionEpoch,
+      ]
+   );
+   const selectedGenre =
+      genres.items.find((genre) => genre.igdb_id === selectedGenreId) ?? null;
 
    useEffect(() => {
       let current = true;
@@ -258,10 +268,12 @@ function AssistantWorkspaceSession({
          },
          (error: unknown) => {
             if (current) {
-               setGenreError(errorMessage(
-                  error,
-                  "Unable to load genres from this library."
-               ));
+               setGenreError(
+                  errorMessage(
+                     error,
+                     "Unable to load genres from this library."
+                  )
+               );
                setGenreState("error");
             }
          }
@@ -293,19 +305,23 @@ function AssistantWorkspaceSession({
             const gameModeIds = new Set(
                result.game_modes.map((item) => item.igdb_id)
             );
-            setSelectedThemeIds((values) => retainAvailableIds(values, themeIds));
-            setSelectedGameModeIds((values) => (
+            setSelectedThemeIds((values) =>
+               retainAvailableIds(values, themeIds)
+            );
+            setSelectedGameModeIds((values) =>
                retainAvailableIds(values, gameModeIds)
-            ));
+            );
             setFilterOptions(result);
             setFilterState("ready");
          },
          (error: unknown) => {
             if (current) {
-               setFilterError(errorMessage(
-                  error,
-                  "Unable to load factual filters for this genre."
-               ));
+               setFilterError(
+                  errorMessage(
+                     error,
+                     "Unable to load factual filters for this genre."
+                  )
+               );
                setFilterState("error");
             }
          }
@@ -355,7 +371,9 @@ function AssistantWorkspaceSession({
          filters: {
             play_status: constraints.play_status,
             maximum_completion_minutes: constraints.maximum_completion_minutes,
-            theme_ids: [...selectedThemeIds].sort((first, second) => first - second),
+            theme_ids: [...selectedThemeIds].sort(
+               (first, second) => first - second
+            ),
             game_mode_ids: [...selectedGameModeIds].sort(
                (first, second) => first - second
             ),
@@ -372,10 +390,9 @@ function AssistantWorkspaceSession({
          (error: unknown) => {
             if (submissionGeneration.current === generation) {
                submissionInFlight.current = false;
-               setSubmissionError(errorMessage(
-                  error,
-                  "Unable to ask Ludex right now."
-               ));
+               setSubmissionError(
+                  errorMessage(error, "Unable to ask Ludex right now.")
+               );
                setSubmissionState("error");
             }
          }
@@ -407,274 +424,341 @@ function AssistantWorkspaceSession({
                onReject={(steamAppId) => {
                   setFilterState("loading");
                   setFilterError(null);
-                  setRejectedSteamAppIds((ids) => (
+                  setRejectedSteamAppIds((ids) =>
                      ids.includes(steamAppId) ? ids : [...ids, steamAppId]
-                  ));
+                  );
                }}
             />
          </>
       );
    }
 
-   const promptIsValid = prompt.trim().length > 0 && prompt.trim().length <= 500;
-   const canSubmit = selectedGenreId !== null
-      && promptIsValid
-      && filterState !== "loading"
-      && submissionState !== "loading";
+   const promptIsValid =
+      prompt.trim().length > 0 && prompt.trim().length <= 500;
+   const canSubmit =
+      selectedGenreId !== null &&
+      promptIsValid &&
+      filterState !== "loading" &&
+      submissionState !== "loading";
 
    return (
       <>
          <AssistantNavigation activeView="prompt" onOpenPrompt={() => {}} />
-         <section className="assistant-workspace" aria-labelledby="assistant-heading">
-         <header className="assistant-workspace__heading">
-            <h3 id="assistant-heading">Ask Ludex</h3>
-            <p>
-               Pick a genre from your owned library, narrow the factual pool if
-               needed, then describe what you feel like playing.
-            </p>
-            <p className="assistant-workspace__boundary">
-               Gemini can rank only the eligible owned games Ludex sends it.
-               Your Steam ID and profile name are not included.
-            </p>
-         </header>
-
-         <div className="assistant-step" data-step="1">
-            <header className="assistant-step__heading">
-               <span className="assistant-step__number">Step 1</span>
-               <div>
-                  <h4>Choose a genre from your library</h4>
-                  <p>Counts include only owned games with ready IGDB metadata.</p>
-               </div>
+         <section
+            className="assistant-workspace"
+            aria-labelledby="assistant-heading"
+         >
+            <header className="assistant-workspace__heading">
+               <h3 id="assistant-heading">Ask Ludex</h3>
+               <p>
+                  Pick a genre from your owned library, narrow the factual pool
+                  if needed, then describe what you feel like playing.
+               </p>
+               <p className="assistant-workspace__boundary">
+                  Gemini can rank only the eligible owned games Ludex sends it.
+                  Your Steam ID and profile name are not included.
+               </p>
             </header>
 
-            {genreState === "loading" && <p role="status">Loading genres…</p>}
-            {genreState === "error" && (
-               <div className="assistant-state assistant-state--error" role="alert">
-                  <p>{genreError}</p>
-                  <button className="app__secondary-button" type="button" onClick={onUseGuided}>
-                     Use guided recommendations
-                  </button>
-               </div>
-            )}
-            {genreState === "ready" && genres.items.length === 0 && (
-               <div className="assistant-state">
-                  <p>
-                     No genre-ready games are available in this cached library.
-                  </p>
-                  <button className="app__secondary-button" type="button" onClick={onUseGuided}>
-                     Use guided recommendations
-                  </button>
-               </div>
-            )}
-            {genres.items.length > 0 && (
-               <ScrollableOptionGrid
-                  className="recommendation-choice-grid assistant-option-grid assistant-option-grid--genres"
-                  itemCount={genres.items.length}
-               >
-                  {genres.items.map((genre) => (
-                     <button
-                        key={genre.igdb_id}
-                        className="recommendation-choice-pill"
-                        type="button"
-                        aria-label={`${genre.name}, ${genre.eligible_count} eligible games`}
-                        aria-pressed={selectedGenreId === genre.igdb_id}
-                        onClick={() => selectGenre(genre.igdb_id)}
-                     >
-                        <span>{genre.name}</span>
-                        <span>{genre.eligible_count} games</span>
-                     </button>
-                  ))}
-               </ScrollableOptionGrid>
-            )}
-         </div>
-
-         {selectedGenre !== null && (
-            <div className="assistant-step" data-step="2">
+            <div className="assistant-step" data-step="1">
                <header className="assistant-step__heading">
-                  <span className="assistant-step__number">Step 2</span>
+                  <span className="assistant-step__number">Step 1</span>
                   <div>
-                     <h4>Narrow {selectedGenre.name}</h4>
+                     <h4>Choose a genre from your library</h4>
                      <p>
-                        These are factual filters. Select multiple themes or modes
-                        to match any selected option within that group.
+                        Counts include only owned games with ready IGDB
+                        metadata.
                      </p>
                   </div>
                </header>
 
-               <RecommendationConstraints
-                  value={constraints}
-                  showMaximumCompletion={false}
-                  onChange={(value) => {
-                     setConstraints(value);
-                     setFilterState("loading");
-                     setFilterError(null);
-                     setResponse(null);
-                     setSubmissionState("idle");
-                  }}
-               />
-
-               {filterState === "loading" && (
-                  <p className="assistant-filters__status" role="status">
-                     Updating factual filters…
-                  </p>
+               {genreState === "loading" && (
+                  <p role="status">Loading genres…</p>
                )}
-               {filterState === "error" && (
-                  <p className="assistant-filters__status" role="alert">
-                     {filterError}
-                  </p>
-               )}
-               {filterState === "ready" && (
-                  <>
-                     <p
-                        className={`assistant-pool-count${
-                           filterOptions.eligible_count > filterOptions.candidate_limit
-                              ? " assistant-pool-count--over-limit"
-                              : ""
-                        }`}
-                        role="status"
-                        aria-live="polite"
-                        aria-atomic="true"
+               {genreState === "error" && (
+                  <div
+                     className="assistant-state assistant-state--error"
+                     role="alert"
+                  >
+                     <p>{genreError}</p>
+                     <button
+                        className="app__secondary-button"
+                        type="button"
+                        onClick={onUseGuided}
                      >
-                        <strong>{filterOptions.eligible_count}</strong>
-                        <span>
-                           {filterOptions.eligible_count === 1
-                              ? "game is"
-                              : "games are"} in consideration
-                           {filterOptions.eligible_count > filterOptions.candidate_limit
-                              ? ` — narrow to ${filterOptions.candidate_limit} or fewer`
-                              : ""}
-                        </span>
+                        Use guided recommendations
+                     </button>
+                  </div>
+               )}
+               {genreState === "ready" && genres.items.length === 0 && (
+                  <div className="assistant-state">
+                     <p>
+                        No genre-ready games are available in this cached
+                        library.
                      </p>
-                     <div className="assistant-filters">
-                        <OptionButtons
-                           label="Theme filters"
-                           options={filterOptions.themes}
-                           selectedIds={selectedThemeIds}
-                           onToggle={(id) => {
-                              setSelectedThemeIds((values) => toggleId(values, id));
-                              setFilterState("loading");
-                              setFilterError(null);
-                              setResponse(null);
-                              setSubmissionState("idle");
-                           }}
-                        />
-                        <OptionButtons
-                           label="Game mode filters"
-                           options={filterOptions.game_modes}
-                           selectedIds={selectedGameModeIds}
-                           onToggle={(id) => {
-                              setSelectedGameModeIds((values) => toggleId(values, id));
-                              setFilterState("loading");
-                              setFilterError(null);
-                              setResponse(null);
-                              setSubmissionState("idle");
-                           }}
-                        />
-                     </div>
-                  </>
+                     <button
+                        className="app__secondary-button"
+                        type="button"
+                        onClick={onUseGuided}
+                     >
+                        Use guided recommendations
+                     </button>
+                  </div>
+               )}
+               {genres.items.length > 0 && (
+                  <ScrollableOptionGrid
+                     className="recommendation-choice-grid assistant-option-grid assistant-option-grid--genres"
+                     itemCount={genres.items.length}
+                  >
+                     {genres.items.map((genre) => (
+                        <button
+                           key={genre.igdb_id}
+                           className="recommendation-choice-pill"
+                           type="button"
+                           aria-label={`${genre.name}, ${genre.eligible_count} eligible games`}
+                           aria-pressed={selectedGenreId === genre.igdb_id}
+                           onClick={() => selectGenre(genre.igdb_id)}
+                        >
+                           <span>{genre.name}</span>
+                           <span>{genre.eligible_count} games</span>
+                        </button>
+                     ))}
+                  </ScrollableOptionGrid>
                )}
             </div>
-         )}
 
-         {selectedGenre !== null && (
-            <div className="assistant-step" data-step="3">
-               <header className="assistant-step__heading">
-                  <span className="assistant-step__number">Step 3</span>
-                  <div>
-                     <h4>Describe the kind of game you want</h4>
-                     <p>Your wording influences ranking, not hard eligibility.</p>
-                  </div>
-               </header>
-
-               {response?.status === "needs_refinement" && (
-                  <div className="assistant-state assistant-state--attention" role="status">
-                     <h4>Narrow your {response.eligible_count}-game pool</h4>
-                     <p>
-                        The complete pool is over the {response.candidate_limit}-game
-                        assistant limit. Add a factual filter above, then ask again.
-                        No Gemini call was made.
-                     </p>
-                  </div>
-               )}
-
-               {(response?.status === "empty" || response?.status === "no_match") && (
-                  <div className="assistant-state" role="status">
-                     <h4>{response.status === "empty" ? "No eligible games" : "No confident match"}</h4>
-                     <p>{response.message}</p>
-                     <button className="app__secondary-button" type="button" onClick={onUseGuided}>
-                        Use guided recommendations
-                     </button>
-                  </div>
-               )}
-
-               {response?.status === "unavailable" && (
-                  <div className="assistant-state assistant-state--error" role="status">
-                     <h4>AI recommendations unavailable</h4>
-                     <p>{response.message}</p>
-                     {response.diagnostic_reference && (
-                        <p className="assistant-state__reference">
-                           Reference: <code>{response.diagnostic_reference}</code>
+            {selectedGenre !== null && (
+               <div className="assistant-step" data-step="2">
+                  <header className="assistant-step__heading">
+                     <span className="assistant-step__number">Step 2</span>
+                     <div>
+                        <h4>Narrow {selectedGenre.name}</h4>
+                        <p>
+                           These filters are based on game attributes. Select
+                           multiple themes or modes to match any option within
+                           each group. For best performance, keep the results
+                           under 200 games.
                         </p>
-                     )}
-                     <button className="app__primary-button" type="button" onClick={onUseGuided}>
-                        Use guided recommendations
-                     </button>
-                  </div>
-               )}
+                     </div>
+                  </header>
 
-               {submissionState === "error" && (
-                  <div className="assistant-state assistant-state--error" role="alert">
-                     <h4>Unable to ask Ludex</h4>
-                     <p>{submissionError}</p>
-                  </div>
-               )}
-
-               <label className="assistant-prompt" htmlFor="assistant-prompt">
-                  <span>What are you in the mood to play?</span>
-                  <textarea
-                     id="assistant-prompt"
-                     rows={5}
-                     maxLength={500}
-                     value={prompt}
-                     aria-describedby="assistant-prompt-help assistant-data-use"
-                     placeholder="For example: Something relaxing and easy to start after work."
-                     onChange={(event) => {
-                        setPrompt(event.target.value);
-                        setResponse((current) => (
-                           current?.status === "needs_refinement" ? current : null
-                        ));
+                  <RecommendationConstraints
+                     value={constraints}
+                     showMaximumCompletion={false}
+                     onChange={(value) => {
+                        setConstraints(value);
+                        setFilterState("loading");
+                        setFilterError(null);
+                        setResponse(null);
                         setSubmissionState("idle");
                      }}
                   />
-               </label>
-               <div className="assistant-prompt__meta" id="assistant-prompt-help">
-                  <span>1–500 characters</span>
-                  <span>{prompt.length} / 500</span>
+
+                  {filterState === "loading" && (
+                     <p className="assistant-filters__status" role="status">
+                        Updating factual filters…
+                     </p>
+                  )}
+                  {filterState === "error" && (
+                     <p className="assistant-filters__status" role="alert">
+                        {filterError}
+                     </p>
+                  )}
+                  {filterState === "ready" && (
+                     <>
+                        <p
+                           className={`assistant-pool-count${
+                              filterOptions.eligible_count >
+                              filterOptions.candidate_limit
+                                 ? " assistant-pool-count--over-limit"
+                                 : ""
+                           }`}
+                           role="status"
+                           aria-live="polite"
+                           aria-atomic="true"
+                        >
+                           <strong>{filterOptions.eligible_count}</strong>
+                           <span>
+                              {filterOptions.eligible_count === 1
+                                 ? "game is"
+                                 : "games are"}{" "}
+                              in consideration
+                              {filterOptions.eligible_count >
+                              filterOptions.candidate_limit
+                                 ? ` — narrow to ${filterOptions.candidate_limit} or fewer`
+                                 : ""}
+                           </span>
+                        </p>
+                        <div className="assistant-filters">
+                           <OptionButtons
+                              label="Theme filters"
+                              options={filterOptions.themes}
+                              selectedIds={selectedThemeIds}
+                              onToggle={(id) => {
+                                 setSelectedThemeIds((values) =>
+                                    toggleId(values, id)
+                                 );
+                                 setFilterState("loading");
+                                 setFilterError(null);
+                                 setResponse(null);
+                                 setSubmissionState("idle");
+                              }}
+                           />
+                           <OptionButtons
+                              label="Game mode filters"
+                              options={filterOptions.game_modes}
+                              selectedIds={selectedGameModeIds}
+                              onToggle={(id) => {
+                                 setSelectedGameModeIds((values) =>
+                                    toggleId(values, id)
+                                 );
+                                 setFilterState("loading");
+                                 setFilterError(null);
+                                 setResponse(null);
+                                 setSubmissionState("idle");
+                              }}
+                           />
+                        </div>
+                     </>
+                  )}
                </div>
-               <div className="assistant-data-use" id="assistant-data-use">
-                  <strong>Before you send</strong>
-                  <p>
-                     On Google’s free Gemini tier, prompts and responses may be
-                     used for product improvement and human review. Do not include
-                     personal, confidential, or sensitive information.
-                  </p>
-               </div>
-               <div className="assistant-submit-row">
-                  <button
-                     className="app__primary-button"
-                     type="button"
-                     onClick={submit}
-                     disabled={!canSubmit}
+            )}
+
+            {selectedGenre !== null && (
+               <div className="assistant-step" data-step="3">
+                  <header className="assistant-step__heading">
+                     <span className="assistant-step__number">Step 3</span>
+                     <div>
+                        <h4>Describe the kind of game you want</h4>
+                        <p>
+                           Your wording influences ranking, not hard
+                           eligibility.
+                        </p>
+                     </div>
+                  </header>
+
+                  {response?.status === "needs_refinement" && (
+                     <div
+                        className="assistant-state assistant-state--attention"
+                        role="status"
+                     >
+                        <h4>Narrow your {response.eligible_count}-game pool</h4>
+                        <p>
+                           The complete pool is over the{" "}
+                           {response.candidate_limit}-game assistant limit. Add
+                           a factual filter above, then ask again. No Gemini
+                           call was made.
+                        </p>
+                     </div>
+                  )}
+
+                  {(response?.status === "empty" ||
+                     response?.status === "no_match") && (
+                     <div className="assistant-state" role="status">
+                        <h4>
+                           {response.status === "empty"
+                              ? "No eligible games"
+                              : "No confident match"}
+                        </h4>
+                        <p>{response.message}</p>
+                        <button
+                           className="app__secondary-button"
+                           type="button"
+                           onClick={onUseGuided}
+                        >
+                           Use guided recommendations
+                        </button>
+                     </div>
+                  )}
+
+                  {response?.status === "unavailable" && (
+                     <div
+                        className="assistant-state assistant-state--error"
+                        role="status"
+                     >
+                        <h4>AI recommendations unavailable</h4>
+                        <p>{response.message}</p>
+                        {response.diagnostic_reference && (
+                           <p className="assistant-state__reference">
+                              Reference:{" "}
+                              <code>{response.diagnostic_reference}</code>
+                           </p>
+                        )}
+                        <button
+                           className="app__primary-button"
+                           type="button"
+                           onClick={onUseGuided}
+                        >
+                           Use guided recommendations
+                        </button>
+                     </div>
+                  )}
+
+                  {submissionState === "error" && (
+                     <div
+                        className="assistant-state assistant-state--error"
+                        role="alert"
+                     >
+                        <h4>Unable to ask Ludex</h4>
+                        <p>{submissionError}</p>
+                     </div>
+                  )}
+
+                  <label
+                     className="assistant-prompt"
+                     htmlFor="assistant-prompt"
                   >
-                     {submissionState === "loading" ? "Asking Ludex…" : "Ask Ludex"}
-                  </button>
-                  <p>
-                     One submission normally uses one Gemini request. Filters and
-                     queue controls do not.
-                  </p>
+                     <span>What are you in the mood to play?</span>
+                     <textarea
+                        id="assistant-prompt"
+                        rows={5}
+                        maxLength={500}
+                        value={prompt}
+                        aria-describedby="assistant-prompt-help assistant-data-use"
+                        placeholder="For example: Something relaxing and easy to start after work."
+                        onChange={(event) => {
+                           setPrompt(event.target.value);
+                           setResponse((current) =>
+                              current?.status === "needs_refinement"
+                                 ? current
+                                 : null
+                           );
+                           setSubmissionState("idle");
+                        }}
+                     />
+                  </label>
+                  <div
+                     className="assistant-prompt__meta"
+                     id="assistant-prompt-help"
+                  >
+                     <span>1–500 characters</span>
+                     <span>{prompt.length} / 500</span>
+                  </div>
+                  <div className="assistant-data-use" id="assistant-data-use">
+                     <strong>Before you send</strong>
+                     <p>
+                        Do not include personal, confidential, or sensitive
+                        information in the prompt.
+                     </p>
+                  </div>
+                  <div className="assistant-submit-row">
+                     <button
+                        className="app__primary-button"
+                        type="button"
+                        onClick={submit}
+                        disabled={!canSubmit}
+                     >
+                        {submissionState === "loading"
+                           ? "Asking Ludex…"
+                           : "Ask Ludex"}
+                     </button>
+                     <p>
+                        Processing a large number of games may take several
+                        seconds due to Gemini’s free-tier limitations.
+                     </p>
+                  </div>
                </div>
-            </div>
-         )}
+            )}
          </section>
       </>
    );

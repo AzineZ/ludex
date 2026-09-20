@@ -31,9 +31,11 @@ function AssistantResults({
    const [focusRequest, setFocusRequest] = useState<{
       steamAppId: number;
       requestId: number;
-   } | null>(() => queue.visible[0] === undefined
-      ? null
-      : { steamAppId: queue.visible[0].steam_app_id, requestId: 1 });
+   } | null>(() =>
+      queue.visible[0] === undefined
+         ? null
+         : { steamAppId: queue.visible[0].steam_app_id, requestId: 1 }
+   );
 
    const visible = queue.accepted === null ? queue.visible : [queue.accepted];
 
@@ -45,7 +47,9 @@ function AssistantResults({
       >
          <header className="recommendation-results__header">
             <h3 id={headingId}>
-               {queue.accepted === null ? "Your AI recommendations" : "Your choice"}
+               {queue.accepted === null
+                  ? "Your AI recommendations"
+                  : "Your choice"}
             </h3>
             <p>
                {queue.accepted === null
@@ -53,8 +57,7 @@ function AssistantResults({
                   : `You chose ${queue.accepted.title}. Have fun!`}
             </p>
             <p className="assistant-results__disclosure">
-               Summaries and match reasoning are AI-generated suggestions, not
-               verified IGDB facts.
+               Always check Gemini suggestions for correctness.
             </p>
             <button
                className="app__secondary-button recommendation-results__start-over"
@@ -65,9 +68,12 @@ function AssistantResults({
             </button>
          </header>
 
-         <div className={queue.accepted === null
-            ? "recommendation-results__cards"
-            : "recommendation-results__cards recommendation-results__cards--accepted"}
+         <div
+            className={
+               queue.accepted === null
+                  ? "recommendation-results__cards"
+                  : "recommendation-results__cards recommendation-results__cards--accepted"
+            }
          >
             {visible.map((item) => (
                <AssistantRecommendationCard
@@ -80,37 +86,49 @@ function AssistantResults({
                         ? focusRequest.requestId
                         : undefined
                   }
-                  onChoose={queue.accepted === null ? () => {
-                     setQueue((current) => ({ ...current, accepted: item }));
-                     setFocusRequest((current) => ({
-                        steamAppId: item.steam_app_id,
-                        requestId: (current?.requestId ?? 0) + 1,
-                     }));
-                  } : undefined}
-                  onShowAnother={queue.accepted === null ? () => {
-                     if (queue.waiting.length === 0) {
-                        return;
-                     }
-                     const replacement = queue.waiting[0];
-                     const nextVisible = [...queue.visible];
-                     const index = nextVisible.findIndex(
-                        (candidate) => candidate.steam_app_id === item.steam_app_id
-                     );
-                     if (index < 0) {
-                        return;
-                     }
-                     nextVisible[index] = replacement;
-                     onReject(item.steam_app_id);
-                     setQueue({
-                        visible: nextVisible,
-                        waiting: queue.waiting.slice(1),
-                        accepted: null,
-                     });
-                     setFocusRequest((focus) => ({
-                        steamAppId: replacement.steam_app_id,
-                        requestId: (focus?.requestId ?? 0) + 1,
-                     }));
-                  } : undefined}
+                  onChoose={
+                     queue.accepted === null
+                        ? () => {
+                             setQueue((current) => ({
+                                ...current,
+                                accepted: item,
+                             }));
+                             setFocusRequest((current) => ({
+                                steamAppId: item.steam_app_id,
+                                requestId: (current?.requestId ?? 0) + 1,
+                             }));
+                          }
+                        : undefined
+                  }
+                  onShowAnother={
+                     queue.accepted === null
+                        ? () => {
+                             if (queue.waiting.length === 0) {
+                                return;
+                             }
+                             const replacement = queue.waiting[0];
+                             const nextVisible = [...queue.visible];
+                             const index = nextVisible.findIndex(
+                                (candidate) =>
+                                   candidate.steam_app_id === item.steam_app_id
+                             );
+                             if (index < 0) {
+                                return;
+                             }
+                             nextVisible[index] = replacement;
+                             onReject(item.steam_app_id);
+                             setQueue({
+                                visible: nextVisible,
+                                waiting: queue.waiting.slice(1),
+                                accepted: null,
+                             });
+                             setFocusRequest((focus) => ({
+                                steamAppId: replacement.steam_app_id,
+                                requestId: (focus?.requestId ?? 0) + 1,
+                             }));
+                          }
+                        : undefined
+                  }
                />
             ))}
          </div>
