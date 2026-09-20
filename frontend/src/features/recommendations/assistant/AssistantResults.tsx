@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import type { AssistantRecommendationItemResponse } from "../../../api";
 import AssistantRecommendationCard from "./AssistantRecommendationCard";
@@ -23,6 +23,7 @@ function AssistantResults({
    onReject,
 }: AssistantResultsProps) {
    const headingId = useId();
+   const resultsRef = useRef<HTMLElement>(null);
    const [queue, setQueue] = useState<ResultQueue>(() => ({
       visible: items.slice(0, 3),
       waiting: items.slice(3),
@@ -31,19 +32,38 @@ function AssistantResults({
    const [focusRequest, setFocusRequest] = useState<{
       steamAppId: number;
       requestId: number;
-   } | null>(() =>
-      queue.visible[0] === undefined
-         ? null
-         : { steamAppId: queue.visible[0].steam_app_id, requestId: 1 }
-   );
+   } | null>(null);
 
    const visible = queue.accepted === null ? queue.visible : [queue.accepted];
 
+   useEffect(() => {
+      const results = resultsRef.current;
+      if (results === null) {
+         return;
+      }
+
+      const animationFrame = requestAnimationFrame(() => {
+         results.focus({ preventScroll: true });
+         if (typeof results.scrollIntoView === "function") {
+            const prefersReducedMotion =
+               typeof window.matchMedia === "function" &&
+               window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            results.scrollIntoView({
+               behavior: prefersReducedMotion ? "auto" : "smooth",
+               block: "start",
+            });
+         }
+      });
+      return () => cancelAnimationFrame(animationFrame);
+   }, []);
+
    return (
       <section
+         ref={resultsRef}
          className="recommendation-results assistant-results"
          aria-labelledby={headingId}
          aria-live="polite"
+         tabIndex={-1}
       >
          <header className="recommendation-results__header">
             <h3 id={headingId}>
@@ -55,9 +75,6 @@ function AssistantResults({
                {queue.accepted === null
                   ? `Gemini compared all ${eligibleCount} eligible games in this pool.`
                   : `You chose ${queue.accepted.title}. Have fun!`}
-            </p>
-            <p className="assistant-results__disclosure">
-               Gemini can make mistakes. Always check for correctness!
             </p>
             <button
                className="app__secondary-button recommendation-results__start-over"

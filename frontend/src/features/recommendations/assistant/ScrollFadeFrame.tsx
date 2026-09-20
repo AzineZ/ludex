@@ -55,6 +55,9 @@ export default function ScrollFadeFrame({
    }, []);
 
    useEffect(() => {
+      if (viewportRef.current !== null) {
+         viewportRef.current.scrollTop = 0;
+      }
       updateScrollState();
 
       if (typeof ResizeObserver === "undefined") {

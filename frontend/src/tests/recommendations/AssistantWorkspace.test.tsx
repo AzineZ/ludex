@@ -130,6 +130,11 @@ describe("AssistantWorkspace", () => {
       fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
 
       const firstCard = await screen.findByRole("article", { name: "Game 1" });
+      await waitFor(() => {
+         expect(screen.getByRole("region", {
+            name: "Your AI recommendations",
+         })).toHaveFocus();
+      });
       const navigation = screen.getByRole("navigation", {
          name: "AI recommendation workspace",
       });

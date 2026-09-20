@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { page } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 
@@ -377,11 +377,21 @@ describe("responsive layout contracts", () => {
          ).toBeLessThanOrEqual(viewport.width);
       }
 
+      await setTestViewport({ width: 1280, height: 720 });
       fireEvent.change(screen.getByLabelText("What are you in the mood to play?"), {
          target: { value: "Something relaxed with a satisfying ending" },
       });
       fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
       await screen.findByRole("heading", { name: "Your AI recommendations" });
+      const resultsRegion = screen.getByRole("region", {
+         name: "Your AI recommendations",
+      });
+      await waitFor(() => expect(resultsRegion).toHaveFocus());
+      await waitFor(() => {
+         const top = resultsRegion.getBoundingClientRect().top;
+         expect(top).toBeGreaterThanOrEqual(0);
+         expect(top).toBeLessThan(window.innerHeight / 3);
+      });
 
       for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
          await setTestViewport(viewport);
