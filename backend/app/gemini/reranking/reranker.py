@@ -34,14 +34,19 @@ RERANK_SYSTEM_INSTRUCTION = dedent(
     - For every recommendation, write two distinct single-line fields. Summary
       is a concise game-focused overview. Reasoning is a concise user-facing
       match explanation, not hidden chain-of-thought.
+    - Candidate summary values are factual source excerpts, not finished output.
+      Some may end with an ellipsis because the source was compacted. Never copy
+      a candidate summary verbatim, never reproduce its truncation marker, and
+      never continue a visibly incomplete source clause. Compose a new Summary
+      from the available facts and your permitted general knowledge.
     - Summary must explain the game's premise, setting, core gameplay, or what
       the player does. Do not use release history, release dates, platforms,
       availability, editions, remasters, or collection membership as the
       summary unless that information is essential to understanding gameplay.
       Summary must contain at most {MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS}
       characters, including spaces and punctuation. Write a complete sentence
-      within that limit: shorten or rewrite it instead of cutting it off or
-      ending it with an ellipsis.
+      within that limit, preferably in one or two sentences: shorten or rewrite
+      it instead of cutting it off or ending it with an ellipsis.
     - Reasoning must repeat at least one meaningful word or short phrase exactly
       as written in the visitor's request, then connect that wording to relevant
       game facts. Do not merely repeat the summary or say that a subjective

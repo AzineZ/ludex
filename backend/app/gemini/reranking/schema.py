@@ -1,6 +1,8 @@
 from typing import Any
 
 from app.gemini.reranking.contracts import (
+    MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS,
+    MAX_RERANK_REASONING_CHARACTERS,
     MAX_RERANK_RESULTS,
     RerankRequest,
     RerankStatus,
@@ -22,8 +24,26 @@ def build_rerank_response_schema(_request: RerankRequest) -> dict[str, Any]:
             "steam_app_id": {
                 "type": "integer",
             },
-            "summary": {"type": "string"},
-            "reasoning": {"type": "string"},
+            "summary": {
+                "type": "string",
+                "description": (
+                    "A newly written one- or two-sentence game overview that "
+                    "ends as a complete sentence, never with an ellipsis, and "
+                    f"uses at most {MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS} "
+                    "characters including spaces and punctuation. Do not copy "
+                    "a compacted candidate summary verbatim."
+                ),
+            },
+            "reasoning": {
+                "type": "string",
+                "description": (
+                    "A complete-sentence explanation connecting the visitor's "
+                    "exact wording to relevant game facts, never ending with "
+                    "an ellipsis, and using at most "
+                    f"{MAX_RERANK_REASONING_CHARACTERS} characters including "
+                    "spaces and punctuation."
+                ),
+            },
         },
         "required": ["steam_app_id", "summary", "reasoning"],
         "additionalProperties": False,

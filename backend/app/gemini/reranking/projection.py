@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from re import finditer
 
 from app.gemini.reranking.contracts import RerankCandidate
 
@@ -24,6 +25,13 @@ def _bounded_summary(summary: str | None, characters: int) -> str | None:
         return None
     if len(summary) <= characters:
         return summary
+
+    prefix = summary[:characters].rstrip()
+    sentence_ends = tuple(finditer(r"[.!?](?=\s|$)", prefix))
+    if sentence_ends:
+        complete_excerpt = prefix[: sentence_ends[-1].end()].strip()
+        if complete_excerpt:
+            return complete_excerpt
 
     prefix = summary[: characters - 1].rstrip()
     if prefix and not summary[characters - 1].isspace() and " " in prefix:

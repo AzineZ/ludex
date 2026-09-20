@@ -89,6 +89,9 @@ def test_reranker_sends_one_bounded_untrusted_snapshot() -> None:
     assert "summary" in normalized_instruction
     assert "what the player does" in normalized_instruction
     assert "release history" in normalized_instruction
+    assert "factual source excerpts" in normalized_instruction
+    assert "never copy a candidate summary verbatim" in normalized_instruction
+    assert "never reproduce its truncation marker" in normalized_instruction
     assert "at most 400 characters" in normalized_instruction
     assert "at most 240 characters" in normalized_instruction
     assert "complete sentence" in normalized_instruction
@@ -241,6 +244,15 @@ def test_response_schema_uses_supported_shape_and_local_id_validation() -> None:
         "steam_app_id",
         "summary",
         "reasoning",
+    ]
+    assert "complete sentence" in recommendation["properties"]["summary"][
+        "description"
+    ]
+    assert "at most 400 characters" in recommendation["properties"]["summary"][
+        "description"
+    ]
+    assert "at most 240 characters" in recommendation["properties"]["reasoning"][
+        "description"
     ]
     assert "$defs" not in schema
     assert "$ref" not in str(schema)

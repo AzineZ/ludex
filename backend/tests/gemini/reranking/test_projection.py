@@ -98,3 +98,22 @@ def test_projection_marks_truncated_summary_at_a_word_boundary() -> None:
     assert projected.summary is not None
     assert len(projected.summary) <= COMPACT_PROJECTION.summary_characters
     assert projected.summary.endswith("complete…")
+
+
+def test_projection_prefers_a_complete_sentence_over_a_truncated_excerpt() -> None:
+    source = candidate(1).model_copy(
+        update={
+            "summary": (
+                "Explore a submerged city and survive its hostile inhabitants. "
+                "This second sentence continues beyond the compact projection "
+                "with details that do not fit inside the request snapshot. " * 3
+            )
+        }
+    )
+
+    projected = project_rerank_candidates((source,), COMPACT_PROJECTION)[0]
+
+    assert projected.summary is not None
+    assert len(projected.summary) <= COMPACT_PROJECTION.summary_characters
+    assert projected.summary.endswith(".")
+    assert not projected.summary.endswith("…")
