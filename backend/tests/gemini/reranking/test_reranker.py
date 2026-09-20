@@ -89,6 +89,10 @@ def test_reranker_sends_one_bounded_untrusted_snapshot() -> None:
     assert "summary" in normalized_instruction
     assert "what the player does" in normalized_instruction
     assert "release history" in normalized_instruction
+    assert "at most 400 characters" in normalized_instruction
+    assert "at most 240 characters" in normalized_instruction
+    assert "complete sentence" in normalized_instruction
+    assert "without an ellipsis" in normalized_instruction
     assert "reasoning must repeat" in normalized_instruction
 
 
