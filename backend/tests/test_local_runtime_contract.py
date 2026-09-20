@@ -91,11 +91,19 @@ def test_setup_guide_documents_the_supported_data_workflow() -> None:
     assert (
         "uv run python -m app.igdb_enrichment_command --apply" in readme
     )
-    assert "The default command is report-only" in normalized_readme
+    assert (
+        "The default enrichment command is report-only" in normalized_readme
+    )
     assert "Only `--apply` contacts IGDB" in normalized_readme
     assert "at most 500" in normalized_readme
     assert "PostgreSQL advisory lock" in normalized_readme
-    assert "Recommendation requests remain cache-only" in normalized_readme
+    assert "Neither recommendation path contacts Steam or IGDB" in (
+        normalized_readme
+    )
+    assert (
+        "Guided Recommendations remains the complete provider-free fallback"
+        in normalized_readme
+    )
 
 
 def test_setup_guide_lists_complete_verification_commands() -> None:

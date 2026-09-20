@@ -75,9 +75,11 @@ access session. Returning with that session reads only the cache. Use
 **Refresh Steam library** when you explicitly want to contact Steam and update
 ownership or playtime.
 
-Preference validation and recommendation requests use cached database facts and
-never call Steam, IGDB, Gemini, or another provider. A new Steam import does not
-populate IGDB facts. The default command is report-only: it shows aggregate
+Guided preference validation and recommendations use cached database facts and
+never call Steam, IGDB, Gemini, or another provider. **Ask Ludex AI** also uses
+the cached eligible game pool, but sends one bounded reranking request to
+Gemini when the feature is configured. A new Steam import does not populate
+IGDB facts. The default enrichment command is report-only: it shows aggregate
 readiness without provider calls or writes.
 
 ```bash
@@ -97,8 +99,8 @@ aggregate before/after coverage and batch counts, and exits nonzero with a
 sanitized report when IGDB fails; successful earlier batches remain committed
 for a safe retry. A transaction-scoped PostgreSQL advisory lock prevents
 overlapping apply runs. No automatic endpoint or background worker exists.
-Recommendation requests remain cache-only, and Gemini is neither constructed
-nor required.
+Neither recommendation path contacts Steam or IGDB. Gemini remains optional,
+and Guided Recommendations remains the complete provider-free fallback.
 
 ## Verify the installation
 
@@ -160,9 +162,8 @@ reviews and performs every Blueprint sync and deployment.
 
 The single `ludex` web service builds `frontend/dist` with
 `VITE_API_BASE_URL=/api`, serves those assets from FastAPI, and mounts the
-existing API under `/api`. This combined origin is the approved fallback after
-live staging proved that a Render static-site external rewrite can serve API
-GET responses but does not reliably forward session POST/cookie traffic.
+existing API under `/api`. This combined origin is the active production
+topology and preserves the secure host-only session-cookie boundary.
 
 The backend uses Render's assigned `PORT` and `/live` for shallow platform
 probes. `/live` does not query PostgreSQL or an external provider. `/health`
@@ -186,8 +187,10 @@ runs migrations, and then starts the API on port 8000 for development.
 Hosted staging and production are isolated Neon projects. FastAPI receives only
 the pooled `ludex_app` URL; Alembic uses the direct `ludex_migrator` URL; Neon
 owner credentials remain in owner-only ignored local files and never go to the
-web worker. Staging is migrated and verified. Production has restricted roles
-but intentionally remains empty until the hosted staging and backup gates pass.
+web worker. Staging and production are migrated to the repository's current
+Alembic head and use the same restricted role boundaries. Production is live
+at <https://ludexgame.app>; database changes still require the documented
+backup, staging, migration, and verification gates.
 
 The repeatable bootstrap, resume, backup/restore rehearsal, later migration
 order, and credential-rotation procedure are documented in
@@ -199,10 +202,9 @@ The manual-job, monitoring, quota, cost, backup, incident, and provider-terms
 checklists are documented in
 [`docs/components/hosted-operations.md`](docs/components/hosted-operations.md).
 The user-facing privacy/provider notice and authorized-use acknowledgment are
-implemented and verified on staging. The full notice lives at `/privacy`; the
+live in production. The full notice lives at `/privacy`; the
 Steam form and shared footer keep compact links to it from signed-out and
-signed-in states. Public launch remains gated on the owner's Render and Neon
-dashboard checks and the final release gate.
+signed-in states.
 
 The temporary free staging package is defined in
 `render.staging-combined.yaml`. The owner-operated staging and hosted browser
@@ -276,8 +278,8 @@ recommendation and session requests never trigger it.
 ## Environment variables
 
 The standard Docker Compose workflow supplies local database, origin, and cookie
-settings. It reads private Steam and IGDB credentials from the ignored
-`backend/.env` created during setup.
+settings. It reads private Steam and IGDB credentials, plus optional local
+Gemini settings, from the ignored `backend/.env` created during setup.
 
 Example files document the complete configuration surface:
 
