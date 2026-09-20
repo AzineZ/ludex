@@ -39,10 +39,6 @@ export type FacetOptionResponse = {
    name: string;
 };
 
-export type KeywordSearchResponse = {
-   items: FacetOptionResponse[];
-};
-
 export type KeywordBrowseResponse = {
    items: FacetOptionResponse[];
    truncated: boolean;
@@ -263,16 +259,6 @@ export function getReferenceDetails(
 ): Promise<ReferenceDetailsResponse> {
    return requestJson<ReferenceDetailsResponse>(
       `${recommendationPath}/references/${steamAppId}`
-   );
-}
-
-export function searchReferenceKeywords(
-   steamAppId: number,
-   query: string
-): Promise<KeywordSearchResponse> {
-   return requestJson<KeywordSearchResponse>(
-      `${recommendationPath}/references/${steamAppId}` +
-         `/keywords?${queryString(query)}`
    );
 }
 

@@ -8,7 +8,6 @@ import {
    getCurrentSessionProfile,
    refineFinalRecommendations,
    searchReferenceGames,
-   searchReferenceKeywords,
    validateRecommendationPreference,
    type FinalRecommendationResponse,
    type KeywordBrowseResponse,
@@ -193,27 +192,6 @@ describe("recommendation API", () => {
          (
             "http://localhost:8000/recommendations/"
             + "references/100"
-         ),
-         { credentials: "include" }
-      );
-   });
-
-   it("searches keywords within one exact reference", async () => {
-      const response = {
-         items: [
-            { id: 40, name: "Farming simulation" },
-         ],
-      };
-      fetchMock.mockResolvedValue(jsonResponse(response));
-
-      await expect(
-         searchReferenceKeywords(100, "farming & life")
-      ).resolves.toEqual(response);
-
-      expect(fetchMock).toHaveBeenCalledWith(
-         (
-            "http://localhost:8000/recommendations/"
-            + "references/100/keywords?query=farming+%26+life"
          ),
          { credentials: "include" }
       );
