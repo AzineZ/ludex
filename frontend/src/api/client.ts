@@ -108,6 +108,18 @@ export async function requestJson<ResponseType>(
    return response.json() as Promise<ResponseType>;
 }
 
+/** Sends a JSON request body to a Ludex POST endpoint. */
+export function postJson<ResponseType>(
+   path: string,
+   body: unknown
+): Promise<ResponseType> {
+   return requestJson<ResponseType>(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+   });
+}
+
 /** Sends a request whose successful response intentionally has no body. */
 export async function requestNoContent(
    path: string,

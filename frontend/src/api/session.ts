@@ -1,4 +1,4 @@
-import { requestJson, requestNoContent } from "./client";
+import { postJson, requestJson, requestNoContent } from "./client";
 
 export type OwnedGameResponse = {
    steam_app_id: number;
@@ -25,14 +25,13 @@ export function createAccessSession(
    identifier: string,
    authorizedUseAcknowledged: boolean
 ): Promise<SessionProfileResponse> {
-   return requestJson<SessionProfileResponse>("/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+   return postJson<SessionProfileResponse>(
+      "/session",
+      {
          identifier,
          authorized_use_acknowledged: authorizedUseAcknowledged,
-      }),
-   });
+      }
+   );
 }
 
 export function getCurrentSessionProfile(): Promise<SessionProfileResponse> {

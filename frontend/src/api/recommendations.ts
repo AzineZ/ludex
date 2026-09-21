@@ -1,4 +1,4 @@
-import { requestJson } from "./client";
+import { postJson, requestJson } from "./client";
 
 export type MetadataStatus = "pending" | "ready" | "missing" | "ambiguous";
 
@@ -274,30 +274,18 @@ export function getReferenceKeywords(
 export function validateRecommendationPreference(
    preference: RecommendationPreference
 ): Promise<RecommendationPreference> {
-   return requestJson<RecommendationPreference>(
+   return postJson<RecommendationPreference>(
       `${recommendationPath}/preferences/validate`,
-      {
-         method: "POST",
-         headers: {
-            "Content-Type": "application/json",
-         },
-         body: JSON.stringify(preference),
-      }
+      preference
    );
 }
 
 export function getFinalRecommendations(
    preference: RecommendationPreference
 ): Promise<FinalRecommendationResponse> {
-   return requestJson<FinalRecommendationResponse>(
+   return postJson<FinalRecommendationResponse>(
       recommendationPath,
-      {
-         method: "POST",
-         headers: {
-            "Content-Type": "application/json",
-         },
-         body: JSON.stringify(preference),
-      }
+      preference
    );
 }
 
@@ -309,15 +297,9 @@ export function refineFinalRecommendations(
       preference,
       rejected_steam_app_ids: [...rejectedSteamAppIds],
    };
-   return requestJson<FinalRecommendationResponse>(
+   return postJson<FinalRecommendationResponse>(
       `${recommendationPath}/refine`,
-      {
-         method: "POST",
-         headers: {
-            "Content-Type": "application/json",
-         },
-         body: JSON.stringify(refinement),
-      }
+      refinement
    );
 }
 
@@ -330,29 +312,17 @@ export function getAssistantGenres(): Promise<AssistantGenreOptionsResponse> {
 export function getAssistantFilterOptions(
    context: AssistantFilterContextRequest
 ): Promise<AssistantFilterOptionsResponse> {
-   return requestJson<AssistantFilterOptionsResponse>(
+   return postJson<AssistantFilterOptionsResponse>(
       `${recommendationPath}/assistant/filters`,
-      {
-         method: "POST",
-         headers: {
-            "Content-Type": "application/json",
-         },
-         body: JSON.stringify(context),
-      }
+      context
    );
 }
 
 export function getAssistantRecommendations(
    submission: AssistantRecommendationSubmission
 ): Promise<AssistantRecommendationResponse> {
-   return requestJson<AssistantRecommendationResponse>(
+   return postJson<AssistantRecommendationResponse>(
       `${recommendationPath}/assistant`,
-      {
-         method: "POST",
-         headers: {
-            "Content-Type": "application/json",
-         },
-         body: JSON.stringify(submission),
-      }
+      submission
    );
 }
