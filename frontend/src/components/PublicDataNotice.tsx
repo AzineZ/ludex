@@ -12,7 +12,7 @@ function PublicDataNotice() {
          <h2 id="privacy-data-heading">Privacy &amp; Data Use</h2>
          <p>
             Ludex is an independent portfolio project. Visitors may use its
-            owner-authorized cached sample library or submit a public Steam
+            developer-authorized cached sample library or submit a public Steam
             profile. Starting the cached sample does not contact Steam;
             explicitly refreshing a library does.
          </p>
@@ -24,7 +24,7 @@ function PublicDataNotice() {
                   Ludex may request and cache the submitted Steam ID, public
                   display name, profile and avatar URLs, owned games, playtime,
                   and last-played information. Shared game facts and artwork may
-                  be cached from IGDB. The owner-authorized sample exposes the
+                  be cached from IGDB. The developer-authorized sample exposes the
                   same cached profile and library fields even while its source
                   Steam profile is private. Recommendation preferences are used
                   for the current request and are not saved as a user account.

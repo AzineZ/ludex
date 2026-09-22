@@ -61,7 +61,7 @@ describe("AccessSessionSection composition", () => {
       });
       expect(accessRegion).toHaveClass("app__session--access");
       expect(accessRegion).not.toHaveTextContent(
-         "Use a public Steam profile or the owner-authorized sample"
+         "Use a public Steam profile or the developer-authorized sample"
       );
       expect(screen.queryByText(/Recommendation epoch:/)).not.toBeInTheDocument();
    });

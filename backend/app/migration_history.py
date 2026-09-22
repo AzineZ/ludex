@@ -19,7 +19,7 @@ def get_single_alembic_head() -> str:
 
 
 def main() -> None:
-    """Print the single head for owner-operated recovery scripts."""
+    """Print the single head for developer-operated recovery scripts."""
     print(get_single_alembic_head())
 
 

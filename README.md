@@ -157,7 +157,7 @@ The backend health endpoint should return:
 ## Hosted production package
 
 The reviewed `render.yaml` describes the current production package; it does
-not provision, sync, or deploy Render or Neon resources by itself. The owner
+not provision, sync, or deploy Render or Neon resources by itself. The developer
 reviews and performs every Blueprint sync and deployment.
 
 The single `ludex` web service builds `frontend/dist` with
@@ -171,7 +171,7 @@ remains the deliberate database-aware check and must not be configured as the
 frequent Render probe.
 
 The hosted web-worker command does not run Alembic. Before a hosted release,
-the owner-operated migration step must run exactly once through a direct Neon
+the developer-operated migration step must run exactly once through a direct Neon
 connection after the approved backup check. The running service receives a
 separate pooled Neon connection as `DATABASE_URL`. Render prompts for all
 backend credentials marked `sync: false`, including `GEMINI_API_KEY`. The
@@ -186,7 +186,7 @@ runs migrations, and then starts the API on port 8000 for development.
 
 Hosted staging and production are isolated Neon projects. FastAPI receives only
 the pooled `ludex_app` URL; Alembic uses the direct `ludex_migrator` URL; Neon
-owner credentials remain in owner-only ignored local files and never go to the
+database-owner credentials remain in developer-only ignored local files and never go to the
 web worker. Staging and production are migrated to the repository's current
 Alembic head and use the same restricted role boundaries. Production is live
 at <https://ludexgame.app>; database changes still require the documented
@@ -207,7 +207,7 @@ Steam form and shared footer keep compact links to it from signed-out and
 signed-in states.
 
 The temporary free staging package is defined in
-`render.staging-combined.yaml`. The owner-operated staging and hosted browser
+`render.staging-combined.yaml`. The developer-operated staging and hosted browser
 gates are documented in
 [`docs/components/hosted-deployment.md`](docs/components/hosted-deployment.md).
 Staging and production both require a separate generated
