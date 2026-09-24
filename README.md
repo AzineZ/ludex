@@ -1,6 +1,6 @@
 # Ludex
 
-If you have a huge Steam backlog, there's a good chance you have experienced the feeling of scrolling through them repeatedly and struggle to choose one, Ludex helps you combat the choice paralysis problem and finish the games you have paid for.
+If you have a huge Steam backlog, there's a good chance you have experienced the feeling of scrolling through it repeatedly and struggling to choose a game to play next, Ludex helps you combat the choice paralysis problem and finish the games you have paid for by letting you tell Ludex what you feel like playing, in your own words!
 
 ## Local application stack
 
