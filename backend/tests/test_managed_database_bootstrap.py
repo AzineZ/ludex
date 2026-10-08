@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.managed_database_bootstrap import (
+from app.operations.managed_database_bootstrap import (
     MIGRATION_ROLE_NAME,
     RUNTIME_ROLE_NAME,
     build_role_connection_url,

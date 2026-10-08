@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.managed_database_recovery import postgres_environment
+from app.operations.managed_database_recovery import postgres_environment
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -26,7 +26,7 @@ def test_builds_pg_environment_without_putting_secrets_in_arguments() -> None:
 
 
 def test_managed_rehearsal_is_bounded_and_non_destructive() -> None:
-    source = (PROJECT_ROOT / "backend/app/managed_database_recovery.py").read_text(
+    source = (PROJECT_ROOT / "backend/app/operations/managed_database_recovery.py").read_text(
         encoding="utf-8"
     )
 
@@ -49,7 +49,7 @@ def test_managed_rehearsal_is_bounded_and_non_destructive() -> None:
 
 
 def test_managed_rehearsal_uses_staging_credentials_only() -> None:
-    source = (PROJECT_ROOT / "backend/app/managed_database_recovery.py").read_text(
+    source = (PROJECT_ROOT / "backend/app/operations/managed_database_recovery.py").read_text(
         encoding="utf-8"
     )
 

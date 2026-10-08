@@ -10,24 +10,24 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from urllib.parse import quote, unquote, urlsplit, urlunsplit
+from urllib.parse import quote, unquote, urlunsplit
 
 from dotenv import dotenv_values
 import psycopg
 from psycopg import sql
 
-from app.managed_database_bootstrap import (
+from app.operations.managed_database_bootstrap import (
     MIGRATION_ROLE_NAME,
     RUNTIME_ROLE_NAME,
     _load_admin_connections,
     _to_psycopg_url,
     _validated_url_parts,
 )
-from app.migration_history import get_single_alembic_head
+from app.operations.migration_history import get_single_alembic_head
 
 
 POSTGRES_IMAGE = "postgres:18-alpine"
-_BACKEND_ROOT = Path(__file__).resolve().parents[1]
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 class ManagedRecoveryError(RuntimeError):

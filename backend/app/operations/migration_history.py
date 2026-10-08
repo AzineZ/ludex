@@ -6,7 +6,7 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-_BACKEND_ROOT = Path(__file__).resolve().parents[1]
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 def get_single_alembic_head() -> str:

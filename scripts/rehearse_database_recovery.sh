@@ -40,7 +40,7 @@ database_url() {
 
 expected_revision=$(
     cd "$project_root/backend"
-    uv run python -m app.migration_history
+    uv run python -m app.operations.migration_history
 )
 
 verify_database() {

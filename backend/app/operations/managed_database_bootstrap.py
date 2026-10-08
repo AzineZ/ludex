@@ -15,7 +15,7 @@ from dotenv import dotenv_values
 import psycopg
 from psycopg import sql
 
-from app.migration_history import get_single_alembic_head
+from app.operations.migration_history import get_single_alembic_head
 
 
 MIGRATION_ROLE_NAME = "ludex_migrator"
@@ -25,7 +25,7 @@ _POSTGRESQL_SCHEMES = {
     "postgresql",
     "postgresql+psycopg",
 }
-_BACKEND_ROOT = Path(__file__).resolve().parents[1]
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -415,17 +415,7 @@ def _write_result(output: TextIO, result: dict[str, object]) -> None:
     output.write("\n")
 
 
-def run_managed_database_bootstrap(
-    arguments: list[str],
-    *,
-    output: TextIO = sys.stdout,
-    password_factory: Callable[[], str] = _generate_password,
-    role_creator: Callable[..., None] = create_least_privilege_roles,
-    defaults_configurer: Callable[..., None] = configure_migrator_defaults,
-    migration_runner: Callable[..., str] = run_alembic_migrations,
-    finalizer: Callable[..., int] = finalize_and_verify_database,
-) -> int:
-    """Bootstrap one isolated database without exposing generated secrets."""
+def _parse_bootstrap_arguments(arguments: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--environment",
@@ -439,8 +429,11 @@ def run_managed_database_bootstrap(
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--prepare-only", action="store_true")
     action.add_argument("--resume", action="store_true")
-    options = parser.parse_args(arguments)
+    return parser.parse_args(arguments)
 
+
+def _blocked_bootstrap_failure(options: argparse.Namespace) -> str | None:
+    """Name the safety gate that forbids this run, if any."""
     production_backup_missing = (
         not options.prepare_only
         and (
@@ -452,28 +445,37 @@ def run_managed_database_bootstrap(
     if options.environment == "production" and (
         not options.confirm_production or production_backup_missing
     ):
+        return "production_confirmation_and_backup_required"
+    if not options.output_env_file.name.startswith(".env.neon-"):
+        return "unsafe_output_filename"
+    return None
+
+
+def run_managed_database_bootstrap(
+    arguments: list[str],
+    *,
+    output: TextIO = sys.stdout,
+    password_factory: Callable[[], str] = _generate_password,
+    role_creator: Callable[..., None] = create_least_privilege_roles,
+    defaults_configurer: Callable[..., None] = configure_migrator_defaults,
+    migration_runner: Callable[..., str] = run_alembic_migrations,
+    finalizer: Callable[..., int] = finalize_and_verify_database,
+) -> int:
+    """Bootstrap one isolated database without exposing generated secrets."""
+    options = _parse_bootstrap_arguments(arguments)
+    blocked_failure = _blocked_bootstrap_failure(options)
+    if blocked_failure is not None:
         _write_result(
             output,
             {
-                "environment": "production",
-                "failure": "production_confirmation_and_backup_required",
+                "environment": options.environment,
+                "failure": blocked_failure,
                 "status": "blocked",
             },
         )
         return 2
 
     output_environment = options.output_env_file
-    if not output_environment.name.startswith(".env.neon-"):
-        _write_result(
-            output,
-            {
-                "environment": options.environment,
-                "failure": "unsafe_output_filename",
-                "status": "blocked",
-            },
-        )
-        return 2
-
     stage = "load_admin_environment"
     environment_written = False
     roles_created = False

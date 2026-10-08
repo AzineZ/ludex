@@ -3,7 +3,7 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from app.migration_history import get_single_alembic_head
+from app.operations.migration_history import get_single_alembic_head
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -65,7 +65,7 @@ def test_local_recovery_rehearsal_verifies_backup_and_restored_schema() -> None:
     assert "pg_restore --exit-on-error" in rehearsal
     assert "alembic_version" in rehearsal
     assert "information_schema.tables" in rehearsal
-    assert "uv run python -m app.migration_history" in rehearsal
+    assert "uv run python -m app.operations.migration_history" in rehearsal
     assert 'test "$source_revision" = "$expected_revision"' in rehearsal
     assert 'test "$source_revision" = "6a2f8e4c91bd"' not in rehearsal
     assert "--clean" not in rehearsal
