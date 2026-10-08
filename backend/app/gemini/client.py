@@ -114,45 +114,6 @@ class GeminiClient:
         """Close the underlying HTTP client."""
         self._http_client.close()
 
-    def generate_structured_content(
-        self,
-        *,
-        model_id: str,
-        system_instruction: str,
-        user_prompt: str,
-        response_schema: dict[str, Any] | None,
-        max_output_tokens: int | None = None,
-    ) -> dict[str, Any]:
-        """Generate and decode one structured JSON object.
-
-        Args:
-            model_id: Exact stable Gemini model identifier.
-            system_instruction: Trusted classifier instructions.
-            user_prompt: Per-game prompt containing canonical facts.
-            response_schema: Optional JSON Schema restricting the model
-                response. ``None`` retains JSON output mode while leaving the
-                response contract to the caller's strict validator.
-            max_output_tokens: Optional positive response-token ceiling.
-
-        Returns:
-            The decoded JSON object returned by Gemini.
-
-        Raises:
-            GeminiAuthenticationError: If authentication is rejected.
-            GeminiRateLimitError: If the request is rate-limited.
-            GeminiUnavailableError: If Gemini cannot be reached.
-            GeminiResponseError: If a successful response is malformed,
-                incomplete, or does not contain a JSON object.
-            GeminiAPIError: If Gemini otherwise rejects the request.
-        """
-        return self.generate_structured_content_with_metadata(
-            model_id=model_id,
-            system_instruction=system_instruction,
-            user_prompt=user_prompt,
-            response_schema=response_schema,
-            max_output_tokens=max_output_tokens,
-        ).content
-
     def generate_structured_content_with_metadata(
         self,
         *,

@@ -158,7 +158,6 @@ def test_reference_only_library_returns_successful_empty_pool(
         eligible_count=0,
     )
     assert result.returned_count == 0
-    assert result.is_truncated is False
 
 
 def test_sparse_library_returns_all_eligible_candidates_with_evidence(
@@ -196,7 +195,6 @@ def test_sparse_library_returns_all_eligible_candidates_with_evidence(
     ) == (10_000, 0)
     assert result.eligible_count == 2
     assert result.returned_count == 2
-    assert result.is_truncated is False
 
 
 def test_candidate_pool_is_immutable() -> None:
@@ -296,7 +294,6 @@ def test_large_tied_library_truncates_to_lowest_15_app_ids(
     )
     assert result.eligible_count == 16
     assert result.returned_count == 15
-    assert result.is_truncated is True
 
 
 def test_multi_reference_scores_and_evidence_pass_through_unchanged(

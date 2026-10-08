@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 import app.integrations.igdb.command as command
 from app.database import Base

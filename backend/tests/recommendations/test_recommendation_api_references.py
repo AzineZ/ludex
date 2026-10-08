@@ -116,37 +116,6 @@ def test_get_reference_details_returns_direct_object(
         },
     }
 
-def test_search_reference_keywords_returns_items_envelope(
-    recommendation_api: RecommendationAPI,
-) -> None:
-    profile = _profile()
-    recommendation_api.database_session.add(
-        _owned_game(
-            profile,
-            100,
-            "Reference Game",
-            links=(
-                _term_link("keyword", 20, "Exploration"),
-                _term_link("keyword", 30, "Explosive"),
-                _term_link("keyword", 40, "Farming"),
-            ),
-        )
-    )
-    recommendation_api.database_session.commit()
-
-    response = recommendation_api.client.get(
-        "/recommendations/references/100/keywords",
-        params={"query": "explo"},
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "items": [
-            {"id": 20, "name": "Exploration"},
-            {"id": 30, "name": "Explosive"},
-        ]
-    }
-
 def test_browse_reference_keywords_returns_bounded_envelope(
     recommendation_api: RecommendationAPI,
 ) -> None:
@@ -250,10 +219,6 @@ def test_reference_detail_hides_unknown_and_unowned_identically(
     [
         "/recommendations/references/100",
         (
-            "/recommendations/references/100/keywords"
-            "?query=game"
-        ),
-        (
             "/recommendations/references/100/"
             "keywords/browse"
         ),
@@ -351,20 +316,10 @@ def test_rejects_invalid_path_identifiers_without_querying(
         message=expected_message,
     )
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        "/recommendations/references",
-        (
-            "/recommendations/references/100/keywords"
-        ),
-    ],
-)
 def test_rejects_missing_search_query(
     recommendation_api: RecommendationAPI,
-    path: str,
 ) -> None:
-    response = recommendation_api.client.get(path)
+    response = recommendation_api.client.get("/recommendations/references")
 
     _assert_error(
         response,

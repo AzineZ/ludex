@@ -81,12 +81,6 @@ class FacetOptionResponse(RecommendationHTTPModel):
     name: str
 
 
-class KeywordSearchResponse(RecommendationHTTPModel):
-    """Envelope reference-scoped keyword search results."""
-
-    items: tuple[FacetOptionResponse, ...]
-
-
 class KeywordBrowseResponse(RecommendationHTTPModel):
     """Envelope a bounded reference-scoped keyword collection."""
 

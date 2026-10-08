@@ -35,12 +35,6 @@ class FactualCandidatePool:
         """Derive the number of candidates retained in the pool."""
         return len(self.candidates)
 
-    @property
-    def is_truncated(self) -> bool:
-        """Report whether eligible candidates exist beyond this pool."""
-        return self.eligible_count > self.returned_count
-
-
 def _active_facet_kinds(
     preference: RecommendationPreference,
 ) -> frozenset[FacetKind]:

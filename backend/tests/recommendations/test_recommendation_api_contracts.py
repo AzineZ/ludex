@@ -59,13 +59,6 @@ def test_routes_are_read_only(
             recommendation_api.client.get(
                 (
                     "/recommendations/references/100/"
-                    "keywords"
-                ),
-                params={"query": "explore"},
-            ),
-            recommendation_api.client.get(
-                (
-                    "/recommendations/references/100/"
                     "keywords/browse"
                 )
             ),
@@ -87,7 +80,6 @@ def test_routes_are_read_only(
         200,
         200,
         200,
-        200,
     ]
     assert transaction_events == []
 
@@ -105,12 +97,6 @@ def test_openapi_declares_recommendation_contracts(
         (
             "/recommendations/references/"
             "{steam_app_id}"
-        )
-    ]["get"]
-    keywords = paths[
-        (
-            "/recommendations/references/"
-            "{steam_app_id}/keywords"
         )
     ]["get"]
     keyword_browse = paths[
@@ -145,14 +131,6 @@ def test_openapi_declares_recommendation_contracts(
         "503",
     }
     assert set(detail["responses"]) == {
-        "200",
-        "401",
-        "404",
-        "409",
-        "422",
-        "503",
-    }
-    assert set(keywords["responses"]) == {
         "200",
         "401",
         "404",
@@ -219,7 +197,6 @@ def test_openapi_declares_recommendation_contracts(
             recommendation,
             search,
             detail,
-            keywords,
             keyword_browse,
             validation,
             refinement,

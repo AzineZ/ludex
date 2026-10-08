@@ -13,7 +13,6 @@ from app.recommendations.api.errors import raise_reference_read_error
 from app.recommendations.api.schemas import (
     FacetOptionResponse,
     KeywordBrowseResponse,
-    KeywordSearchResponse,
     OwnedGameSearchResponse,
     OwnedGameSuggestionResponse,
     ReferenceDetailsResponse,
@@ -30,7 +29,6 @@ from app.recommendations.reference_reads import (
     browse_reference_keywords,
     load_reference_details,
     search_owned_games,
-    search_reference_keywords,
 )
 from app.sessions.http import require_access_session
 from app.sessions.service import ActiveAccessSession
@@ -107,44 +105,6 @@ def read_reference_details(
         raise_reference_read_error(error)
 
     return _reference_details_response(details)
-
-
-@router.get(
-    "/references/{steam_app_id}/keywords",
-    response_model=KeywordSearchResponse,
-    responses=STANDARD_ERROR_RESPONSES,
-)
-def search_keywords(
-    steam_app_id: PositivePathIdentifier,
-    query: RequiredSearchQuery,
-    access_session: Annotated[
-        ActiveAccessSession,
-        Depends(require_access_session),
-    ],
-    database_session: Annotated[
-        Session,
-        Depends(get_database_session),
-    ],
-) -> KeywordSearchResponse:
-    """Search cached keywords linked to one ready owned reference."""
-    try:
-        keywords = search_reference_keywords(
-            database_session,
-            access_session.profile_id,
-            steam_app_id,
-            query,
-        )
-    except (
-        InvalidSearchQueryError,
-        ProfileNotFoundError,
-        ReferenceNotOwnedError,
-        ReferenceMetadataUnavailableError,
-    ) as error:
-        raise_reference_read_error(error)
-
-    return KeywordSearchResponse(
-        items=tuple(_facet_option_response(keyword) for keyword in keywords)
-    )
 
 
 @router.get(

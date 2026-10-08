@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 from app.integrations.steam.client import (
     SteamAPIError,
     SteamAPIUnavailableError,
-    SteamClient,
     SteamLibraryUnavailableError,
     SteamOwnedGame,
     SteamProfile,

@@ -88,14 +88,14 @@ def test_generates_structured_content_with_exact_request() -> None:
         "test-api-key",
         transport=transport,
     ) as client:
-        result = client.generate_structured_content(
+        result = client.generate_structured_content_with_metadata(
             model_id=MODEL_ID,
             system_instruction="System instruction",
             user_prompt="User prompt",
             response_schema=TEST_SCHEMA,
         )
 
-    assert result == {"result": "classified"}
+    assert result.content == {"result": "classified"}
 
 
 def test_includes_optional_output_token_ceiling() -> None:
@@ -120,7 +120,7 @@ def test_includes_optional_output_token_ceiling() -> None:
         "test-api-key",
         transport=httpx.MockTransport(handler),
     ) as client:
-        result = client.generate_structured_content(
+        result = client.generate_structured_content_with_metadata(
             model_id=MODEL_ID,
             system_instruction="System instruction",
             user_prompt="User prompt",
@@ -128,7 +128,7 @@ def test_includes_optional_output_token_ceiling() -> None:
             max_output_tokens=8192,
         )
 
-    assert result == {"result": "ok"}
+    assert result.content == {"result": "ok"}
 
 
 def test_allows_json_mode_without_provider_schema() -> None:
@@ -155,14 +155,14 @@ def test_allows_json_mode_without_provider_schema() -> None:
         "test-api-key",
         transport=httpx.MockTransport(handler),
     ) as client:
-        result = client.generate_structured_content(
+        result = client.generate_structured_content_with_metadata(
             model_id=MODEL_ID,
             system_instruction="System instruction",
             user_prompt="User prompt",
             response_schema=None,
         )
 
-    assert result == {"result": "ok"}
+    assert result.content == {"result": "ok"}
 
 
 def test_detailed_generation_returns_sanitized_usage_counts() -> None:
@@ -209,7 +209,7 @@ def test_rejects_invalid_output_token_ceiling_before_request() -> None:
 
     with GeminiClient("test-api-key", transport=transport) as client:
         with pytest.raises(ValueError, match="positive integer"):
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",
@@ -246,7 +246,7 @@ def test_translates_unsuccessful_responses(
         transport=transport,
     ) as client:
         with pytest.raises(expected_error) as caught:
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",
@@ -267,7 +267,7 @@ def test_preserves_numeric_retry_after_on_rate_limit() -> None:
 
     with GeminiClient("test-api-key", transport=transport) as client:
         with pytest.raises(GeminiRateLimitError) as caught:
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",
@@ -317,7 +317,7 @@ def test_sanitizes_provider_rejection_reason(
 
     with GeminiClient("test-api-key", transport=transport) as client:
         with pytest.raises(GeminiAPIError) as caught:
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",
@@ -346,7 +346,7 @@ def test_network_failure_is_reported_as_connection_error() -> None:
             GeminiConnectionError,
             match="could not be reached",
         ):
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",
@@ -366,7 +366,7 @@ def test_timeout_is_distinguished_from_other_network_failures() -> None:
 
     with GeminiClient("test-api-key", transport=transport) as client:
         with pytest.raises(GeminiTimeoutError) as caught:
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",
@@ -435,7 +435,7 @@ def test_rejects_malformed_success_response(payload: object) -> None:
             GeminiResponseError,
             match="invalid response data",
         ):
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",
@@ -472,7 +472,7 @@ def test_sanitizes_incomplete_candidate_reason(
 
     with GeminiClient("test-api-key", transport=transport) as client:
         with pytest.raises(GeminiResponseError) as caught:
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",
@@ -499,7 +499,7 @@ def test_sanitizes_invalid_output_json_reason() -> None:
 
     with GeminiClient("test-api-key", transport=transport) as client:
         with pytest.raises(GeminiResponseError) as caught:
-            client.generate_structured_content(
+            client.generate_structured_content_with_metadata(
                 model_id=MODEL_ID,
                 system_instruction="System instruction",
                 user_prompt="User prompt",

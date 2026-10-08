@@ -443,7 +443,7 @@ def test_cached_recommendations_do_not_require_or_call_gemini(
 
     monkeypatch.setattr(
         GeminiClient,
-        "generate_structured_content",
+        "generate_structured_content_with_metadata",
         reject_gemini_call,
     )
 

@@ -4,45 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.integrations.steam.client import SteamClient
-from app.integrations.steam.identifiers import normalize_steam_identifier
 from app.models import Game, Profile, ProfileGame
-
-
-def sync_profile(
-    database_session: Session,
-    steam_client: SteamClient,
-    raw_identifier: str,
-) -> Profile:
-    """Import or refresh a Steam profile and its owned-game library.
-
-    Steam data is fetched before the database transaction begins. A successful
-    transaction updates profile metadata, shared games, ownerships, playtime,
-    and the synchronization timestamp atomically. Ownerships missing from the
-    complete Steam response are removed from this profile.
-
-    Args:
-        database_session: The session used for all persistence operations.
-        steam_client: The client used to retrieve current Steam data.
-        raw_identifier: A Steam ID or supported Steam Community profile URL.
-
-    Returns:
-        The newly created or refreshed profile with its owned games loaded.
-
-    Raises:
-        InvalidSteamIdentifierError: If the identifier format is unsupported.
-        SteamProfileNotFoundError: If Steam cannot find the profile.
-        SteamLibraryUnavailableError: If the owned library is not public.
-        SteamAPIUnavailableError: If Steam cannot be reached.
-        SteamAPIError: If Steam rejects the request or returns invalid data.
-    """
-    identifier = normalize_steam_identifier(raw_identifier)
-    steam_id = steam_client.resolve_steam_id(identifier)
-
-    return sync_profile_by_steam_id(
-        database_session,
-        steam_client,
-        steam_id,
-    )
 
 
 def sync_profile_by_steam_id(

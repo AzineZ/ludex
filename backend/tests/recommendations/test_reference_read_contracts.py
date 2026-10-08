@@ -10,7 +10,6 @@ from app.recommendations.reference_reads import (
     browse_reference_keywords,
     load_reference_details,
     search_owned_games,
-    search_reference_keywords,
 )
 from tests.recommendations.reference_read_support import (
     database_session,
@@ -92,12 +91,6 @@ def test_reference_reads_do_not_flush_commit_or_roll_back(
             database_session,
             profile.id,
             reference.steam_app_id,
-        )
-        search_reference_keywords(
-            database_session,
-            profile.id,
-            reference.steam_app_id,
-            "Farm",
         )
         browse_reference_keywords(
             database_session,

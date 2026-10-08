@@ -18,7 +18,6 @@ from app.recommendations.final_results import (
     FinalRecommendationResult,
     MatchReason,
     MatchSummary,
-    TradeoffType,
     UnknownCompletionTimeTradeoff,
     UnknownPreferenceMetadataTradeoff,
     UnmatchedPreferenceReason,

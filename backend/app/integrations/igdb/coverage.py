@@ -18,32 +18,6 @@ class IGDBMetadataCoverage:
     attempted_games: int
     error_games: int
 
-    @property
-    def definitive_games(self) -> int:
-        """Return games with a completed factual match outcome."""
-        return (
-            self.ready_games
-            + self.missing_games
-            + self.ambiguous_games
-        )
-
-    @property
-    def completion_ratio(self) -> float:
-        """Return the portion of owned games with definitive outcomes."""
-        if self.total_games == 0:
-            return 0.0
-
-        return self.definitive_games / self.total_games
-
-    @property
-    def match_ratio(self) -> float:
-        """Return the matched portion of definitive outcomes."""
-        if self.definitive_games == 0:
-            return 0.0
-
-        return self.ready_games / self.definitive_games
-
-
 def get_igdb_metadata_coverage(
     session: Session,
 ) -> IGDBMetadataCoverage:

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.models import Game, Profile, ProfileGame
-from app.profiles.service import sync_profile
+from app.profiles.service import sync_profile_by_steam_id
 from app.integrations.steam.client import (
     SteamAPIUnavailableError,
     SteamClient,
@@ -32,7 +32,6 @@ def make_steam_client(
     games: list[SteamOwnedGame],
 ) -> MagicMock:
     client = MagicMock(spec=SteamClient)
-    client.resolve_steam_id.return_value = steam_id
     client.get_profile.return_value = SteamProfile(
         steam_id=steam_id,
         display_name=display_name,
@@ -73,7 +72,7 @@ def test_sync_profile_creates_profile_and_library(
         ],
     )
 
-    profile = sync_profile(
+    profile = sync_profile_by_steam_id(
         database_session,
         client,
         "76561198000000000",
@@ -107,7 +106,7 @@ def test_sync_profile_refreshes_existing_profile(
         ],
     )
 
-    original_profile = sync_profile(
+    original_profile = sync_profile_by_steam_id(
         database_session,
         client,
         "76561198000000000",
@@ -125,7 +124,7 @@ def test_sync_profile_refreshes_existing_profile(
         make_game(730, "Counter-Strike 2", 30),
     ]
 
-    refreshed_profile = sync_profile(
+    refreshed_profile = sync_profile_by_steam_id(
         database_session,
         client,
         "76561198000000000",
@@ -181,12 +180,12 @@ def test_profiles_share_cached_game_rows(
         games=[shared_game],
     )
 
-    sync_profile(
+    sync_profile_by_steam_id(
         database_session,
         first_client,
         "76561198000000000",
     )
-    sync_profile(
+    sync_profile_by_steam_id(
         database_session,
         second_client,
         "76561198000000001",
@@ -214,7 +213,7 @@ def test_failed_refresh_preserves_cached_profile(
         ],
     )
 
-    cached_profile = sync_profile(
+    cached_profile = sync_profile_by_steam_id(
         database_session,
         client,
         "76561198000000000",
@@ -228,7 +227,7 @@ def test_failed_refresh_preserves_cached_profile(
     )
 
     with pytest.raises(SteamAPIUnavailableError):
-        sync_profile(
+        sync_profile_by_steam_id(
             database_session,
             client,
             "76561198000000000",
@@ -254,7 +253,7 @@ def test_failed_profile_write_rolls_back_the_complete_snapshot(
         display_name="Cached Name",
         games=[make_game(440, "Team Fortress 2", 120)],
     )
-    cached_profile = sync_profile(
+    cached_profile = sync_profile_by_steam_id(
         database_session,
         client,
         "76561198000000000",
@@ -290,7 +289,7 @@ def test_failed_profile_write_rolls_back_the_complete_snapshot(
             OperationalError,
             match="simulated profile write failure",
         ):
-            sync_profile(
+            sync_profile_by_steam_id(
                 database_session,
                 client,
                 "76561198000000000",

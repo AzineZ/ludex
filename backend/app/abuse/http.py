@@ -1,7 +1,6 @@
 """Small request-shape boundary for unsafe browser methods."""
 
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from starlette.responses import JSONResponse
 from starlette.types import Message, Receive, Scope, Send
