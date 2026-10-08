@@ -1,19 +1,17 @@
 import argparse
-import json
 import sys
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
-from datetime import datetime
 from io import TextIOBase
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.clock import Clock, utc_now
+from app.command_output import write_json_payload
 from app.database import SessionLocal, engine
 from app.maintenance.retention import (
-    Clock,
     ProfileRetentionReport,
-    _utc_now,
     apply_profile_retention_cleanup,
     report_profile_retention_candidates,
 )
@@ -67,16 +65,11 @@ def _report_payload(
     }
 
 
-def _write_payload(payload: dict[str, object], output: TextIOBase) -> None:
-    json.dump(payload, output, indent=2, sort_keys=True)
-    output.write("\n")
-
-
 def run_retention_cleanup_command(
     arguments: Sequence[str],
     *,
     session_factory: SessionFactory = SessionLocal,
-    clock: Clock = _utc_now,
+    clock: Clock = utc_now,
     apply_lock: ApplyLock = _retention_cleanup_apply_lock,
     output: TextIOBase = sys.stdout,
     error_output: TextIOBase = sys.stderr,
@@ -88,7 +81,7 @@ def run_retention_cleanup_command(
         if options.apply:
             with apply_lock() as lock_acquired:
                 if not lock_acquired:
-                    _write_payload(
+                    write_json_payload(
                         {
                             "mode": "blocked",
                             "detail": (
@@ -111,7 +104,7 @@ def run_retention_cleanup_command(
                     clock=clock,
                 )
     except Exception:
-        _write_payload(
+        write_json_payload(
             {
                 "mode": "failed",
                 "detail": (
@@ -124,7 +117,7 @@ def run_retention_cleanup_command(
         )
         return 1
 
-    _write_payload(
+    write_json_payload(
         _report_payload(report, applied=options.apply),
         output,
     )

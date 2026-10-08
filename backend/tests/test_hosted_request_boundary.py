@@ -6,7 +6,7 @@ from app.dependencies import get_steam_client, get_steam_rate_limit_hmac_key
 from app.config import settings
 from app.main import app
 from app.abuse.steam import SteamAbuseController
-from app.sessions.routes import get_steam_abuse_controller
+from app.sessions.rate_limits import get_steam_abuse_controller
 
 
 def test_wrong_origin_is_rejected_before_provider_dependency() -> None:

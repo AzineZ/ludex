@@ -2,12 +2,12 @@ import argparse
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from io import TextIOBase
-import json
 import sys
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.command_output import write_json_payload
 from app.config import settings
 from app.database import SessionLocal, engine
 from app.integrations.igdb.client import IGDBAPIError, IGDBClient
@@ -103,11 +103,6 @@ def _report_payload(
     }
 
 
-def _write_payload(payload: dict[str, object], output: TextIOBase) -> None:
-    json.dump(payload, output, indent=2, sort_keys=True)
-    output.write("\n")
-
-
 def run_igdb_enrichment_command(
     arguments: Sequence[str],
     *,
@@ -126,7 +121,7 @@ def run_igdb_enrichment_command(
         before = get_igdb_metadata_coverage(database_session)
 
     if not options.apply:
-        _write_payload(
+        write_json_payload(
             _report_payload(
                 before,
                 selected_pending_game_count=len(pending_ids),
@@ -137,7 +132,7 @@ def run_igdb_enrichment_command(
 
     with apply_lock() as lock_acquired:
         if not lock_acquired:
-            _write_payload(
+            write_json_payload(
                 {
                     "mode": "blocked",
                     "detail": "IGDB enrichment is already running.",
@@ -164,7 +159,7 @@ def run_igdb_enrichment_command(
                 with session_factory() as database_session:
                     after = get_igdb_metadata_coverage(database_session)
 
-                _write_payload(
+                write_json_payload(
                     {
                         "mode": "failed",
                         "detail": "IGDB enrichment did not complete.",
@@ -180,7 +175,7 @@ def run_igdb_enrichment_command(
         with session_factory() as database_session:
             after = get_igdb_metadata_coverage(database_session)
 
-        _write_payload(
+        write_json_payload(
             {
                 "mode": "applied",
                 "selected_pending_game_count": len(pending_ids),

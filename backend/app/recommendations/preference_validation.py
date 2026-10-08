@@ -1,8 +1,9 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import NoReturn
 
-from sqlalchemy import and_, select
+from sqlalchemy import Row, Select, and_, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -105,38 +106,12 @@ def _require_valid_profile_identity(profile_id: object) -> None:
         )
 
 
-def validate_preference(
-    session: Session,
+def _stored_reference_statement(
     profile_id: int,
-    preference: RecommendationPreference,
-) -> ValidatedRecommendationPreference:
-    """Validate stored identities in one immutable preference.
-
-    Validation uses one cache-only database statement. Failures follow
-    deterministic precedence: keyword limit, profile, ownership,
-    metadata readiness, then exact facet membership.
-
-    Args:
-        session: Database session used only for cached reads.
-        profile_id: Selected local profile identity.
-        preference: Structurally validated recommendation preference.
-
-    Returns:
-        A frozen wrapper marking the preference as database validated.
-
-    Raises:
-        PreferenceValidationError: If any stored identity or
-            relationship fails validation.
-    """
-    _recheck_keyword_limits(preference)
-    _require_valid_profile_identity(profile_id)
-
-    requested_steam_app_ids = tuple(
-        reference.steam_app_id
-        for reference in preference.references
-    )
-
-    statement = (
+    requested_steam_app_ids: tuple[int, ...],
+) -> Select:
+    """Build the one cache-only read that backs every stored check."""
+    return (
         select(
             Profile.id.label("profile_id"),
             Game.steam_app_id.label("steam_app_id"),
@@ -176,15 +151,12 @@ def validate_preference(
         .execution_options(autoflush=False)
     )
 
-    rows = session.execute(statement).all()
 
-    if not rows:
-        _raise_issue(
-            PreferenceValidationCode.PROFILE_NOT_FOUND,
-            "profile_id",
-            "The selected profile does not exist.",
-        )
-
+def _collect_reference_state(
+    rows: Sequence[Row],
+    requested_steam_app_ids: tuple[int, ...],
+) -> tuple[dict[int, str], dict[int, set[tuple[str, int]]]]:
+    """Group rows into owned metadata statuses and facet memberships."""
     metadata_statuses: dict[int, str] = {}
     memberships: dict[int, set[tuple[str, int]]] = {
         steam_app_id: set()
@@ -210,6 +182,13 @@ def validate_preference(
                 )
             )
 
+    return metadata_statuses, memberships
+
+
+def _require_owned_references(
+    preference: RecommendationPreference,
+    metadata_statuses: dict[int, str],
+) -> None:
     for reference_index, reference in enumerate(
         preference.references
     ):
@@ -226,6 +205,11 @@ def validate_preference(
                 ),
             )
 
+
+def _require_ready_references(
+    preference: RecommendationPreference,
+    metadata_statuses: dict[int, str],
+) -> None:
     for reference_index, reference in enumerate(
         preference.references
     ):
@@ -248,6 +232,11 @@ def validate_preference(
                 ),
             )
 
+
+def _require_facets_on_references(
+    preference: RecommendationPreference,
+    memberships: dict[int, set[tuple[str, int]]],
+) -> None:
     for reference_index, reference in enumerate(
         preference.references
     ):
@@ -304,6 +293,56 @@ def validate_preference(
                             "to this reference game."
                         ),
                     )
+
+
+def validate_preference(
+    session: Session,
+    profile_id: int,
+    preference: RecommendationPreference,
+) -> ValidatedRecommendationPreference:
+    """Validate stored identities in one immutable preference.
+
+    Validation uses one cache-only database statement. Failures follow
+    deterministic precedence: keyword limit, profile, ownership,
+    metadata readiness, then exact facet membership.
+
+    Args:
+        session: Database session used only for cached reads.
+        profile_id: Selected local profile identity.
+        preference: Structurally validated recommendation preference.
+
+    Returns:
+        A frozen wrapper marking the preference as database validated.
+
+    Raises:
+        PreferenceValidationError: If any stored identity or
+            relationship fails validation.
+    """
+    _recheck_keyword_limits(preference)
+    _require_valid_profile_identity(profile_id)
+
+    requested_steam_app_ids = tuple(
+        reference.steam_app_id
+        for reference in preference.references
+    )
+    rows = session.execute(
+        _stored_reference_statement(profile_id, requested_steam_app_ids)
+    ).all()
+
+    if not rows:
+        _raise_issue(
+            PreferenceValidationCode.PROFILE_NOT_FOUND,
+            "profile_id",
+            "The selected profile does not exist.",
+        )
+
+    metadata_statuses, memberships = _collect_reference_state(
+        rows,
+        requested_steam_app_ids,
+    )
+    _require_owned_references(preference, metadata_statuses)
+    _require_ready_references(preference, metadata_statuses)
+    _require_facets_on_references(preference, memberships)
 
     return ValidatedRecommendationPreference(
         preference=preference

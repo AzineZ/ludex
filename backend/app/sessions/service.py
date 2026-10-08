@@ -1,18 +1,18 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from hashlib import sha256
 import secrets
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.clock import Clock, read_utc_time, stored_utc_time, utc_now
 from app.models import Profile, SteamAccessSession
 
 
 ACCESS_SESSION_LIFETIME = timedelta(days=7)
 
-Clock = Callable[[], datetime]
 TokenGenerator = Callable[[], str]
 
 
@@ -36,30 +36,12 @@ class ActiveAccessSession:
     expires_at: datetime
 
 
-def _utc_now() -> datetime:
-    return datetime.now(UTC)
-
-
 def _generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def _read_time(clock: Clock) -> datetime:
-    timestamp = clock()
-    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise ValueError("The access-session clock must be timezone-aware.")
-    return timestamp.astimezone(UTC)
-
-
 def _token_digest(token: str) -> bytes:
     return sha256(token.encode("utf-8")).digest()
-
-
-def _stored_time(timestamp: datetime) -> datetime:
-    """Treat timezone-naive SQLite test values as stored UTC timestamps."""
-    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        return timestamp.replace(tzinfo=UTC)
-    return timestamp.astimezone(UTC)
 
 
 def issue_access_session(
@@ -67,11 +49,11 @@ def issue_access_session(
     profile_id: int,
     *,
     current_token: str | None = None,
-    clock: Clock = _utc_now,
+    clock: Clock = utc_now,
     token_generator: TokenGenerator = _generate_token,
 ) -> IssuedAccessSession:
     """Issue one fixed-lifetime token and optionally replace one active token."""
-    created_at = _read_time(clock)
+    created_at = read_utc_time(clock, clock_name="access-session")
     expires_at = created_at + ACCESS_SESSION_LIFETIME
     token = token_generator()
     token_digest = _token_digest(token)
@@ -116,10 +98,10 @@ def resolve_access_session(
     database_session: Session,
     token: str,
     *,
-    clock: Clock = _utc_now,
+    clock: Clock = utc_now,
 ) -> ActiveAccessSession | None:
     """Resolve an active digest without changing its fixed expiration."""
-    current_time = _read_time(clock)
+    current_time = read_utc_time(clock, clock_name="access-session")
     stored_session = database_session.scalar(
         select(SteamAccessSession).where(
             SteamAccessSession.token_digest == _token_digest(token),
@@ -133,8 +115,8 @@ def resolve_access_session(
     return ActiveAccessSession(
         id=stored_session.id,
         profile_id=stored_session.profile_id,
-        created_at=_stored_time(stored_session.created_at),
-        expires_at=_stored_time(stored_session.expires_at),
+        created_at=stored_utc_time(stored_session.created_at),
+        expires_at=stored_utc_time(stored_session.expires_at),
     )
 
 
@@ -142,10 +124,10 @@ def revoke_access_session(
     database_session: Session,
     token: str,
     *,
-    clock: Clock = _utc_now,
+    clock: Clock = utc_now,
 ) -> bool:
     """Revoke one active browser token without affecting other sessions."""
-    revoked_at = _read_time(clock)
+    revoked_at = read_utc_time(clock, clock_name="access-session")
 
     with database_session.begin():
         stored_session = database_session.scalar(

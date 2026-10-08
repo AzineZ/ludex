@@ -17,7 +17,7 @@ from app.gemini.reranking.candidate_pool import (
 )
 from app.gemini.reranking.contracts import (
     MAX_RERANK_CANDIDATES,
-    MAX_RERANK_SESSION_EXCLUSIONS,
+    validate_session_exclusions,
 )
 from app.gemini.reranking.service import (
     GeminiRerankRuntime,
@@ -78,13 +78,7 @@ class RerankFilterContextRequest(RecommendationHTTPModel):
     @field_validator("rejected_steam_app_ids")
     @classmethod
     def validate_rejections(cls, values: tuple[int, ...]) -> tuple[int, ...]:
-        if len(values) > MAX_RERANK_SESSION_EXCLUSIONS:
-            raise ValueError(
-                "A session may exclude at most 30 rejected games."
-            )
-        if len(values) != len(set(values)):
-            raise ValueError("Rejected game IDs must be unique.")
-        return values
+        return validate_session_exclusions(values)
 
 
 class RerankFilterOptionsResponse(RecommendationHTTPModel):

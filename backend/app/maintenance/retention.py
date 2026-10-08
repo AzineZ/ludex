@@ -1,16 +1,14 @@
-from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.orm import Session
 
+from app.clock import Clock, read_utc_time, stored_utc_time, utc_now
 from app.models import Profile, ProfileGame, SteamAccessSession
 
 
 PROFILE_RETENTION_PERIOD = timedelta(days=30)
-
-Clock = Callable[[], datetime]
 
 
 @dataclass(frozen=True)
@@ -46,33 +44,13 @@ class ProfileRetentionReport:
         )
 
 
-def _utc_now() -> datetime:
-    return datetime.now(UTC)
-
-
-def _read_time(clock: Clock) -> datetime:
-    timestamp = clock()
-    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise ValueError(
-            "The retention-cleanup clock must be timezone-aware."
-        )
-    return timestamp.astimezone(UTC)
-
-
-def _stored_time(timestamp: datetime) -> datetime:
-    """Treat timezone-naive SQLite test values as stored UTC timestamps."""
-    if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        return timestamp.replace(tzinfo=UTC)
-    return timestamp.astimezone(UTC)
-
-
 def report_profile_retention_candidates(
     database_session: Session,
     *,
-    clock: Clock = _utc_now,
+    clock: Clock = utc_now,
 ) -> ProfileRetentionReport:
     """Report profiles whose most recent ended session is at least 30 days old."""
-    generated_at = _read_time(clock)
+    generated_at = read_utc_time(clock, clock_name="retention-cleanup")
     retention_cutoff = generated_at - PROFILE_RETENTION_PERIOD
 
     session_ended_at = case(
@@ -140,7 +118,7 @@ def report_profile_retention_candidates(
     candidates = tuple(
         ProfileRetentionCandidate(
             profile_id=profile_id,
-            last_session_ended_at=_stored_time(last_session_ended_at),
+            last_session_ended_at=stored_utc_time(last_session_ended_at),
             session_count=session_count,
             ownership_count=ownership_count,
         )
@@ -161,7 +139,7 @@ def report_profile_retention_candidates(
 def apply_profile_retention_cleanup(
     database_session: Session,
     *,
-    clock: Clock = _utc_now,
+    clock: Clock = utc_now,
 ) -> ProfileRetentionReport:
     """Delete currently eligible profile-specific rows in one transaction."""
     with database_session.begin():

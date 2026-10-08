@@ -27,7 +27,7 @@ class IGDBMatchResult:
     candidate_game_ids: tuple[int, ...] = ()
 
 
-def _unique_steam_app_ids(
+def unique_steam_app_ids(
     steam_app_ids: Sequence[int],
 ) -> list[int]:
     """Validate and deduplicate Steam App IDs in their original order."""
@@ -50,7 +50,7 @@ def normalize_external_game_matches(
 ) -> list[IGDBMatchResult]:
     """Normalize IGDB external-game records by Steam App ID."""
 
-    requested_ids = _unique_steam_app_ids(steam_app_ids)
+    requested_ids = unique_steam_app_ids(steam_app_ids)
     candidates = {steam_app_id: set() for steam_app_id in requested_ids}
 
     for external_game in external_games:
@@ -118,7 +118,7 @@ def match_steam_app_ids(
     steam_app_ids: Sequence[int],
 ) -> list[IGDBMatchResult]:
     """Match Steam App IDs to IGDB game IDs in bounded batches."""
-    requested_ids = _unique_steam_app_ids(steam_app_ids)
+    requested_ids = unique_steam_app_ids(steam_app_ids)
     results: list[IGDBMatchResult] = []
 
     for start in range(0, len(requested_ids), STEAM_MATCH_BATCH_SIZE):

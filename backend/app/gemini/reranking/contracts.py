@@ -25,6 +25,17 @@ class FrozenContract(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+def validate_session_exclusions(values: tuple[int, ...]) -> tuple[int, ...]:
+    """Bound and deduplicate the games a visitor rejected this session."""
+    if len(values) > MAX_RERANK_SESSION_EXCLUSIONS:
+        raise ValueError(
+            "A session may exclude at most 30 rejected games."
+        )
+    if len(values) != len(set(values)):
+        raise ValueError("Rejected game IDs must be unique.")
+    return values
+
+
 def _single_line(value: str) -> str:
     return " ".join(value.split())
 

@@ -1,15 +1,17 @@
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime
+from datetime import datetime
 import time
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.clock import utc_now
 from app.integrations.igdb.client import IGDBAPIError, IGDBClient
 from app.integrations.igdb.matching import (
     IGDBMatchResult,
     IGDBMatchStatus,
     match_steam_app_ids,
+    unique_steam_app_ids,
 )
 from app.integrations.igdb.metadata import fetch_game_metadata
 from app.integrations.igdb.persistence import (
@@ -39,33 +41,11 @@ def get_pending_owned_steam_app_ids(session: Session) -> list[int]:
     )
 
 
-def _utc_now() -> datetime:
-    """Return the current timezone-aware UTC time."""
-    return datetime.now(UTC)
-
-
-def _unique_steam_app_ids(
-    steam_app_ids: Sequence[int],
-) -> list[int]:
-    """Validate and deduplicate Steam App IDs in request order."""
-    unique_ids = list(dict.fromkeys(steam_app_ids))
-
-    for steam_app_id in unique_ids:
-        if (
-            not isinstance(steam_app_id, int)
-            or isinstance(steam_app_id, bool)
-            or steam_app_id <= 0
-        ):
-            raise ValueError("Steam App IDs must be positive integers.")
-
-    return unique_ids
-
-
 def enrich_game_metadata(
     session: Session,
     client: IGDBClient,
     steam_app_ids: Sequence[int],
-    clock: Callable[[], datetime] = _utc_now,
+    clock: Callable[[], datetime] = utc_now,
     sleeper: Callable[[float], None] = time.sleep,
 ) -> list[IGDBMatchResult]:
     """Match, retrieve, and persist factual metadata in bounded batches.
@@ -89,7 +69,7 @@ def enrich_game_metadata(
             inconsistent.
         IGDBAPIError: If matching or metadata retrieval fails.
     """
-    requested_ids = _unique_steam_app_ids(steam_app_ids)
+    requested_ids = unique_steam_app_ids(steam_app_ids)
     all_results: list[IGDBMatchResult] = []
 
     for start in range(0, len(requested_ids), ENRICHMENT_BATCH_SIZE):

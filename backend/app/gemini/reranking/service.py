@@ -17,13 +17,15 @@ from app.gemini.client import (
     GeminiUnavailableError,
 )
 from app.gemini.reranking.candidate_pool import (
+    RerankCandidatePool,
     RerankCandidatePoolState,
     build_rerank_candidate_pool,
 )
 from app.gemini.reranking.contracts import (
-    MAX_RERANK_SESSION_EXCLUSIONS,
     FrozenContract,
     RerankFilters,
+    RerankResponse,
+    validate_session_exclusions,
 )
 from app.gemini.reranking.diagnostics import (
     create_diagnostic_reference,
@@ -62,13 +64,7 @@ class RerankSubmission(FrozenContract):
     @field_validator("rejected_steam_app_ids")
     @classmethod
     def validate_rejections(cls, values: tuple[int, ...]) -> tuple[int, ...]:
-        if len(values) > MAX_RERANK_SESSION_EXCLUSIONS:
-            raise ValueError(
-                "A session may exclude at most 30 rejected games."
-            )
-        if len(values) != len(set(values)):
-            raise ValueError("Rejected game IDs must be unique.")
-        return values
+        return validate_session_exclusions(values)
 
 
 @dataclass(frozen=True)
@@ -213,6 +209,72 @@ def _failed_result(
     )
 
 
+def _unrankable_pool_result(
+    pool: RerankCandidatePool,
+) -> RerankAssistantResult | None:
+    """Answer without the provider when the pool is empty or too large."""
+    if pool.state is RerankCandidatePoolState.EMPTY:
+        return RerankAssistantResult(
+            status=RerankAssistantStatus.EMPTY,
+            eligible_count=0,
+            message=(
+                "No games match those filters. Adjust a filter or try guided "
+                "recommendations."
+            ),
+        )
+    if pool.state is RerankCandidatePoolState.NEEDS_REFINEMENT:
+        return RerankAssistantResult(
+            status=RerankAssistantStatus.NEEDS_REFINEMENT,
+            eligible_count=pool.eligible_count,
+            message=(
+                "Choose another factual filter so every eligible game can be "
+                "considered."
+            ),
+        )
+    return None
+
+
+def _ranked_result(
+    pool: RerankCandidatePool,
+    response: RerankResponse,
+) -> RerankAssistantResult:
+    """Join validated model output to cached presentation facts."""
+    if response.status.value == "no_match":
+        return RerankAssistantResult(
+            status=RerankAssistantStatus.NO_MATCH,
+            eligible_count=pool.eligible_count,
+            message=response.no_match_reason,
+        )
+
+    presentations = {
+        item.steam_app_id: item for item in pool.presentations
+    }
+    items = tuple(
+        RerankAssistantItem(
+            rank=rank,
+            steam_app_id=recommendation.steam_app_id,
+            title=presentations[recommendation.steam_app_id].title,
+            cover_url=presentations[recommendation.steam_app_id].cover_url,
+            profile_playtime_minutes=presentations[
+                recommendation.steam_app_id
+            ].profile_playtime_minutes,
+            normal_completion_seconds=presentations[
+                recommendation.steam_app_id
+            ].normal_completion_seconds,
+            summary=recommendation.summary,
+            reasoning=recommendation.reasoning,
+        )
+        for rank, recommendation in enumerate(
+            response.recommendations, start=1
+        )
+    )
+    return RerankAssistantResult(
+        status=RerankAssistantStatus.RANKED,
+        eligible_count=pool.eligible_count,
+        items=items,
+    )
+
+
 def recommend_with_gemini(
     session: Session,
     *,
@@ -232,24 +294,9 @@ def recommend_with_gemini(
             submission.rejected_steam_app_ids
         ),
     )
-    if pool.state is RerankCandidatePoolState.EMPTY:
-        return RerankAssistantResult(
-            status=RerankAssistantStatus.EMPTY,
-            eligible_count=0,
-            message=(
-                "No games match those filters. Adjust a filter or try guided "
-                "recommendations."
-            ),
-        )
-    if pool.state is RerankCandidatePoolState.NEEDS_REFINEMENT:
-        return RerankAssistantResult(
-            status=RerankAssistantStatus.NEEDS_REFINEMENT,
-            eligible_count=pool.eligible_count,
-            message=(
-                "Choose another factual filter so every eligible game can be "
-                "considered."
-            ),
-        )
+    unrankable = _unrankable_pool_result(pool)
+    if unrankable is not None:
+        return unrankable
     if pool.request is None:
         raise RuntimeError("A ready candidate pool requires a request snapshot.")
     request_bytes = rerank_user_prompt_size_bytes(pool.request)
@@ -304,37 +351,4 @@ def recommend_with_gemini(
         total_tokens=metadata.total_tokens,
     )
 
-    if response.status.value == "no_match":
-        return RerankAssistantResult(
-            status=RerankAssistantStatus.NO_MATCH,
-            eligible_count=pool.eligible_count,
-            message=response.no_match_reason,
-        )
-
-    presentations = {
-        item.steam_app_id: item for item in pool.presentations
-    }
-    items = tuple(
-        RerankAssistantItem(
-            rank=rank,
-            steam_app_id=recommendation.steam_app_id,
-            title=presentations[recommendation.steam_app_id].title,
-            cover_url=presentations[recommendation.steam_app_id].cover_url,
-            profile_playtime_minutes=presentations[
-                recommendation.steam_app_id
-            ].profile_playtime_minutes,
-            normal_completion_seconds=presentations[
-                recommendation.steam_app_id
-            ].normal_completion_seconds,
-            summary=recommendation.summary,
-            reasoning=recommendation.reasoning,
-        )
-        for rank, recommendation in enumerate(
-            response.recommendations, start=1
-        )
-    )
-    return RerankAssistantResult(
-        status=RerankAssistantStatus.RANKED,
-        eligible_count=pool.eligible_count,
-        items=items,
-    )
+    return _ranked_result(pool, response)

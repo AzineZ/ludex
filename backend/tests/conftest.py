@@ -23,7 +23,7 @@ from app.database import Base, get_database_session
 from app.dependencies import get_steam_client
 from app.main import app
 from app.abuse.steam import SteamAbuseController
-from app.sessions.routes import get_steam_abuse_controller
+from app.sessions.rate_limits import get_steam_abuse_controller
 from app.integrations.steam.client import SteamClient
 
 

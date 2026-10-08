@@ -1,10 +1,11 @@
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, NoReturn
 
 from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.clock import utc_now
 from app.config import settings
 from app.database import get_database_session
 from app.sessions.service import (
@@ -21,13 +22,9 @@ ACCESS_SESSION_REQUIRED_DETAIL = "Steam access session required."
 AccessSessionClock = Callable[[], datetime]
 
 
-def _utc_now() -> datetime:
-    return datetime.now(UTC)
-
-
 def get_access_session_clock() -> AccessSessionClock:
     """Provide the request clock and a deterministic test seam."""
-    return _utc_now
+    return utc_now
 
 
 def _cookie_secure(secure: bool | None) -> bool:

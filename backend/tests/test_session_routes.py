@@ -11,7 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.sessions.routes as session_routes_module
 from app.sessions.http import ACCESS_SESSION_COOKIE_NAME
-from app.sessions.routes import get_steam_abuse_controller
+from app.sessions.rate_limits import get_steam_abuse_controller
 from app.sessions.service import IssuedAccessSession, issue_access_session
 from app.abuse.steam import SteamAbuseController
 from app.database import Base, get_database_session
@@ -509,7 +509,7 @@ def test_current_profile_sanitizes_database_unavailability(
 
     monkeypatch.setattr(
         session_routes_module,
-        "_load_profile_by_id",
+        "load_profile_by_id",
         fail_profile_read,
     )
 
