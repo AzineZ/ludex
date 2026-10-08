@@ -146,9 +146,6 @@ describe("retro visual theme contract", () => {
          /\.recommendation-constraints__group\s*\{[^}]*margin:\s*0[^}]*padding:\s*0[^}]*border:\s*0/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-choice-list\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/
-      );
-      expect(recommendationCss).toMatch(
          /\.recommendation-choice-pill\s*\{[^}]*min-height:\s*2\.5rem[^}]*border:\s*2px solid var\(--color-bone-cream\)[^}]*background:\s*transparent/
       );
       expect(recommendationCss).toMatch(

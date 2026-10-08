@@ -18,7 +18,7 @@ import {
 } from "./recommendationSession";
 
 
-export type RecommendationSessionOwner = {
+type RecommendationSessionOwner = {
    state: RecommendationSessionState;
    initialize: (
       preference: RecommendationPreference,

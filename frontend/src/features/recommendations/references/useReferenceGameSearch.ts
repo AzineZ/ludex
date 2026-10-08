@@ -5,7 +5,7 @@ import {
    type OwnedGameSuggestionResponse,
 } from "../../../api";
 
-export type ReferenceGameSearchStatus =
+type ReferenceGameSearchStatus =
    | "idle"
    | "waiting"
    | "loading"

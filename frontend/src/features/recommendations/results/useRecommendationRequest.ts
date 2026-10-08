@@ -26,7 +26,7 @@ type InFlightRecommendationRequest = {
    generation: number;
 };
 
-export type RecommendationRequestResult = {
+type RecommendationRequestResult = {
    status: RecommendationRequestStatus;
    response: FinalRecommendationResponse | null;
    error: string | null;

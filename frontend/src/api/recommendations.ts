@@ -4,25 +4,6 @@ export type MetadataStatus = "pending" | "ready" | "missing" | "ambiguous";
 
 export type PlayStatus = "unplayed" | "previously_played" | "either";
 
-export type RecommendationErrorCode =
-   | "missing_field"
-   | "unexpected_field"
-   | "invalid_type"
-   | "invalid_value"
-   | "invalid_reference_count"
-   | "duplicate_reference"
-   | "duplicate_facet"
-   | "empty_reference_facets"
-   | "too_many_keywords"
-   | "duplicate_rejected_game"
-   | "too_many_rejected_games"
-   | "invalid_query"
-   | "profile_not_found"
-   | "assistant_option_unavailable"
-   | "reference_not_owned"
-   | "reference_metadata_unavailable"
-   | "facet_not_on_reference";
-
 export type OwnedGameSuggestionResponse = {
    steam_app_id: number;
    name: string;

@@ -167,9 +167,6 @@ describe("responsive layout contract", () => {
          /\.assistant-step__heading h4[^}]*font-family:\s*var\(--font-display\)/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-choice-list\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap[^}]*gap:\s*0\.625rem/
-      );
-      expect(recommendationCss).toMatch(
          /\.recommendation-choice-pill\s*\{[^}]*border:\s*2px solid var\(--color-bone-cream\)[^}]*border-radius:\s*999px/
       );
       expect(recommendationCss).toMatch(

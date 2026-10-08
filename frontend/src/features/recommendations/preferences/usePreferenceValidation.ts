@@ -5,7 +5,7 @@ import {
    type RecommendationPreference,
 } from "../../../api";
 
-export type PreferenceValidationStatus =
+type PreferenceValidationStatus =
    | "idle"
    | "validating"
    | "valid"

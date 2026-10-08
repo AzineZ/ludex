@@ -49,12 +49,6 @@
    cursor: pointer;
 }
 
-.recommendation-choice-list {
-   display: flex;
-   flex-wrap: wrap;
-   gap: 0.625rem;
-}
-
 .recommendation-choice-grid {
    display: grid;
    min-width: 0;

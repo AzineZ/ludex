@@ -5,7 +5,7 @@ import {
    type FacetOptionResponse,
 } from "../../../api";
 
-export type ReferenceKeywordBrowseStatus =
+type ReferenceKeywordBrowseStatus =
    | "idle"
    | "loading"
    | "ready"

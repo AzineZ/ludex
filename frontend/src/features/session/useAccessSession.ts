@@ -10,7 +10,7 @@ import {
    type SessionProfileResponse,
 } from "../../api";
 
-export type AccessSessionStatus =
+type AccessSessionStatus =
    | "loading"
    | "signed_out"
    | "ready"

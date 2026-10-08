@@ -187,14 +187,4 @@
    .app__hero {
       min-height: 38rem;
    }
-
-   .app__signal-field {
-      top: 5rem;
-      width: 140vw;
-   }
-
-   .app__hazard--one,
-   .app__hazard--three {
-      display: none;
-   }
 }

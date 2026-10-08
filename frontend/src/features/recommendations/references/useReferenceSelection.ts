@@ -7,7 +7,7 @@ import {
    type ReferenceDetailsResponse,
 } from "../../../api";
 
-export type SelectedReferenceFacets = {
+type SelectedReferenceFacets = {
    genres: FacetOptionResponse[];
    themes: FacetOptionResponse[];
    keywords: FacetOptionResponse[];
