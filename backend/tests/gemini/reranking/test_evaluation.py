@@ -1,8 +1,9 @@
+from dataclasses import replace
+
 from app.gemini.client import GeminiRateLimitError, GeminiStructuredContent
 from app.gemini.reranking.contracts import RerankResponse
-from app.gemini.reranking.evaluation import (
+from app.gemini.reranking.evaluation.product import (
     RERANK_EVALUATION_MAX_CALLS,
-    apply_reason_review,
     build_rerank_evaluation_cases,
     run_rerank_evaluation,
 )
@@ -68,7 +69,7 @@ def test_perfect_outputs_pass_automated_gates_then_human_review(monkeypatch) -> 
         )
 
     monkeypatch.setattr(
-        "app.gemini.reranking.evaluation.rerank_with_metadata",
+        "app.gemini.reranking.evaluation.product.rerank_with_metadata",
         rerank,
     )
     fake_time = FakeTime()
@@ -92,7 +93,7 @@ def test_perfect_outputs_pass_automated_gates_then_human_review(monkeypatch) -> 
     assert report.human_reason_review_pass is None
     assert report.overall_pass is False
 
-    reviewed = apply_reason_review(report, passed=True)
+    reviewed = replace(report, human_reason_review_pass=True)
     assert reviewed.human_reason_review_pass is True
     assert reviewed.overall_pass is True
 
@@ -102,7 +103,7 @@ def test_rate_limit_stops_without_spending_remaining_calls(monkeypatch) -> None:
         raise GeminiRateLimitError("limited", retry_after_seconds=60)
 
     monkeypatch.setattr(
-        "app.gemini.reranking.evaluation.rerank_with_metadata",
+        "app.gemini.reranking.evaluation.product.rerank_with_metadata",
         limited,
     )
     fake_time = FakeTime()
@@ -163,7 +164,7 @@ def test_repeat_gate_requires_two_shared_top_three_ids(monkeypatch) -> None:
         )
 
     monkeypatch.setattr(
-        "app.gemini.reranking.evaluation.rerank_with_metadata",
+        "app.gemini.reranking.evaluation.product.rerank_with_metadata",
         rerank,
     )
     fake_time = FakeTime()

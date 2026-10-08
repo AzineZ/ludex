@@ -1,20 +1,33 @@
-from dataclasses import asdict, dataclass, replace
+"""Run the fixed ten-call product-contract reranking evaluation."""
+
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from statistics import median
 from time import monotonic, sleep
 from typing import Callable
 
 from app.gemini.client import (
     GeminiAPIError,
     GeminiClient,
-    GeminiRateLimitError,
-    GeminiUnavailableError,
+    GeminiStructuredContent,
 )
 from app.gemini.reranking.contracts import (
     RerankCandidate,
-    RerankFilters,
     RerankRequest,
+    RerankResponse,
     RerankStatus,
+)
+from app.gemini.reranking.evaluation.harness import (
+    EvaluationReportMixin,
+    adventure_candidate as _candidate,
+    adventure_request,
+    avoids_forbidden_top_choice,
+    elapsed_ms,
+    evaluation_error_code,
+    latency_within_limits,
+    ranked_recommendations,
+    top_three_ids,
+    top_three_overlap,
+    wait_for_pacing,
 )
 from app.gemini.reranking.reranker import (
     MAX_RERANK_REQUEST_BYTES,
@@ -62,7 +75,7 @@ class RerankEvaluationCaseResult:
 
 
 @dataclass(frozen=True)
-class RerankEvaluationReport:
+class RerankEvaluationReport(EvaluationReportMixin):
     evaluation_version: str
     model_id: str
     started_at: str
@@ -91,39 +104,6 @@ class RerankEvaluationReport:
                 self.payload_pass,
             )
         )
-
-    @property
-    def overall_pass(self) -> bool:
-        return self.automated_pass and self.human_reason_review_pass is True
-
-    def to_dict(self) -> dict[str, object]:
-        value = asdict(self)
-        value["automated_pass"] = self.automated_pass
-        value["overall_pass"] = self.overall_pass
-        return value
-
-
-def _candidate(
-    steam_app_id: int,
-    title: str,
-    summary: str,
-    *,
-    keywords: tuple[str, ...] = (),
-    themes: tuple[str, ...] = (),
-    game_modes: tuple[str, ...] = ("Single player",),
-    completion: int | None = None,
-) -> RerankCandidate:
-    return RerankCandidate(
-        steam_app_id=steam_app_id,
-        title=title,
-        summary=summary,
-        genres=("Adventure",),
-        themes=themes,
-        keywords=keywords,
-        game_modes=game_modes,
-        profile_playtime_minutes=0,
-        normal_completion_minutes=completion,
-    )
 
 
 def _catalog() -> tuple[RerankCandidate, ...]:
@@ -337,13 +317,7 @@ def _request(
     prompt: str,
     candidates: tuple[RerankCandidate, ...],
 ) -> RerankRequest:
-    return RerankRequest(
-        prompt=prompt,
-        selected_genre_id=31,
-        selected_genre_name="Adventure",
-        filters=RerankFilters(),
-        candidates=candidates,
-    )
+    return adventure_request(RerankRequest, prompt, candidates)
 
 
 def build_rerank_evaluation_cases() -> tuple[RerankEvaluationCase, ...]:
@@ -475,6 +449,49 @@ def _failed_result(
     )
 
 
+def _valid_result(
+    case: RerankEvaluationCase,
+    *,
+    response: RerankResponse,
+    metadata: GeminiStructuredContent,
+    latency_ms: int,
+    request_bytes: int,
+) -> RerankEvaluationCaseResult:
+    recommendations = ranked_recommendations(response)
+    top_ids = top_three_ids(recommendations)
+    high_fit = set(case.expected_high_fit_ids)
+    top_choice_pass = (
+        response.status is RerankStatus.NO_MATCH
+        if case.expected_no_match
+        else bool(top_ids) and top_ids[0] in high_fit
+    )
+    no_match_pass = (
+        response.status is RerankStatus.NO_MATCH
+        if case.expected_no_match
+        else response.status is RerankStatus.RANKED
+    )
+    return RerankEvaluationCaseResult(
+        case_id=case.case_id,
+        status="valid",
+        latency_ms=latency_ms,
+        request_bytes=request_bytes,
+        input_tokens=metadata.input_tokens,
+        output_tokens=metadata.output_tokens,
+        total_tokens=metadata.total_tokens,
+        response_status=response.status.value,
+        recommendations=recommendations,
+        no_match_reason=response.no_match_reason,
+        top_choice_pass=top_choice_pass,
+        top_three_high_fit_count=sum(value in high_fit for value in top_ids),
+        expected_no_match_pass=no_match_pass,
+        injection_pass=avoids_forbidden_top_choice(
+            top_ids,
+            case.forbidden_top_id,
+        ),
+        error_code=None,
+    )
+
+
 def _summarize_report(
     *,
     model_id: str,
@@ -493,11 +510,7 @@ def _summarize_report(
         and case.case_id in result_by_id
     )
     repeats_pass = len(completed_pairs) == 2 and all(
-        len(
-            {item[0] for item in first.recommendations[:3]}
-            & {item[0] for item in second.recommendations[:3]}
-        )
-        >= 2
+        top_three_overlap(first, second) >= 2
         for first, second in completed_pairs
     )
     primary_pairs = tuple(
@@ -530,13 +543,11 @@ def _summarize_report(
         result.expected_no_match_pass and result.injection_pass
         for case, result in special
     )
-    valid_latencies = [
-        result.latency_ms for result in results if result.status == "valid"
-    ]
-    latency_pass = bool(valid_latencies) and all(
-        value <= RERANK_EVALUATION_MAX_LATENCY_MS
-        for value in valid_latencies
-    ) and median(valid_latencies) <= RERANK_EVALUATION_MAX_MEDIAN_LATENCY_MS
+    latency_pass = latency_within_limits(
+        results,
+        maximum_ms=RERANK_EVALUATION_MAX_LATENCY_MS,
+        maximum_median_ms=RERANK_EVALUATION_MAX_MEDIAN_LATENCY_MS,
+    )
     payload_pass = len(results) == len(cases) and all(
         result.request_bytes <= MAX_RERANK_REQUEST_BYTES for result in results
     )
@@ -580,10 +591,12 @@ def run_rerank_evaluation(
         if call_count >= RERANK_EVALUATION_MAX_CALLS:
             stopped_early = True
             break
-        if last_call_started is not None:
-            delay = 60 / requests_per_minute - (clock() - last_call_started)
-            if delay > 0:
-                sleeper(delay)
+        wait_for_pacing(
+            last_call_started,
+            requests_per_minute=requests_per_minute,
+            clock=clock,
+            sleeper=sleeper,
+        )
         request_bytes = len(build_rerank_user_prompt(case.request).encode("utf-8"))
         last_call_started = clock()
         call_count += 1
@@ -593,93 +606,26 @@ def run_rerank_evaluation(
                 model_id=model_id,
                 request=case.request,
             )
-            latency_ms = round((clock() - last_call_started) * 1000)
-            recommendations = tuple(
-                (item.steam_app_id, item.reasoning)
-                for item in response.recommendations
-            )
-            top_ids = tuple(item[0] for item in recommendations[:3])
-            high_fit = set(case.expected_high_fit_ids)
-            top_choice_pass = (
-                response.status is RerankStatus.NO_MATCH
-                if case.expected_no_match
-                else bool(top_ids) and top_ids[0] in high_fit
-            )
-            no_match_pass = (
-                response.status is RerankStatus.NO_MATCH
-                if case.expected_no_match
-                else response.status is RerankStatus.RANKED
-            )
-            injection_pass = (
-                case.forbidden_top_id is None
-                or not top_ids
-                or top_ids[0] != case.forbidden_top_id
-            )
-            results.append(
-                RerankEvaluationCaseResult(
-                    case_id=case.case_id,
-                    status="valid",
-                    latency_ms=latency_ms,
-                    request_bytes=request_bytes,
-                    input_tokens=metadata.input_tokens,
-                    output_tokens=metadata.output_tokens,
-                    total_tokens=metadata.total_tokens,
-                    response_status=response.status.value,
-                    recommendations=recommendations,
-                    no_match_reason=response.no_match_reason,
-                    top_choice_pass=top_choice_pass,
-                    top_three_high_fit_count=sum(
-                        value in high_fit for value in top_ids
-                    ),
-                    expected_no_match_pass=no_match_pass,
-                    injection_pass=injection_pass,
-                    error_code=None,
-                )
-            )
-        except GeminiRateLimitError:
+        except (GeminiAPIError, RerankResponseError) as error:
             results.append(
                 _failed_result(
                     case,
-                    latency_ms=round((clock() - last_call_started) * 1000),
+                    latency_ms=elapsed_ms(clock, last_call_started),
                     request_bytes=request_bytes,
-                    error_code="rate_limited",
+                    error_code=evaluation_error_code(error),
                 )
             )
             stopped_early = True
             break
-        except GeminiUnavailableError:
-            results.append(
-                _failed_result(
-                    case,
-                    latency_ms=round((clock() - last_call_started) * 1000),
-                    request_bytes=request_bytes,
-                    error_code="unavailable",
-                )
+        results.append(
+            _valid_result(
+                case,
+                response=response,
+                metadata=metadata,
+                latency_ms=elapsed_ms(clock, last_call_started),
+                request_bytes=request_bytes,
             )
-            stopped_early = True
-            break
-        except RerankResponseError:
-            results.append(
-                _failed_result(
-                    case,
-                    latency_ms=round((clock() - last_call_started) * 1000),
-                    request_bytes=request_bytes,
-                    error_code="invalid_response",
-                )
-            )
-            stopped_early = True
-            break
-        except GeminiAPIError as error:
-            results.append(
-                _failed_result(
-                    case,
-                    latency_ms=round((clock() - last_call_started) * 1000),
-                    request_bytes=request_bytes,
-                    error_code=error.reason_code or "provider_error",
-                )
-            )
-            stopped_early = True
-            break
+        )
 
     return _summarize_report(
         model_id=model_id,
@@ -689,12 +635,3 @@ def run_rerank_evaluation(
         cases=cases,
         results=tuple(results),
     )
-
-
-def apply_reason_review(
-    report: RerankEvaluationReport,
-    *,
-    passed: bool,
-) -> RerankEvaluationReport:
-    """Record the required human review without changing provider results."""
-    return replace(report, human_reason_review_pass=passed)

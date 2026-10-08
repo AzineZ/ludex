@@ -1,15 +1,16 @@
+from dataclasses import replace
+
 import pytest
 from pydantic import ValidationError
 
 from app.gemini.client import GeminiRateLimitError, GeminiStructuredContent
-from app.gemini.reranking.ceiling_evaluation import (
+from app.gemini.reranking.evaluation.ceiling import (
     CEILING_EVALUATION_CALLS_PER_SIZE,
     CEILING_EVALUATION_SIZES,
     RICH_CONTEXT_CANDIDATE_COUNT,
     RICH_CONTEXT_MAX_INPUT_TOKENS,
     RICH_CONTEXT_MAX_REQUEST_BYTES,
     CeilingRerankRequest,
-    apply_reason_review,
     audit_ceiling_fixture_payloads,
     audit_rich_context_fixture_payloads,
     build_ceiling_evaluation_cases,
@@ -144,7 +145,7 @@ def test_perfect_outputs_pass_automated_gates_then_human_review(
         )
 
     monkeypatch.setattr(
-        "app.gemini.reranking.ceiling_evaluation.rerank_with_metadata",
+        "app.gemini.reranking.evaluation.ceiling.rerank_with_metadata",
         rerank,
     )
     fake_time = FakeTime()
@@ -158,7 +159,9 @@ def test_perfect_outputs_pass_automated_gates_then_human_review(
     assert report.call_count == 5
     assert report.automated_pass is True
     assert report.overall_pass is False
-    assert apply_reason_review(report, passed=True).overall_pass is True
+    assert (
+        replace(report, human_reason_review_pass=True).overall_pass is True
+    )
 
 
 def test_rate_limit_stops_without_retrying(monkeypatch) -> None:
@@ -166,7 +169,7 @@ def test_rate_limit_stops_without_retrying(monkeypatch) -> None:
         raise GeminiRateLimitError("limited", retry_after_seconds=60)
 
     monkeypatch.setattr(
-        "app.gemini.reranking.ceiling_evaluation.rerank_with_metadata",
+        "app.gemini.reranking.evaluation.ceiling.rerank_with_metadata",
         limited,
     )
     fake_time = FakeTime()
@@ -210,7 +213,7 @@ def test_rich_context_stops_after_first_input_token_failure(monkeypatch) -> None
         )
 
     monkeypatch.setattr(
-        "app.gemini.reranking.ceiling_evaluation.rerank_with_metadata",
+        "app.gemini.reranking.evaluation.ceiling.rerank_with_metadata",
         oversized_tokens,
     )
     fake_time = FakeTime()
@@ -236,11 +239,11 @@ def test_oversized_payload_stops_before_constructing_a_provider_call(
         called = True
 
     monkeypatch.setattr(
-        "app.gemini.reranking.ceiling_evaluation.rerank_with_metadata",
+        "app.gemini.reranking.evaluation.ceiling.rerank_with_metadata",
         rerank,
     )
     monkeypatch.setattr(
-        "app.gemini.reranking.ceiling_evaluation.rerank_user_prompt_size_bytes",
+        "app.gemini.reranking.evaluation.ceiling.rerank_user_prompt_size_bytes",
         lambda request: MAX_RERANK_REQUEST_BYTES + 1,
     )
     report = run_ceiling_evaluation(object(), candidate_count=150)

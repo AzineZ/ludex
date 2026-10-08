@@ -1,7 +1,8 @@
-from dataclasses import asdict, dataclass, replace
+"""Run the candidate-count ceiling and rich-context reranking evaluations."""
+
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from json import dumps
-from statistics import median
 from time import monotonic, sleep
 from typing import Callable
 
@@ -12,8 +13,11 @@ from sqlalchemy.orm import Session
 from app.gemini.client import (
     GeminiAPIError,
     GeminiClient,
-    GeminiRateLimitError,
-    GeminiUnavailableError,
+    GeminiStructuredContent,
+)
+from app.gemini.reranking.candidate_pool import (
+    list_available_rerank_genres,
+    load_rerank_snapshot_data,
 )
 from app.gemini.reranking.contracts import (
     MAX_RERANK_PROMPT_CHARACTERS,
@@ -21,7 +25,21 @@ from app.gemini.reranking.contracts import (
     PositiveID,
     RerankCandidate,
     RerankFilters,
+    RerankResponse,
     RerankStatus,
+)
+from app.gemini.reranking.evaluation.harness import (
+    EvaluationReportMixin,
+    adventure_candidate,
+    adventure_request,
+    avoids_forbidden_top_choice,
+    elapsed_ms,
+    evaluation_error_code,
+    latency_within_limits,
+    ranked_recommendations,
+    top_three_ids,
+    top_three_overlap,
+    wait_for_pacing,
 )
 from app.gemini.reranking.projection import (
     BALANCED_PROJECTION,
@@ -37,10 +55,6 @@ from app.gemini.reranking.reranker import (
     RerankResponseError,
     rerank_user_prompt_size_bytes,
     rerank_with_metadata,
-)
-from app.gemini.reranking.candidate_pool import (
-    list_available_rerank_genres,
-    load_rerank_snapshot_data,
 )
 from app.models import Profile
 from app.recommendations.candidate_reads import load_candidate_facts
@@ -159,7 +173,7 @@ class CeilingEvaluationResult:
 
 
 @dataclass(frozen=True)
-class CeilingEvaluationReport:
+class CeilingEvaluationReport(EvaluationReportMixin):
     evaluation_version: str
     model_id: str
     candidate_count: int
@@ -195,16 +209,6 @@ class CeilingEvaluationReport:
             )
         )
 
-    @property
-    def overall_pass(self) -> bool:
-        return self.automated_pass and self.human_reason_review_pass is True
-
-    def to_dict(self) -> dict[str, object]:
-        value = asdict(self)
-        value["automated_pass"] = self.automated_pass
-        value["overall_pass"] = self.overall_pass
-        return value
-
 
 @dataclass(frozen=True)
 class CachedPayloadAuditResult:
@@ -223,16 +227,13 @@ def _candidate(
     keywords: tuple[str, ...] = (),
     themes: tuple[str, ...] = (),
 ) -> RerankCandidate:
-    return RerankCandidate(
-        steam_app_id=steam_app_id,
-        title=title,
-        summary=summary,
-        genres=("Adventure",),
-        themes=themes,
+    return adventure_candidate(
+        steam_app_id,
+        title,
+        summary,
         keywords=keywords,
-        game_modes=("Single player",),
-        profile_playtime_minutes=0,
-        normal_completion_minutes=600,
+        themes=themes,
+        completion=600,
     )
 
 
@@ -288,13 +289,7 @@ def _request(
     prompt: str,
     candidates: tuple[RerankCandidate, ...],
 ) -> CeilingRerankRequest:
-    return CeilingRerankRequest(
-        prompt=prompt,
-        selected_genre_id=31,
-        selected_genre_name="Adventure",
-        filters=RerankFilters(),
-        candidates=candidates,
-    )
+    return adventure_request(CeilingRerankRequest, prompt, candidates)
 
 
 def build_ceiling_evaluation_cases(
@@ -579,6 +574,44 @@ def _failed_result(
     )
 
 
+def _valid_result(
+    case: CeilingEvaluationCase,
+    *,
+    response: RerankResponse,
+    metadata: GeminiStructuredContent,
+    latency_ms: int,
+    request_bytes: int,
+) -> CeilingEvaluationResult:
+    recommendations = ranked_recommendations(response)
+    top_ids = top_three_ids(recommendations)
+    high_fit = set(case.expected_high_fit_ids)
+    return CeilingEvaluationResult(
+        case_id=case.case_id,
+        status="valid",
+        latency_ms=latency_ms,
+        request_bytes=request_bytes,
+        input_tokens=metadata.input_tokens,
+        output_tokens=metadata.output_tokens,
+        total_tokens=metadata.total_tokens,
+        response_status=response.status.value,
+        recommendations=recommendations,
+        no_match_reason=response.no_match_reason,
+        top_choice_pass=(
+            response.status is RerankStatus.RANKED
+            and bool(top_ids)
+            and top_ids[0] in high_fit
+        ),
+        top_three_high_fit_count=sum(
+            identity in high_fit for identity in top_ids
+        ),
+        injection_pass=avoids_forbidden_top_choice(
+            top_ids,
+            case.forbidden_top_id,
+        ),
+        error_code=None,
+    )
+
+
 def _summarize(
     *,
     model_id: str,
@@ -614,20 +647,13 @@ def _summarize(
     first = result_by_id.get("c01")
     repeat = result_by_id.get("c01r")
     repeat_pass = bool(
-        first
-        and repeat
-        and len(
-            {item[0] for item in first.recommendations[:3]}
-            & {item[0] for item in repeat.recommendations[:3]}
-        )
-        >= 2
+        first and repeat and top_three_overlap(first, repeat) >= 2
     )
-    latencies = [
-        result.latency_ms for result in results if result.status == "valid"
-    ]
-    latency_pass = bool(latencies) and all(
-        value <= CEILING_EVALUATION_MAX_LATENCY_MS for value in latencies
-    ) and median(latencies) <= CEILING_EVALUATION_MAX_MEDIAN_LATENCY_MS
+    latency_pass = latency_within_limits(
+        results,
+        maximum_ms=CEILING_EVALUATION_MAX_LATENCY_MS,
+        maximum_median_ms=CEILING_EVALUATION_MAX_MEDIAN_LATENCY_MS,
+    )
     payload_pass = len(results) == len(cases) and all(
         result.request_bytes <= max_request_bytes for result in results
     )
@@ -706,10 +732,12 @@ def run_ceiling_evaluation(
             )
             stopped_early = True
             break
-        if last_call_started is not None:
-            delay = 60 / requests_per_minute - (clock() - last_call_started)
-            if delay > 0:
-                sleeper(delay)
+        wait_for_pacing(
+            last_call_started,
+            requests_per_minute=requests_per_minute,
+            clock=clock,
+            sleeper=sleeper,
+        )
         last_call_started = clock()
         call_count += 1
         try:
@@ -719,75 +747,42 @@ def run_ceiling_evaluation(
                 request=case.request,
                 max_request_bytes=max_request_bytes,
             )
-            latency_ms = round((clock() - last_call_started) * 1000)
-            recommendations = tuple(
-                (item.steam_app_id, item.reasoning)
-                for item in response.recommendations
-            )
-            top_ids = tuple(item[0] for item in recommendations[:3])
-            high_fit = set(case.expected_high_fit_ids)
-            result = CeilingEvaluationResult(
-                case_id=case.case_id,
-                status="valid",
-                latency_ms=latency_ms,
-                request_bytes=request_bytes,
-                input_tokens=metadata.input_tokens,
-                output_tokens=metadata.output_tokens,
-                total_tokens=metadata.total_tokens,
-                response_status=response.status.value,
-                recommendations=recommendations,
-                no_match_reason=response.no_match_reason,
-                top_choice_pass=(
-                    response.status is RerankStatus.RANKED
-                    and bool(top_ids)
-                    and top_ids[0] in high_fit
-                ),
-                top_three_high_fit_count=sum(
-                    identity in high_fit for identity in top_ids
-                ),
-                injection_pass=(
-                    case.forbidden_top_id is None
-                    or not top_ids
-                    or top_ids[0] != case.forbidden_top_id
-                ),
-                error_code=None,
-            )
-            if max_input_tokens is not None and (
-                metadata.input_tokens is None
-                or metadata.input_tokens > max_input_tokens
-            ):
-                results.append(
-                    replace(
-                        result,
-                        status="error",
-                        error_code="input_tokens_exceeded",
-                    )
+        except (
+            GeminiAPIError,
+            RerankRequestTooLarge,
+            RerankResponseError,
+        ) as error:
+            results.append(
+                _failed_result(
+                    case,
+                    latency_ms=elapsed_ms(clock, last_call_started),
+                    request_bytes=request_bytes,
+                    error_code=evaluation_error_code(error),
                 )
-                stopped_early = True
-                break
-            results.append(result)
-        except GeminiRateLimitError:
-            error_code = "rate_limited"
-        except GeminiUnavailableError:
-            error_code = "unavailable"
-        except RerankRequestTooLarge:
-            error_code = "payload_too_large"
-        except RerankResponseError:
-            error_code = "invalid_response"
-        except GeminiAPIError as error:
-            error_code = error.reason_code or "provider_error"
-        else:
-            continue
-        results.append(
-            _failed_result(
-                case,
-                latency_ms=round((clock() - last_call_started) * 1000),
-                request_bytes=request_bytes,
-                error_code=error_code,
             )
+            stopped_early = True
+            break
+        result = _valid_result(
+            case,
+            response=response,
+            metadata=metadata,
+            latency_ms=elapsed_ms(clock, last_call_started),
+            request_bytes=request_bytes,
         )
-        stopped_early = True
-        break
+        if max_input_tokens is not None and (
+            metadata.input_tokens is None
+            or metadata.input_tokens > max_input_tokens
+        ):
+            results.append(
+                replace(
+                    result,
+                    status="error",
+                    error_code="input_tokens_exceeded",
+                )
+            )
+            stopped_early = True
+            break
+        results.append(result)
 
     return _summarize(
         model_id=CEILING_EVALUATION_MODEL,
@@ -824,11 +819,3 @@ def run_rich_context_evaluation(
         max_request_bytes=RICH_CONTEXT_MAX_REQUEST_BYTES,
         max_input_tokens=RICH_CONTEXT_MAX_INPUT_TOKENS,
     )
-
-
-def apply_reason_review(
-    report: CeilingEvaluationReport,
-    *,
-    passed: bool,
-) -> CeilingEvaluationReport:
-    return replace(report, human_reason_review_pass=passed)
