@@ -191,24 +191,13 @@ Alembic head and use the same restricted role boundaries. Production is live
 at <https://ludexgame.app>; database changes still require the documented
 backup, staging, migration, and verification gates.
 
-The repeatable bootstrap, resume, backup/restore rehearsal, later migration
-order, and credential-rotation procedure are documented in
-[`docs/components/managed-database.md`](docs/components/managed-database.md).
-No command in that workflow creates provider accounts, projects, billing
-changes, Render services, domains, or console alerts.
-
-The manual-job, monitoring, quota, cost, backup, incident, and provider-terms
-checklists are documented in
-[`docs/components/hosted-operations.md`](docs/components/hosted-operations.md).
 The user-facing privacy/provider notice and authorized-use acknowledgment are
 live in production. The full notice lives at `/privacy`; the
 Steam form and shared footer keep compact links to it from signed-out and
 signed-in states.
 
 The temporary free staging package is defined in
-`render.staging-combined.yaml`. The staging and hosted browser
-gates are documented in
-[`docs/components/hosted-deployment.md`](docs/components/hosted-deployment.md).
+`render.staging-combined.yaml`.
 Staging and production both require a separate generated
 `STEAM_RATE_LIMIT_HMAC_KEY`; the browser never receives it.
 
@@ -296,12 +285,12 @@ Backend configuration:
 -  `ACCESS_SESSION_COOKIE_SECURE` is `false` only for local HTTP development.
 -  `STEAM_API_KEY` enables Steam profile and library imports.
 -  `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` enable factual enrichment.
-- `GEMINI_API_KEY` is optional. The prompt assistant remains disabled unless
-  its feature flag and key are both explicitly configured; the guided
-  recommendation flow never requires it. Google enforces the Gemini project
-  limits. When those limits are reached, Ludex asks the visitor to try again
-  the next day or use guided recommendations.
-- `GEMINI_RERANK_ENABLED` is the explicit assistant feature flag.
+-  `GEMINI_API_KEY` is optional. The prompt assistant remains disabled unless
+   its feature flag and key are both explicitly configured; the guided
+   recommendation flow never requires it. Google enforces the Gemini project
+   limits. When those limits are reached, Ludex asks the visitor to try again
+   the next day or use guided recommendations.
+-  `GEMINI_RERANK_ENABLED` is the explicit assistant feature flag.
 
 Frontend configuration:
 
