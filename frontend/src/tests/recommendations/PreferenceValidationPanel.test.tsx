@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RecommendationPreference } from "../../api";
-import PreferenceValidationPanel from "../../features/recommendations/PreferenceValidationPanel";
+import PreferenceValidationPanel from "../../features/recommendations/preferences/PreferenceValidationPanel";
 import {
    usePreferenceValidation,
    type PreferenceValidationResult,

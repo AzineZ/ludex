@@ -3,17 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import type {
    FinalRecommendationResponse,
    RecommendationPreference,
-} from "../../api";
-import { usePreferenceValidation } from "./preferences/usePreferenceValidation";
-import type { RecommendationWorkspaceView } from "./recommendationWorkspaceTypes";
-import RecommendationResultsPanel from "./results/RecommendationResultsPanel";
-import { useRecommendationRequest } from "./results/useRecommendationRequest";
-import { useRecommendationSession } from "./state/useRecommendationSession";
+} from "../../../api";
+import { nextFocusRequest, type FocusRequest } from "../results/focusRequest";
+import { useRecommendationRequest } from "../results/useRecommendationRequest";
+import { useRecommendationSession } from "../state/useRecommendationSession";
+import { usePreferenceValidation } from "./usePreferenceValidation";
 
-type PreferenceValidationPanelProps = {
+type GuidedRecommendationFlowOptions = {
    sessionEpoch: number | null;
    preference: RecommendationPreference;
-   activeView?: RecommendationWorkspaceView;
    onRecommendationsReady?: () => void;
    onRecommendationsReset?: () => void;
 };
@@ -24,13 +22,16 @@ function hasSelectedFacet(
    return Object.values(reference.facets).some((ids) => ids.length > 0);
 }
 
-function PreferenceValidationPanel({
+/**
+ * Coordinates preference validation, the recommendation request, the
+ * replacement-queue session, and focus hand-offs for Guided Recommendations.
+ */
+export function useGuidedRecommendationFlow({
    sessionEpoch,
    preference,
-   activeView,
    onRecommendationsReady,
    onRecommendationsReset,
-}: PreferenceValidationPanelProps) {
+}: GuidedRecommendationFlowOptions) {
    const validation = usePreferenceValidation(sessionEpoch, preference);
    const recommendation = useRecommendationRequest(
       sessionEpoch,
@@ -39,8 +40,8 @@ function PreferenceValidationPanel({
    const {
       state: sessionState,
       initialize: initializeSession,
-      showAnother,
-      playThis,
+      showAnother: showAnotherInSession,
+      playThis: playThisInSession,
       updateDraft,
       beginRefinement,
       completeRefinement,
@@ -53,14 +54,11 @@ function PreferenceValidationPanel({
    const recommendationActionRef = useRef<HTMLButtonElement>(null);
    const focusStartOverRef = useRef(false);
    const pendingSubmissionRef = useRef<"initial" | "refinement" | null>(null);
-   const [focusRequest, setFocusRequest] = useState<{
-      steamAppId: number;
-      requestId: number;
-   } | null>(null);
+   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(
+      null
+   );
    const [retainedResponse, setRetainedResponse] =
       useState<FinalRecommendationResponse | null>(null);
-   const isControlledWorkspace = activeView !== undefined;
-   const displayedView = activeView ?? "preferences";
 
    useEffect(() => {
       if (
@@ -82,10 +80,7 @@ function PreferenceValidationPanel({
          const responseForFocus = recommendation.response;
          queueMicrotask(() => {
             if (processedResponseRef.current === responseForFocus) {
-               setFocusRequest((current) => ({
-                  steamAppId: firstItem.steam_app_id,
-                  requestId: (current?.requestId ?? 0) + 1,
-               }));
+               setFocusRequest(nextFocusRequest(firstItem.steam_app_id));
             }
          });
       }
@@ -210,135 +205,47 @@ function PreferenceValidationPanel({
       });
    }
 
-   const recommendationResults = (
-      <RecommendationResultsPanel
-         status={displayedStatus}
-         response={displayedResponse}
-         error={recommendation.error}
-         session={sessionState}
-         focusRequest={focusRequest}
-         onShowAnother={(steamAppId) => {
-            if (sessionState.phase !== "active") {
-               return;
-            }
-            const replacement = sessionState.waitingItems[0];
-            if (replacement === undefined) {
-               return;
-            }
-            setFocusRequest((current) => ({
-               steamAppId: replacement.steam_app_id,
-               requestId: (current?.requestId ?? 0) + 1,
-            }));
-            showAnother(steamAppId);
-         }}
-         onPlayThis={(steamAppId) => {
-            setFocusRequest((current) => ({
-               steamAppId,
-               requestId: (current?.requestId ?? 0) + 1,
-            }));
-            playThis(steamAppId);
-         }}
-         onStartOver={() => {
-            focusStartOverRef.current = true;
-            setFocusRequest(null);
-            setRetainedResponse(null);
-            startOver();
-            onRecommendationsReset?.();
-         }}
-      />
-   );
+   function showAnother(steamAppId: number): void {
+      if (sessionState.phase !== "active") {
+         return;
+      }
+      const replacement = sessionState.waitingItems[0];
+      if (replacement === undefined) {
+         return;
+      }
+      setFocusRequest(nextFocusRequest(replacement.steam_app_id));
+      showAnotherInSession(steamAppId);
+   }
 
-   return (
-      <>
-         <section
-            className="preference-validation"
-            aria-labelledby="preference-validation-heading"
-            hidden={isControlledWorkspace && displayedView !== "preferences"}
-         >
-         <div className="preference-validation__summary">
-            <h3 id="preference-validation-heading">Find your next game</h3>
-            <p>
-               Ludex will check your choices and search your cached library.
-            </p>
-         </div>
+   function playThis(steamAppId: number): void {
+      setFocusRequest(nextFocusRequest(steamAppId));
+      playThisInSession(steamAppId);
+   }
 
-         {isValidating && (
-            <p role="status">Checking this preference with Ludex…</p>
-         )}
-         {validation.status === "invalid" && validation.error !== null && (
-            <p role="alert">{validation.error}</p>
-         )}
-         {localRequirementMessage !== null && (
-            <p
-               className="preference-validation__requirement"
-               id="recommendation-requirement"
-            >
-               {localRequirementMessage}
-            </p>
-         )}
+   function startOverFromResults(): void {
+      focusStartOverRef.current = true;
+      setFocusRequest(null);
+      setRetainedResponse(null);
+      startOver();
+      onRecommendationsReset?.();
+   }
 
-         <div className="preference-validation__recommendation-action">
-            <button
-               ref={recommendationActionRef}
-               className="app__primary-button"
-               type="button"
-               aria-describedby={
-                  localRequirementMessage === null
-                     ? undefined
-                     : "recommendation-requirement"
-               }
-               disabled={!canRequestRecommendations}
-               onClick={submitRecommendation}
-            >
-               {isValidating
-                  ? "Checking preferences…"
-                  : sessionState.phase === "refining"
-                  ? "Refining recommendations…"
-                  : isLoadingRecommendations
-                    ? "Finding recommendations…"
-                    : sessionState.phase === "editing"
-                      ? recommendation.status === "error"
-                        ? "Try refinement again"
-                        : "Refine recommendations"
-                      : sessionState.phase === "active"
-                        ? "Recommendations ready"
-                        : sessionState.phase === "accepted"
-                          ? "Game selected"
-                  : recommendation.status === "error"
-                    ? "Try recommendations again"
-                    : "Get recommendations"}
-            </button>
-         </div>
-
-         {sessionState.phase === "editing"
-            && recommendation.status === "error" && (
-            <section
-               className="recommendation-results__state recommendation-results__error"
-               role="alert"
-            >
-               <h4>Refinement unavailable</h4>
-               <p>
-                  {recommendation.error
-                     ?? "Something went wrong while refining recommendations."}
-               </p>
-               <p>Your current recommendation queue has been preserved.</p>
-            </section>
-         )}
-
-            {(!isControlledWorkspace || !hasRetainedSession) &&
-               recommendationResults}
-         </section>
-
-         {isControlledWorkspace ? (
-            <div
-               className="recommendation-workspace__results"
-               hidden={displayedView !== "recommendations"}
-            >
-               {hasRetainedSession && recommendationResults}
-            </div>
-         ) : null}
-      </>
-   );
+   return {
+      validation,
+      recommendation,
+      sessionState,
+      focusRequest,
+      recommendationActionRef,
+      isValidating,
+      isLoadingRecommendations,
+      localRequirementMessage,
+      canRequestRecommendations,
+      hasRetainedSession,
+      displayedStatus,
+      displayedResponse,
+      submitRecommendation,
+      showAnother,
+      playThis,
+      startOver: startOverFromResults,
+   };
 }
-
-export default PreferenceValidationPanel;

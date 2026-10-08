@@ -2,8 +2,11 @@ import type {
    FinalRecommendationItemResponse,
    RecommendationPreference,
 } from "../../../api";
+import {
+   createReplacementQueue,
+   replaceVisibleItem,
+} from "../results/replacementQueue";
 
-const INITIAL_VISIBLE_COUNT = 3;
 const MAX_RECOMMENDATION_COUNT = 6;
 
 export type ActiveRecommendationSession = {
@@ -17,7 +20,7 @@ export type ActiveRecommendationSession = {
    acceptedItem: null;
 };
 
-export type AcceptedRecommendationSession = Omit<
+type AcceptedRecommendationSession = Omit<
    ActiveRecommendationSession,
    "phase" | "acceptedItem"
 > & {
@@ -32,7 +35,7 @@ export type EditingRecommendationSession = Omit<
    phase: "editing";
 };
 
-export type RefiningRecommendationSession = Omit<
+type RefiningRecommendationSession = Omit<
    ActiveRecommendationSession,
    "phase" | "pendingPreference"
 > & {
@@ -40,7 +43,7 @@ export type RefiningRecommendationSession = Omit<
    pendingPreference: RecommendationPreference;
 };
 
-export type IdleRecommendationSession = {
+type IdleRecommendationSession = {
    phase: "idle";
    currentPreference: null;
    pendingPreference: null;
@@ -113,14 +116,14 @@ export function createRecommendationSession(
 ): ActiveRecommendationSession {
    assertValidQueue(items);
 
-   const visibleItems = items.slice(0, INITIAL_VISIBLE_COUNT);
+   const queue = createReplacementQueue(items);
    return {
       phase: "active",
       currentPreference: preference,
       pendingPreference: null,
-      visibleItems,
-      waitingItems: items.slice(INITIAL_VISIBLE_COUNT),
-      shownSteamAppIds: visibleItems.map((item) => item.steam_app_id),
+      visibleItems: queue.visible,
+      waitingItems: queue.waiting,
+      shownSteamAppIds: queue.visible.map((item) => item.steam_app_id),
       rejectedSteamAppIds: [],
       acceptedItem: null,
    };
@@ -134,24 +137,22 @@ export function showAnotherRecommendation(
       return state;
    }
 
-   const rejectedIndex = state.visibleItems.findIndex(
-      (item) => item.steam_app_id === rejectedSteamAppId
+   const next = replaceVisibleItem(
+      state.visibleItems,
+      state.waitingItems,
+      rejectedSteamAppId
    );
-   if (rejectedIndex < 0) {
+   if (next === null) {
       throw new Error("Show another requires a currently visible game.");
    }
 
-   const replacement = state.waitingItems[0];
-   const visibleItems = [...state.visibleItems];
-   visibleItems[rejectedIndex] = replacement;
-
    return {
       ...state,
-      visibleItems,
-      waitingItems: state.waitingItems.slice(1),
+      visibleItems: next.visible,
+      waitingItems: next.waiting,
       shownSteamAppIds: [
          ...state.shownSteamAppIds,
-         replacement.steam_app_id,
+         next.replacement.steam_app_id,
       ],
       rejectedSteamAppIds: [
          ...state.rejectedSteamAppIds,
@@ -233,16 +234,16 @@ export function completeRecommendationRefinement(
       throw new Error("Refined queues cannot contain a rejected game ID.");
    }
 
-   const visibleItems = items.slice(0, INITIAL_VISIBLE_COUNT);
+   const queue = createReplacementQueue(items);
    return {
       phase: "active",
       currentPreference: state.pendingPreference,
       pendingPreference: null,
-      visibleItems,
-      waitingItems: items.slice(INITIAL_VISIBLE_COUNT),
+      visibleItems: queue.visible,
+      waitingItems: queue.waiting,
       shownSteamAppIds: appendUniqueIds(
          state.shownSteamAppIds,
-         visibleItems.map((item) => item.steam_app_id)
+         queue.visible.map((item) => item.steam_app_id)
       ),
       rejectedSteamAppIds: state.rejectedSteamAppIds,
       acceptedItem: null,

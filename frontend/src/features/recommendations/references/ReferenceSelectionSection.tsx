@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { PreferenceConstraints } from "../../../api";
-import PreferenceValidationPanel from "../PreferenceValidationPanel";
+import PreferenceValidationPanel from "../preferences/PreferenceValidationPanel";
 import RecommendationConstraints from "../preferences/RecommendationConstraints";
 import ReferenceGameAutocomplete from "./ReferenceGameAutocomplete";
 import ReferenceGameCard from "./ReferenceGameCard";

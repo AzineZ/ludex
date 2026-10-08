@@ -1,6 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { AssistantRecommendationItemResponse } from "../../../api";
+import {
+   focusRequestIdFor,
+   nextFocusRequest,
+   type FocusRequest,
+} from "../results/focusRequest";
+import {
+   createReplacementQueue,
+   replaceVisibleItem,
+} from "../results/replacementQueue";
 import AssistantRecommendationCard from "./AssistantRecommendationCard";
 
 type AssistantResultsProps = {
@@ -25,14 +34,12 @@ function AssistantResults({
    const headingId = useId();
    const resultsRef = useRef<HTMLElement>(null);
    const [queue, setQueue] = useState<ResultQueue>(() => ({
-      visible: items.slice(0, 3),
-      waiting: items.slice(3),
+      ...createReplacementQueue(items),
       accepted: null,
    }));
-   const [focusRequest, setFocusRequest] = useState<{
-      steamAppId: number;
-      requestId: number;
-   } | null>(null);
+   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(
+      null
+   );
 
    const visible = queue.accepted === null ? queue.visible : [queue.accepted];
 
@@ -98,11 +105,10 @@ function AssistantResults({
                   item={item}
                   isAccepted={queue.accepted !== null}
                   remainingAlternatives={queue.waiting.length}
-                  focusRequestId={
-                     focusRequest?.steamAppId === item.steam_app_id
-                        ? focusRequest.requestId
-                        : undefined
-                  }
+                  focusRequestId={focusRequestIdFor(
+                     focusRequest,
+                     item.steam_app_id
+                  )}
                   onChoose={
                      queue.accepted === null
                         ? () => {
@@ -110,39 +116,34 @@ function AssistantResults({
                                 ...current,
                                 accepted: item,
                              }));
-                             setFocusRequest((current) => ({
-                                steamAppId: item.steam_app_id,
-                                requestId: (current?.requestId ?? 0) + 1,
-                             }));
+                             setFocusRequest(
+                                nextFocusRequest(item.steam_app_id)
+                             );
                           }
                         : undefined
                   }
                   onShowAnother={
                      queue.accepted === null
                         ? () => {
-                             if (queue.waiting.length === 0) {
-                                return;
-                             }
-                             const replacement = queue.waiting[0];
-                             const nextVisible = [...queue.visible];
-                             const index = nextVisible.findIndex(
-                                (candidate) =>
-                                   candidate.steam_app_id === item.steam_app_id
+                             const next = replaceVisibleItem(
+                                queue.visible,
+                                queue.waiting,
+                                item.steam_app_id
                              );
-                             if (index < 0) {
+                             if (next === null) {
                                 return;
                              }
-                             nextVisible[index] = replacement;
                              onReject(item.steam_app_id);
                              setQueue({
-                                visible: nextVisible,
-                                waiting: queue.waiting.slice(1),
+                                visible: next.visible,
+                                waiting: next.waiting,
                                 accepted: null,
                              });
-                             setFocusRequest((focus) => ({
-                                steamAppId: replacement.steam_app_id,
-                                requestId: (focus?.requestId ?? 0) + 1,
-                             }));
+                             setFocusRequest(
+                                nextFocusRequest(
+                                   next.replacement.steam_app_id
+                                )
+                             );
                           }
                         : undefined
                   }

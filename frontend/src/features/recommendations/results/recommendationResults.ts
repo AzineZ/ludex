@@ -1,9 +1,7 @@
 import type { FinalRecommendationItemResponse } from "../../../api";
+import { createReplacementQueue } from "./replacementQueue";
 
-
-const VISIBLE_RECOMMENDATION_COUNT = 3;
-
-export type RecommendationItemSplit = {
+type RecommendationItemSplit = {
    visibleItems: FinalRecommendationItemResponse[];
    waitingItems: FinalRecommendationItemResponse[];
 };
@@ -11,8 +9,6 @@ export type RecommendationItemSplit = {
 export function splitRecommendationItems(
    items: readonly FinalRecommendationItemResponse[]
 ): RecommendationItemSplit {
-   return {
-      visibleItems: items.slice(0, VISIBLE_RECOMMENDATION_COUNT),
-      waitingItems: items.slice(VISIBLE_RECOMMENDATION_COUNT),
-   };
+   const queue = createReplacementQueue(items);
+   return { visibleItems: queue.visible, waitingItems: queue.waiting };
 }

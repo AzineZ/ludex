@@ -1,6 +1,9 @@
-import { useEffect, useId, useRef } from "react";
+import { useId } from "react";
 
 import type { AssistantRecommendationItemResponse } from "../../../api";
+import { ResultCardCover, ResultCardFacts } from "../results/ResultCardParts";
+import { showAnotherLabel } from "../results/resultCardFormat";
+import { useFocusOnRequest } from "../results/useFocusOnRequest";
 import ScrollFadeFrame from "./ScrollFadeFrame";
 
 type AssistantRecommendationCardProps = {
@@ -12,22 +15,6 @@ type AssistantRecommendationCardProps = {
    onShowAnother?: () => void;
 };
 
-function formatMinutes(minutes: number): string {
-   const hours = Math.floor(minutes / 60);
-   const remainder = minutes % 60;
-   if (hours === 0) {
-      return `${remainder} min`;
-   }
-   return remainder === 0 ? `${hours} hr` : `${hours} hr ${remainder} min`;
-}
-
-function largeCoverUrl(coverUrl: string): string {
-   return coverUrl.replace(
-      /^(https:\/\/images\.igdb\.com\/igdb\/image\/upload\/)t_cover_big(?=\/)/,
-      "$1t_cover_big_2x"
-   );
-}
-
 function AssistantRecommendationCard({
    item,
    isAccepted = false,
@@ -37,24 +24,7 @@ function AssistantRecommendationCard({
    onShowAnother,
 }: AssistantRecommendationCardProps) {
    const headingId = useId();
-   const cardRef = useRef<HTMLElement>(null);
-   const playtime = item.profile_playtime_minutes === 0
-      ? "Not played yet"
-      : `${formatMinutes(item.profile_playtime_minutes)} played`;
-   const completion = item.normal_completion_seconds === null
-      ? "Unavailable"
-      : formatMinutes(Math.round(item.normal_completion_seconds / 60));
-   const alternativesText = remainingAlternatives === 0
-      ? "No alternatives left"
-      : remainingAlternatives === undefined
-         ? "Show another"
-         : `Show another · ${remainingAlternatives} left`;
-
-   useEffect(() => {
-      if (focusRequestId !== undefined) {
-         cardRef.current?.focus();
-      }
-   }, [focusRequestId]);
+   const cardRef = useFocusOnRequest<HTMLElement>(focusRequestId);
 
    return (
       <article
@@ -64,23 +34,7 @@ function AssistantRecommendationCard({
          aria-labelledby={headingId}
          tabIndex={focusRequestId === undefined ? undefined : -1}
       >
-         <div className="recommendation-result-card__cover-frame">
-            {item.cover_url === null ? (
-               <div
-                  className="recommendation-result-card__cover-fallback"
-                  role="img"
-                  aria-label={`${item.title} cover unavailable`}
-               >
-                  Cover unavailable
-               </div>
-            ) : (
-               <img
-                  className="recommendation-result-card__cover"
-                  src={largeCoverUrl(item.cover_url)}
-                  alt={`${item.title} cover`}
-               />
-            )}
-         </div>
+         <ResultCardCover title={item.title} coverUrl={item.cover_url} />
 
          <div className="recommendation-result-card__stage">
             <p className="recommendation-result-card__rank">
@@ -139,7 +93,7 @@ function AssistantRecommendationCard({
                      onClick={onShowAnother}
                      disabled={remainingAlternatives === 0}
                   >
-                     {alternativesText}
+                     {showAnotherLabel(remainingAlternatives)}
                   </button>
                )}
             </div>
@@ -148,16 +102,10 @@ function AssistantRecommendationCard({
          <details className="recommendation-result-card__details">
             <summary>Game details</summary>
             <div className="recommendation-result-card__details-content">
-               <dl className="recommendation-result-card__facts">
-                  <div>
-                     <dt>Your library</dt>
-                     <dd>{playtime}</dd>
-                  </div>
-                  <div>
-                     <dt>Estimated completion</dt>
-                     <dd>{completion}</dd>
-                  </div>
-               </dl>
+               <ResultCardFacts
+                  profilePlaytimeMinutes={item.profile_playtime_minutes}
+                  normalCompletionSeconds={item.normal_completion_seconds}
+               />
             </div>
          </details>
       </article>

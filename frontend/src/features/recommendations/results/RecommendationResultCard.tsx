@@ -1,8 +1,10 @@
-import { useEffect, useId, useRef } from "react";
+import { useId } from "react";
 
 import type { FinalRecommendationItemResponse } from "../../../api";
 import RecommendationEvidenceDisclosure from "./RecommendationEvidenceDisclosure";
-
+import { ResultCardCover, ResultCardFacts } from "./ResultCardParts";
+import { showAnotherLabel } from "./resultCardFormat";
+import { useFocusOnRequest } from "./useFocusOnRequest";
 
 type RecommendationResultCardProps = {
    item: FinalRecommendationItemResponse;
@@ -14,26 +16,6 @@ type RecommendationResultCardProps = {
    isAccepted?: boolean;
 };
 
-function formatMinutes(minutes: number): string {
-   const hours = Math.floor(minutes / 60);
-   const remainingMinutes = minutes % 60;
-
-   if (hours === 0) {
-      return `${remainingMinutes} min`;
-   }
-   if (remainingMinutes === 0) {
-      return `${hours} hr`;
-   }
-   return `${hours} hr ${remainingMinutes} min`;
-}
-
-function getRecommendationCoverUrl(coverUrl: string): string {
-   return coverUrl.replace(
-      /^(https:\/\/images\.igdb\.com\/igdb\/image\/upload\/)t_cover_big(?=\/)/,
-      "$1t_cover_big_2x"
-   );
-}
-
 function RecommendationResultCard({
    item,
    onPlayThis,
@@ -44,15 +26,7 @@ function RecommendationResultCard({
    isAccepted = false,
 }: RecommendationResultCardProps) {
    const headingId = useId();
-   const cardRef = useRef<HTMLElement>(null);
-   const playtime =
-      item.profile_playtime_minutes === 0
-         ? "Not played yet"
-         : `${formatMinutes(item.profile_playtime_minutes)} played`;
-   const completionTime =
-      item.normal_completion_seconds === null
-         ? "Unavailable"
-         : formatMinutes(Math.round(item.normal_completion_seconds / 60));
+   const cardRef = useFocusOnRequest<HTMLElement>(focusRequestId);
    const alternativeCountText = remainingAlternatives === undefined
       ? null
       : remainingAlternatives === 0
@@ -60,17 +34,6 @@ function RecommendationResultCard({
       : remainingAlternatives === 1
          ? "1 alternative remaining"
          : `${remainingAlternatives} alternatives remaining`;
-   const showAnotherText = remainingAlternatives === 0
-      ? "No alternatives left"
-      : remainingAlternatives === undefined
-         ? "Show another"
-         : `Show another · ${remainingAlternatives} left`;
-
-   useEffect(() => {
-      if (focusRequestId !== undefined) {
-         cardRef.current?.focus();
-      }
-   }, [focusRequestId]);
 
    return (
       <article
@@ -80,23 +43,7 @@ function RecommendationResultCard({
          aria-labelledby={headingId}
          tabIndex={focusRequestId === undefined ? undefined : -1}
       >
-         <div className="recommendation-result-card__cover-frame">
-            {item.cover_url === null ? (
-               <div
-                  className="recommendation-result-card__cover-fallback"
-                  role="img"
-                  aria-label={`${item.title} cover unavailable`}
-               >
-                  Cover unavailable
-               </div>
-            ) : (
-               <img
-                  className="recommendation-result-card__cover"
-                  src={getRecommendationCoverUrl(item.cover_url)}
-                  alt={`${item.title} cover`}
-               />
-            )}
-         </div>
+         <ResultCardCover title={item.title} coverUrl={item.cover_url} />
 
          <div className="recommendation-result-card__stage">
             <p className="recommendation-result-card__rank">
@@ -139,7 +86,7 @@ function RecommendationResultCard({
                         onClick={onShowAnother}
                         disabled={showAnotherDisabled}
                      >
-                        {showAnotherText}
+                        {showAnotherLabel(remainingAlternatives)}
                      </button>
                   )}
                </div>
@@ -149,16 +96,10 @@ function RecommendationResultCard({
          <details className="recommendation-result-card__details">
             <summary>Game details</summary>
             <div className="recommendation-result-card__details-content">
-               <dl className="recommendation-result-card__facts">
-                  <div>
-                     <dt>Your library</dt>
-                     <dd>{playtime}</dd>
-                  </div>
-                  <div>
-                     <dt>Estimated completion</dt>
-                     <dd>{completionTime}</dd>
-                  </div>
-               </dl>
+               <ResultCardFacts
+                  profilePlaytimeMinutes={item.profile_playtime_minutes}
+                  normalCompletionSeconds={item.normal_completion_seconds}
+               />
 
                {item.tradeoff !== null && (
                   <aside className="recommendation-result-card__tradeoff">

@@ -1,6 +1,7 @@
 import { useId } from "react";
 
 import type { FinalRecommendationResponse } from "../../../api";
+import { focusRequestIdFor, type FocusRequest } from "./focusRequest";
 import RecommendationResultCard from "./RecommendationResultCard";
 import { splitRecommendationItems } from "./recommendationResults";
 import type { RecommendationSessionState } from "../state/recommendationSession";
@@ -14,10 +15,7 @@ type RecommendationResultsPanelProps = {
    onShowAnother?: (steamAppId: number) => void;
    onPlayThis?: (steamAppId: number) => void;
    onStartOver?: () => void;
-   focusRequest?: {
-      steamAppId: number;
-      requestId: number;
-   } | null;
+   focusRequest?: FocusRequest | null;
 };
 
 const UNEXPECTED_ERROR_MESSAGE =
@@ -175,11 +173,10 @@ function RecommendationResultsPanel({
                   showAnotherDisabled={queueExhausted}
                   remainingAlternatives={remainingAlternatives ?? undefined}
                   isAccepted={acceptedSession !== null}
-                  focusRequestId={
-                     focusRequest?.steamAppId === item.steam_app_id
-                        ? focusRequest.requestId
-                        : undefined
-                  }
+                  focusRequestId={focusRequestIdFor(
+                     focusRequest,
+                     item.steam_app_id
+                  )}
                />
             ))}
          </div>

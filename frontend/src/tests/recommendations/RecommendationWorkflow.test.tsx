@@ -14,7 +14,7 @@ import {
    type FinalRecommendationResponse,
    type RecommendationPreference,
 } from "../../api";
-import PreferenceValidationPanel from "../../features/recommendations/PreferenceValidationPanel";
+import PreferenceValidationPanel from "../../features/recommendations/preferences/PreferenceValidationPanel";
 
 vi.mock("../../api", async (importOriginal) => {
    const actual = await importOriginal<typeof import("../../api")>();
