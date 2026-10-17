@@ -85,7 +85,7 @@ enriches pending games with IGDB facts in the background, after the response
 has been sent. New games show as pending for a few seconds and become
 selectable references once their batch is stored. Each run takes the shared
 enrichment lock without waiting and skips if another run is active, processes
-every pending owned game (not only the caller's) up to 500 per trigger, and
+every pending owned game (not only the caller's) up to 2,000 per trigger, and
 never returns an IGDB failure to the browser. Set
 `IGDB_AUTO_ENRICHMENT_ENABLED=false` to turn this off.
 

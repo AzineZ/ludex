@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.database import Base
 from app.integrations.igdb.automatic import (
     AUTOMATIC_ENRICHMENT_LOGGER,
+    AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER,
     SharedIGDBClient,
     run_automatic_enrichment,
 )
@@ -154,8 +155,8 @@ def test_second_pass_enriches_games_imported_during_the_run() -> None:
     assert _statuses(factory) == {10: "missing", 30: "missing"}
 
 
-def test_one_trigger_never_exceeds_the_per_run_cap() -> None:
-    game_count = MAX_ENRICHMENT_GAMES_PER_RUN + 20
+def test_one_trigger_never_exceeds_the_per_trigger_cap() -> None:
+    game_count = AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER + 20
     factory = _database({"76561198000000001": list(range(1, game_count + 1))})
     calls: list[list[int]] = []
 
@@ -167,9 +168,15 @@ def test_one_trigger_never_exceeds_the_per_run_cap() -> None:
         enrichment_lock=lambda: nullcontext(True),
     )
 
-    assert processed == MAX_ENRICHMENT_GAMES_PER_RUN
-    assert sum(len(batch) for batch in calls) == MAX_ENRICHMENT_GAMES_PER_RUN
+    assert processed == AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER
+    assert calls[0] == list(range(1, AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER + 1))
+    assert len(calls) == 1
     assert list(_statuses(factory).values()).count("pending") == 20
+
+
+def test_automatic_cap_exceeds_the_manual_run_cap() -> None:
+    assert AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER == 2000
+    assert MAX_ENRICHMENT_GAMES_PER_RUN == 500
 
 
 def test_igdb_failure_is_logged_and_never_raised(caplog) -> None:

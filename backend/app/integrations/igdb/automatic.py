@@ -13,7 +13,6 @@ from app.config import settings
 from app.database import SessionLocal
 from app.integrations.igdb.client import IGDBAPIError, IGDBClient
 from app.integrations.igdb.enrichment import (
-    MAX_ENRICHMENT_GAMES_PER_RUN,
     enrich_game_metadata,
     get_pending_owned_steam_app_ids,
 )
@@ -22,6 +21,9 @@ from app.integrations.igdb.matching import IGDBMatchResult, IGDBMatchStatus
 
 
 AUTOMATIC_ENRICHMENT_MAX_PASSES = 2
+# Higher than the manual command's 500-game run because this work happens in the
+# background; it still bounds one run to roughly a minute of sequential calls.
+AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER = 2000
 
 SessionFactory = Callable[[], Session]
 ClientProvider = Callable[[], IGDBClient]
@@ -85,7 +87,7 @@ def run_automatic_enrichment(
     or automatic run holds the enrichment lock. Otherwise it processes every
     pending owned game, not only the caller's, and checks once more for games
     that arrived during the run. One trigger enriches at most
-    ``MAX_ENRICHMENT_GAMES_PER_RUN`` games.
+    ``AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER`` games.
 
     Returns:
         The number of games processed, which is zero when the run skips or
@@ -112,13 +114,17 @@ def run_automatic_enrichment(
                 return 0
 
             for _ in range(AUTOMATIC_ENRICHMENT_MAX_PASSES):
-                remaining = MAX_ENRICHMENT_GAMES_PER_RUN - sum(outcomes.values())
+                remaining = (
+                    AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER
+                    - sum(outcomes.values())
+                )
                 if remaining <= 0:
                     break
                 with session_factory() as database_session:
                     pending_ids = get_pending_owned_steam_app_ids(
-                        database_session
-                    )[:remaining]
+                        database_session,
+                        limit=remaining,
+                    )
                 if not pending_ids:
                     break
                 with session_factory() as database_session:
