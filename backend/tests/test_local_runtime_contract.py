@@ -94,7 +94,9 @@ def test_setup_guide_documents_the_supported_data_workflow() -> None:
     assert (
         "The default enrichment command is report-only" in normalized_readme
     )
-    assert "Only `--apply` contacts IGDB" in normalized_readme
+    assert "only `--apply` contacts IGDB" in normalized_readme
+    assert "IGDB_AUTO_ENRICHMENT_ENABLED=false" in normalized_readme
+    assert "never returns an IGDB failure to the browser" in normalized_readme
     assert "at most 500" in normalized_readme
     assert "PostgreSQL advisory lock" in normalized_readme
     assert "Neither recommendation path contacts Steam or IGDB" in (

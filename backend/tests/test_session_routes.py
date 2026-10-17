@@ -15,7 +15,7 @@ from app.sessions.rate_limits import get_steam_abuse_controller
 from app.sessions.service import IssuedAccessSession, issue_access_session
 from app.abuse.steam import SteamAbuseController
 from app.database import Base, get_database_session
-from app.dependencies import get_steam_client
+from app.dependencies import get_automatic_enrichment, get_steam_client
 from app.main import app
 from app.models import (
     Game,
@@ -723,3 +723,117 @@ def test_failed_session_revocation_write_preserves_current_session(
         assert stored.revoked_at is None
 
     assert client.get("/session/profile").status_code == 200
+
+
+@pytest.fixture
+def automatic_enrichment() -> Generator[MagicMock, None, None]:
+    enrichment = MagicMock(return_value=0)
+    app.dependency_overrides[get_automatic_enrichment] = lambda: enrichment
+    try:
+        yield enrichment
+    finally:
+        app.dependency_overrides.pop(get_automatic_enrichment, None)
+
+
+def test_session_import_schedules_automatic_enrichment_after_response(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    automatic_enrichment: MagicMock,
+) -> None:
+    client, _ = session_api
+    _configure_import(steam_client)
+
+    response = client.post(
+        "/session",
+        json=_authorized_session_request(FIRST_STEAM_ID),
+    )
+
+    assert response.status_code == 201
+    automatic_enrichment.assert_called_once_with()
+
+
+def test_cached_session_reuse_also_schedules_automatic_enrichment(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    automatic_enrichment: MagicMock,
+) -> None:
+    client, session_factory = session_api
+    _store_cached_profile(session_factory)
+
+    response = client.post(
+        "/session",
+        json=_authorized_session_request(FIRST_STEAM_ID),
+    )
+
+    assert response.status_code == 201
+    steam_client.get_owned_games.assert_not_called()
+    automatic_enrichment.assert_called_once_with()
+
+
+def test_failed_session_creation_does_not_schedule_enrichment(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    automatic_enrichment: MagicMock,
+) -> None:
+    client, _ = session_api
+    steam_client.resolve_steam_id.side_effect = SteamAPIUnavailableError(
+        "Steam is currently unavailable."
+    )
+
+    response = client.post(
+        "/session",
+        json=_authorized_session_request(
+            "https://steamcommunity.com/id/unavailable"
+        ),
+    )
+
+    assert response.status_code == 503
+    automatic_enrichment.assert_not_called()
+
+
+def test_refresh_schedules_automatic_enrichment(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    automatic_enrichment: MagicMock,
+) -> None:
+    client, session_factory = session_api
+    _store_cached_profile(session_factory)
+    assert client.post(
+        "/session",
+        json=_authorized_session_request(FIRST_STEAM_ID),
+    ).status_code == 201
+    automatic_enrichment.reset_mock()
+    _configure_import(steam_client)
+
+    response = client.post("/session/profile/refresh")
+
+    assert response.status_code == 200
+    automatic_enrichment.assert_called_once_with()
+
+
+def test_failed_refresh_does_not_schedule_enrichment(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    automatic_enrichment: MagicMock,
+) -> None:
+    client, session_factory = session_api
+    _store_cached_profile(session_factory)
+    assert client.post(
+        "/session",
+        json=_authorized_session_request(FIRST_STEAM_ID),
+    ).status_code == 201
+    automatic_enrichment.reset_mock()
+    steam_client.get_profile.return_value = SteamProfile(
+        steam_id=FIRST_STEAM_ID,
+        display_name="Uncommitted Name",
+        profile_url=None,
+        avatar_url=None,
+    )
+    steam_client.get_owned_games.side_effect = SteamAPIUnavailableError(
+        "Steam is currently unavailable."
+    )
+
+    response = client.post("/session/profile/refresh")
+
+    assert response.status_code == 503
+    automatic_enrichment.assert_not_called()

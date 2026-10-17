@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.abuse.steam import reserve_provider_call
 from app.config import settings
 from app.database import get_database_session
+from app.integrations.igdb.automatic import run_automatic_enrichment
 from app.integrations.steam.client import SteamClient
 
 
@@ -99,3 +100,11 @@ def get_steam_client(
         yield steam_client
     finally:
         steam_client.close()
+
+
+AutomaticEnrichment = Callable[[], object]
+
+
+def get_automatic_enrichment() -> AutomaticEnrichment:
+    """Provide the post-import IGDB enrichment task and a test seam."""
+    return run_automatic_enrichment

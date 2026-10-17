@@ -1,15 +1,14 @@
 import argparse
-from collections.abc import Callable, Iterator, Sequence
-from contextlib import AbstractContextManager, contextmanager
+from collections.abc import Callable, Sequence
+from contextlib import AbstractContextManager
 from io import TextIOBase
 import sys
 
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.command_output import write_json_payload
 from app.config import settings
-from app.database import SessionLocal, engine
+from app.database import SessionLocal
 from app.integrations.igdb.client import IGDBAPIError, IGDBClient
 from app.integrations.igdb.coverage import (
     IGDBMetadataCoverage,
@@ -20,6 +19,7 @@ from app.integrations.igdb.enrichment import (
     enrich_game_metadata,
     get_pending_owned_steam_app_ids,
 )
+from app.integrations.igdb.locking import igdb_enrichment_lock
 from app.integrations.igdb.matching import IGDBMatchResult
 
 
@@ -30,21 +30,6 @@ EnrichmentService = Callable[
     list[IGDBMatchResult],
 ]
 ApplyLock = Callable[[], AbstractContextManager[bool]]
-
-
-IGDB_ENRICHMENT_ADVISORY_LOCK_KEY = 0x4C55444558494744
-
-
-@contextmanager
-def _igdb_enrichment_apply_lock() -> Iterator[bool]:
-    """Hold one transaction-scoped PostgreSQL lock for an apply run."""
-    with engine.connect() as connection:
-        with connection.begin():
-            acquired = connection.scalar(
-                text("SELECT pg_try_advisory_xact_lock(:lock_key)"),
-                {"lock_key": IGDB_ENRICHMENT_ADVISORY_LOCK_KEY},
-            )
-            yield bool(acquired)
 
 
 def _igdb_client_factory() -> IGDBClient:
@@ -109,7 +94,7 @@ def run_igdb_enrichment_command(
     session_factory: SessionFactory = SessionLocal,
     client_factory: ClientFactory = _igdb_client_factory,
     enrichment_service: EnrichmentService = enrich_game_metadata,
-    apply_lock: ApplyLock = _igdb_enrichment_apply_lock,
+    apply_lock: ApplyLock = igdb_enrichment_lock,
     output: TextIOBase = sys.stdout,
     error_output: TextIOBase = sys.stderr,
 ) -> int:

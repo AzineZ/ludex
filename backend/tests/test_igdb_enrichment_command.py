@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 import app.integrations.igdb.command as command
+import app.integrations.igdb.locking as locking
 from app.database import Base
 from app.integrations.igdb.enrichment import get_pending_owned_steam_app_ids
 from app.igdb_enrichment_command import run_igdb_enrichment_command
@@ -136,9 +137,9 @@ def test_apply_lock_uses_one_transaction_scoped_postgres_lock(
     connection = MagicMock()
     database_engine.connect.return_value.__enter__.return_value = connection
     connection.scalar.return_value = True
-    monkeypatch.setattr(command, "engine", database_engine)
+    monkeypatch.setattr(locking, "engine", database_engine)
 
-    with command._igdb_enrichment_apply_lock() as acquired:
+    with locking.igdb_enrichment_lock() as acquired:
         assert acquired is True
 
     statement, parameters = connection.scalar.call_args.args
@@ -146,7 +147,7 @@ def test_apply_lock_uses_one_transaction_scoped_postgres_lock(
         "SELECT pg_try_advisory_xact_lock(:lock_key)"
     )
     assert parameters == {
-        "lock_key": command.IGDB_ENRICHMENT_ADVISORY_LOCK_KEY,
+        "lock_key": locking.IGDB_ENRICHMENT_ADVISORY_LOCK_KEY,
     }
     connection.begin.return_value.__enter__.assert_called_once_with()
     connection.begin.return_value.__exit__.assert_called_once()

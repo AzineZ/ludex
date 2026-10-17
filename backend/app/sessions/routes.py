@@ -1,12 +1,21 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.abuse.steam import SteamAbuseController
 from app.database import get_database_session
 from app.dependencies import (
+    AutomaticEnrichment,
     BudgetedSteamClient,
+    get_automatic_enrichment,
     get_steam_client,
     get_steam_rate_limit_hmac_key,
 )
@@ -68,6 +77,11 @@ def create_session(
         None,
         Depends(enforce_session_attempt_limit),
     ],
+    background_tasks: BackgroundTasks,
+    automatic_enrichment: Annotated[
+        AutomaticEnrichment,
+        Depends(get_automatic_enrichment),
+    ],
 ) -> SessionProfileResponse:
     """Acknowledge use, then authorize this browser for one profile."""
     profile_id = resolve_profile_for_session(
@@ -88,6 +102,7 @@ def create_session(
         raise RuntimeError("Issued access-session profile is missing.")
 
     set_access_session_cookie(response, issued_session)
+    background_tasks.add_task(automatic_enrichment)
     return session_profile_response(profile)
 
 
@@ -141,6 +156,11 @@ def refresh_session_profile(
         bytes,
         Depends(get_steam_rate_limit_hmac_key),
     ],
+    background_tasks: BackgroundTasks,
+    automatic_enrichment: Annotated[
+        AutomaticEnrichment,
+        Depends(get_automatic_enrichment),
+    ],
 ) -> SessionProfileResponse:
     """Refresh only the profile authorized by the browser cookie."""
     profile = refresh_profile_or_raise(
@@ -152,6 +172,7 @@ def refresh_session_profile(
         hmac_key=hmac_key,
         now=get_steam_abuse_clock(),
     )
+    background_tasks.add_task(automatic_enrichment)
     return session_profile_response(profile)
 
 

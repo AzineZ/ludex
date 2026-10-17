@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     steam_api_key: SecretStr
     igdb_client_id: str
     igdb_client_secret: SecretStr
+    igdb_auto_enrichment_enabled: bool = True
     gemini_api_key: SecretStr | None = None
     gemini_rerank_enabled: bool = False
 
