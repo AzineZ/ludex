@@ -78,9 +78,20 @@ ownership or playtime.
 Guided preference validation and recommendations use cached database facts and
 never call Steam, IGDB, Gemini, or another provider. **Ask Ludex AI** also uses
 the cached eligible game pool, but sends one bounded reranking request to
-Gemini when the feature is configured. A new Steam import does not populate
-IGDB facts. The default enrichment command is report-only: it shows aggregate
-readiness without provider calls or writes.
+Gemini when the feature is configured.
+
+After a successful library import or **Refresh Steam library**, the backend
+enriches pending games with IGDB facts in the background, after the response
+has been sent. New games show as pending for a few seconds and become
+selectable references once their batch is stored. Each run takes the shared
+enrichment lock without waiting and skips if another run is active, processes
+every pending owned game (not only the caller's) up to 500 per trigger, and
+never returns an IGDB failure to the browser. Set
+`IGDB_AUTO_ENRICHMENT_ENABLED=false` to turn this off.
+
+The manual command remains the backstop for games that a skipped, failed, or
+interrupted run left pending. The default enrichment command is report-only:
+it shows aggregate readiness without provider calls or writes.
 
 ```bash
 cd backend
@@ -94,11 +105,11 @@ pending games with the configured backend IGDB credentials:
 uv run python -m app.igdb_enrichment_command --apply
 ```
 
-Only `--apply` contacts IGDB. It uses the bounded enrichment service, prints
+Of the two command modes, only `--apply` contacts IGDB. It uses the bounded enrichment service, prints
 aggregate before/after coverage and batch counts, and exits nonzero with a
 sanitized report when IGDB fails; successful earlier batches remain committed
 for a safe retry. A transaction-scoped PostgreSQL advisory lock prevents
-overlapping apply runs. No automatic endpoint or background worker exists.
+overlapping manual and automatic runs.
 Neither recommendation path contacts Steam or IGDB. Gemini remains optional,
 and Guided Recommendations remains the complete provider-free fallback.
 
@@ -285,6 +296,8 @@ Backend configuration:
 -  `ACCESS_SESSION_COOKIE_SECURE` is `false` only for local HTTP development.
 -  `STEAM_API_KEY` enables Steam profile and library imports.
 -  `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` enable factual enrichment.
+-  `IGDB_AUTO_ENRICHMENT_ENABLED` (default `true`) enriches newly imported
+   games in the background after each library load or refresh.
 -  `GEMINI_API_KEY` is optional. The prompt assistant remains disabled unless
    its feature flag and key are both explicitly configured; the guided
    recommendation flow never requires it. Google enforces the Gemini project
