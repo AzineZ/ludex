@@ -26,6 +26,10 @@ vi.mock("../api", async (importOriginal) => {
    };
 });
 
+const PRIVATE_LIBRARY_MESSAGE =
+   "This Steam library is private. Set My profile and Game details to " +
+   "Public in Steam (Edit Profile → Privacy Settings), then try again.";
+
 const sessionProfile: SessionProfileResponse = {
    steam_id: "76561198000000001",
    display_name: "Session Player",
@@ -149,7 +153,7 @@ describe("App session experience", () => {
    it("keeps the identifier available when session creation fails", async () => {
       mockedGetCurrent.mockRejectedValue(new ApiError(401, "Required."));
       mockedCreate.mockRejectedValue(
-         new ApiError(422, "This Steam library is private or unavailable.")
+         new ApiError(422, PRIVATE_LIBRARY_MESSAGE)
       );
       render(<App />);
       const input = await screen.findByLabelText("Steam ID or profile URL");
@@ -157,7 +161,7 @@ describe("App session experience", () => {
       acknowledgeAuthorizedUse();
       fireEvent.click(screen.getByRole("button", { name: "Continue with Steam" }));
       expect(await screen.findByRole("alert")).toHaveTextContent(
-         "This Steam library is private or unavailable."
+         PRIVATE_LIBRARY_MESSAGE
       );
       expect(input).toHaveValue("private-profile");
       expect(input).not.toBeDisabled();

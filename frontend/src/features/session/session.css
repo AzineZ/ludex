@@ -78,6 +78,43 @@
    line-height: 1.5;
 }
 
+.app__session-form-guide {
+   grid-column: 1 / -1;
+   margin: 0;
+   padding: 0.8rem 1rem;
+   border: 1px solid rgb(239 226 192 / 45%);
+   color: var(--color-ash-taupe);
+   background: rgb(239 226 192 / 6%);
+   font-size: 0.8rem;
+   line-height: 1.5;
+}
+
+.app__session-form-guide summary {
+   width: fit-content;
+   max-width: 100%;
+   color: var(--color-bone-cream);
+   font-weight: 800;
+   cursor: pointer;
+}
+
+.app__session-form-guide summary:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 3px;
+}
+
+.app__session-form-guide ul {
+   display: grid;
+   gap: 0.4rem;
+   margin: 0.6rem 0 0;
+   padding-left: 1.1rem;
+}
+
+.app__session-form-guide code {
+   color: var(--color-bone-cream);
+   font: inherit;
+   overflow-wrap: anywhere;
+}
+
 .app__session-form > .app__input {
    grid-column: 1 / -1;
 }

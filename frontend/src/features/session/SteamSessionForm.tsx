@@ -42,6 +42,21 @@ function SteamSessionForm({ error, isStarting, onStart }: SteamSessionFormProps)
          <p className="app__session-form-help" id="steam-identifier-help">
             Paste a 17-digit Steam ID or Steam Community profile URL.
          </p>
+         <details className="app__session-form-guide">
+            <summary>How do I find this?</summary>
+            <ul>
+               <li>
+                  In Steam or a browser, open your profile and copy its address.
+                  Both <code>steamcommunity.com/id/…</code> and{" "}
+                  <code>steamcommunity.com/profiles/…</code> work.
+               </li>
+               <li>
+                  Your Steam profile and Game details must be set to Public
+                  (Steam → Edit Profile → Privacy Settings), otherwise your
+                  library cannot load.
+               </li>
+            </ul>
+         </details>
          <p className="app__session-form-sample" id="steam-sample-help">
             Prefer not to use your own Steam ID? Try the Ludex sample library by
             pasting this steam ID: <code>{SAMPLE_STEAM_ID}</code>

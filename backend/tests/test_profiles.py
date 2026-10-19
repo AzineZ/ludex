@@ -10,6 +10,12 @@ from app.integrations.steam.client import (
     SteamProfileNotFoundError,
 )
 
+PRIVATE_LIBRARY_MESSAGE = (
+    "This Steam library is private. Set My profile and Game details to "
+    "Public in Steam (Edit Profile → Privacy Settings), then try again."
+)
+
+
 STEAM_ID = "76561198000000000"
 
 
@@ -276,10 +282,10 @@ def test_create_session_rejects_invalid_identifier(
         ),
         (
             SteamLibraryUnavailableError(
-                "This Steam library is private or unavailable."
+                PRIVATE_LIBRARY_MESSAGE
             ),
             422,
-            "This Steam library is private or unavailable.",
+            PRIVATE_LIBRARY_MESSAGE,
         ),
         (
             SteamAPIUnavailableError(

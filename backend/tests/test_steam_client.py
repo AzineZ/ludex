@@ -204,10 +204,15 @@ def test_private_library_is_unavailable() -> None:
     )
 
     with SteamClient("test-key", transport=transport) as client:
-        with pytest.raises(SteamLibraryUnavailableError):
+        with pytest.raises(SteamLibraryUnavailableError) as error:
             client.get_owned_games(
                 "76561198000000000"
             )
+
+    assert str(error.value) == (
+        "This Steam library is private. Set My profile and Game details to "
+        "Public in Steam (Edit Profile → Privacy Settings), then try again."
+    )
 
 
 def test_network_failure_is_unavailable() -> None:

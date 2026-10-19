@@ -230,7 +230,9 @@ class SteamClient:
 
         if "game_count" not in response:
             raise SteamLibraryUnavailableError(
-                "This Steam library is private or unavailable."
+                "This Steam library is private. Set My profile and Game "
+                "details to Public in Steam (Edit Profile → Privacy "
+                "Settings), then try again."
             )
 
         games = response.get("games", [])

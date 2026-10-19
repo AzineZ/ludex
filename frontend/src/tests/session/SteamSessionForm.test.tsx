@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import SteamSessionForm from "../../features/session/SteamSessionForm";
 
+const PRIVATE_LIBRARY_MESSAGE =
+   "This Steam library is private. Set My profile and Game details to " +
+   "Public in Steam (Edit Profile → Privacy Settings), then try again.";
+
 describe("SteamSessionForm", () => {
    it("explains accepted Steam identifiers through the input description", () => {
       render(
@@ -18,6 +22,29 @@ describe("SteamSessionForm", () => {
             "library by pasting this steam ID: 76561198342733684"
       );
       expect(screen.getByText("76561198342733684").tagName).toBe("CODE");
+   });
+
+   it("offers a closed guide to finding a profile address and making it Public", () => {
+      render(
+         <SteamSessionForm error={null} isStarting={false} onStart={vi.fn()} />
+      );
+
+      const summary = screen.getByText("How do I find this?");
+      const guide = summary.closest("details");
+      expect(summary.tagName).toBe("SUMMARY");
+      expect(guide).not.toHaveAttribute("open");
+
+      fireEvent.click(summary);
+
+      expect(guide).toHaveAttribute("open");
+      expect(guide).toHaveTextContent("steamcommunity.com/id/…");
+      expect(guide).toHaveTextContent("steamcommunity.com/profiles/…");
+      expect(guide).toHaveTextContent(
+         "Your Steam profile and Game details must be set to Public"
+      );
+      expect(guide).toHaveTextContent(
+         "Steam → Edit Profile → Privacy Settings"
+      );
    });
 
    it("marks the form busy and disables duplicate input while loading", () => {
@@ -41,7 +68,7 @@ describe("SteamSessionForm", () => {
    it("keeps a failed identifier visible and associates its error with the input", () => {
       render(
          <SteamSessionForm
-            error="This Steam library is private or unavailable."
+            error={PRIVATE_LIBRARY_MESSAGE}
             isStarting={false}
             onStart={vi.fn()}
          />
@@ -57,7 +84,7 @@ describe("SteamSessionForm", () => {
          "Paste a 17-digit Steam ID or Steam Community profile URL. " +
             "Prefer not to use your own Steam ID? Try the Ludex sample " +
             "library by pasting this steam ID: 76561198342733684 " +
-            "This Steam library is private or unavailable."
+            PRIVATE_LIBRARY_MESSAGE
       );
       expect(screen.getByRole("alert")).toHaveClass("app__session-form-error");
    });

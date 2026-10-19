@@ -118,6 +118,12 @@ describe("responsive layout contract", () => {
          /\.app__session-form-help\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*color:\s*var\(--color-ash-taupe\)/
       );
       expect(sessionCss).toMatch(
+         /\.app__session-form-guide\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*border:\s*1px solid rgb\(239 226 192 \/ 45%\)[^}]*color:\s*var\(--color-ash-taupe\)/
+      );
+      expect(sessionCss).not.toMatch(
+         /\.app__session-form-guide[^{]*\{[^}]*(?:^|[\s;])(?:min-)?width:\s*\d/m
+      );
+      expect(sessionCss).toMatch(
          /\.app__session-form-error\s*\{[^}]*grid-column:\s*1 \/ -1[^}]*border-left:\s*3px solid var\(--color-alarm-red\)/
       );
       expect(sessionCss).toMatch(

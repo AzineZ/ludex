@@ -299,6 +299,42 @@ describe("responsive layout contracts", () => {
       }
    });
 
+   it("keeps the open Steam ID guide aligned with the input without overflow", async () => {
+      const { container } = render(<PublicPageFixture />);
+      const guide = container.querySelector<HTMLDetailsElement>(
+         ".app__session-form-guide"
+      );
+      const input = container.querySelector<HTMLInputElement>(".app__input");
+      expect(guide).not.toBeNull();
+      expect(input).not.toBeNull();
+      (guide as HTMLDetailsElement).open = true;
+
+      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
+         await setTestViewport(viewport);
+         const guideBounds = (
+            guide as HTMLDetailsElement
+         ).getBoundingClientRect();
+         const inputBounds = (input as HTMLInputElement).getBoundingClientRect();
+
+         expect(
+            guideBounds.left,
+            `guide/input left edge at ${viewportName(viewport)}`
+         ).toBeCloseTo(inputBounds.left, 1);
+         expect(
+            guideBounds.right,
+            `guide/input right edge at ${viewportName(viewport)}`
+         ).toBeCloseTo(inputBounds.right, 1);
+         expect(
+            (guide as HTMLDetailsElement).scrollWidth,
+            `guide content width at ${viewportName(viewport)}`
+         ).toBeLessThanOrEqual((guide as HTMLDetailsElement).clientWidth);
+         expect(
+            document.documentElement.scrollWidth,
+            `login page width with open guide at ${viewportName(viewport)}`
+         ).toBeLessThanOrEqual(viewport.width);
+      }
+   });
+
    it("keeps the privacy page within every supported viewport width", async () => {
       render(<PrivacyPageFixture />);
 

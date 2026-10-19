@@ -34,6 +34,12 @@ from app.integrations.steam.client import (
 )
 
 
+PRIVATE_LIBRARY_MESSAGE = (
+    "This Steam library is private. Set My profile and Game details to "
+    "Public in Steam (Edit Profile → Privacy Settings), then try again."
+)
+
+
 FIRST_STEAM_ID = "76561198000000000"
 SECOND_STEAM_ID = "76561198000000001"
 
@@ -592,7 +598,7 @@ def test_refresh_cooldown_returns_429_without_second_provider_call(
     [
         (
             SteamLibraryUnavailableError(
-                "This Steam library is private or unavailable."
+                PRIVATE_LIBRARY_MESSAGE
             ),
             422,
         ),
