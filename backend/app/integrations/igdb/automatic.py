@@ -20,7 +20,6 @@ from app.integrations.igdb.locking import igdb_enrichment_lock
 from app.integrations.igdb.matching import IGDBMatchResult, IGDBMatchStatus
 
 
-AUTOMATIC_ENRICHMENT_MAX_PASSES = 2
 # Higher than the manual command's 500-game run because this work happens in the
 # background; it still bounds one run to roughly a minute of sequential calls.
 AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER = 2000
@@ -85,8 +84,10 @@ def run_automatic_enrichment(
 
     The run skips immediately when the feature is disabled or another manual
     or automatic run holds the enrichment lock. Otherwise it processes every
-    pending owned game, not only the caller's, and checks once more for games
-    that arrived during the run. One trigger enriches at most
+    pending owned game, not only the caller's, and keeps checking for games
+    that arrived during the run until a check finds none. Each game is
+    processed at most once per run, so a game that stays pending cannot cause
+    a loop, and one trigger enriches at most
     ``AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER`` games.
 
     Returns:
@@ -100,6 +101,8 @@ def run_automatic_enrichment(
 
     started_at = time.monotonic()
     outcomes: Counter[IGDBMatchStatus] = Counter()
+    attempted_ids: set[int] = set()
+    passes = 0
 
     def duration_ms() -> int:
         return round((time.monotonic() - started_at) * 1000)
@@ -113,20 +116,26 @@ def run_automatic_enrichment(
                 )
                 return 0
 
-            for _ in range(AUTOMATIC_ENRICHMENT_MAX_PASSES):
+            while True:
                 remaining = (
                     AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER
-                    - sum(outcomes.values())
+                    - len(attempted_ids)
                 )
                 if remaining <= 0:
                     break
                 with session_factory() as database_session:
-                    pending_ids = get_pending_owned_steam_app_ids(
-                        database_session,
-                        limit=remaining,
-                    )
+                    pending_ids = [
+                        steam_app_id
+                        for steam_app_id in get_pending_owned_steam_app_ids(
+                            database_session,
+                            limit=remaining + len(attempted_ids),
+                        )
+                        if steam_app_id not in attempted_ids
+                    ][:remaining]
                 if not pending_ids:
                     break
+                attempted_ids.update(pending_ids)
+                passes += 1
                 with session_factory() as database_session:
                     results = enrichment_service(
                         database_session,
@@ -153,11 +162,12 @@ def run_automatic_enrichment(
         if outcomes:
             _LOGGER.info(
                 "event=igdb_auto_enrichment_completed processed_game_count=%s "
-                "ready=%s missing=%s ambiguous=%s duration_ms=%s",
+                "ready=%s missing=%s ambiguous=%s passes=%s duration_ms=%s",
                 sum(outcomes.values()),
                 outcomes[IGDBMatchStatus.MATCHED],
                 outcomes[IGDBMatchStatus.MISSING],
                 outcomes[IGDBMatchStatus.AMBIGUOUS],
+                passes,
                 duration_ms(),
             )
     return sum(outcomes.values())

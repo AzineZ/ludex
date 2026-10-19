@@ -155,6 +155,63 @@ def test_second_pass_enriches_games_imported_during_the_run() -> None:
     assert _statuses(factory) == {10: "missing", 30: "missing"}
 
 
+def test_run_keeps_checking_until_no_new_games_arrive() -> None:
+    factory = _database({"76561198000000001": [10]})
+    calls: list[list[int]] = []
+    mark = _marking_service(calls)
+    late_arrivals = {1: 30, 2: 40}
+
+    def enrich_while_imports_keep_landing(session, client, steam_app_ids):
+        results = mark(session, client, steam_app_ids)
+        late_game = late_arrivals.get(len(calls))
+        if late_game is not None:
+            with factory.begin() as other_session:
+                profile = Profile(
+                    steam_id=f"7656119800000{late_game:04d}",
+                    display_name=f"Late Player {late_game}",
+                )
+                profile.owned_games.append(
+                    ProfileGame(
+                        game=Game(steam_app_id=late_game, name="Late Game")
+                    )
+                )
+                other_session.add(profile)
+        return results
+
+    processed = run_automatic_enrichment(
+        enabled=True,
+        session_factory=factory,
+        client_provider=MagicMock(),
+        enrichment_service=enrich_while_imports_keep_landing,
+        enrichment_lock=lambda: nullcontext(True),
+    )
+
+    assert processed == 3
+    assert calls == [[10], [30], [40]]
+    assert set(_statuses(factory).values()) == {"missing"}
+
+
+def test_game_left_pending_is_attempted_once_per_run() -> None:
+    factory = _database({"76561198000000001": [10, 11]})
+    service = MagicMock(
+        side_effect=lambda session, client, ids: [
+            SimpleNamespace(status=IGDBMatchStatus.MISSING) for _ in ids
+        ]
+    )
+
+    processed = run_automatic_enrichment(
+        enabled=True,
+        session_factory=factory,
+        client_provider=MagicMock(),
+        enrichment_service=service,
+        enrichment_lock=lambda: nullcontext(True),
+    )
+
+    assert processed == 2
+    service.assert_called_once()
+    assert _statuses(factory) == {10: "pending", 11: "pending"}
+
+
 def test_one_trigger_never_exceeds_the_per_trigger_cap() -> None:
     game_count = AUTOMATIC_ENRICHMENT_MAX_GAMES_PER_TRIGGER + 20
     factory = _database({"76561198000000001": list(range(1, game_count + 1))})
@@ -275,7 +332,7 @@ def test_completed_run_logs_one_line_with_outcome_counts(caplog) -> None:
     assert len(messages) == 1
     assert messages[0].startswith(
         "event=igdb_auto_enrichment_completed processed_game_count=3 "
-        "ready=2 missing=0 ambiguous=1 duration_ms="
+        "ready=2 missing=0 ambiguous=1 passes=1 duration_ms="
     )
 
 
