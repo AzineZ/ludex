@@ -137,6 +137,7 @@ def test_item_serializes_flat_presentation_and_unchanged_evidence() -> None:
                 "cover_url": "https://images.example/portal-2.jpg",
                 "profile_playtime_minutes": 42,
                 "normal_completion_seconds": None,
+                "ratings": {"headline": None, "critics": None, "total": None},
                 "factual_evidence": {
                     "version": "factual-overlap-v1",
                     "score_basis_points": 3_000,

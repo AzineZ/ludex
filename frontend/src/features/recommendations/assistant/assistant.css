@@ -346,25 +346,13 @@
    scroll-margin-top: clamp(1.5rem, 5vh, 4rem);
 }
 
+/* Reasoning keeps a bounded scroll region so cards in a deck stay even. */
 .assistant-result-card__explanation {
    display: grid;
-   height: clamp(14rem, 24vw, 17rem);
-   grid-template-rows: repeat(2, minmax(0, 1fr));
-   margin-top: 1.25rem;
-}
-
-.assistant-result-card__explanation .recommendation-result-card__reason {
-   display: grid;
+   height: clamp(9rem, 14vw, 11rem);
    min-height: 0;
    grid-template-rows: auto minmax(0, 1fr);
-   margin-top: 0;
-}
-
-.assistant-result-card__explanation
-   .recommendation-result-card__reason
-   + .recommendation-result-card__reason {
-   padding-top: 1rem;
-   border-top: 1px solid var(--color-ash-taupe);
+   margin-top: 0.25rem;
 }
 
 .assistant-result-card__scroll-region {
@@ -389,12 +377,6 @@
 .assistant-result-card__scroll-region:focus-visible {
    outline: 2px solid var(--color-alarm-red);
    outline-offset: 2px;
-}
-
-.assistant-result-card__actions {
-   padding: 0 var(--recommendation-card-padding)
-      var(--recommendation-card-padding);
-   background: var(--color-void-black);
 }
 
 @media (max-width: 48rem) {

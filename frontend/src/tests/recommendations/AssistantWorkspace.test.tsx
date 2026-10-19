@@ -38,6 +38,7 @@ function rankedResponse(): AssistantRecommendationResponse {
          cover_url: null,
          profile_playtime_minutes: index * 60,
          normal_completion_seconds: index === 0 ? null : 7_200,
+         ratings: { headline: null, critics: null, total: null },
          summary: `Game summary ${index + 1}.`,
          reasoning: `It matches your request for relaxing play ${index + 1}.`,
          content_source: "ai_generated" as const,
@@ -159,9 +160,10 @@ describe("AssistantWorkspace", () => {
       expect(within(firstCard).getByText(
          "It matches your request for relaxing play 1."
       )).toBeInTheDocument();
-      expect(within(firstCard).getByRole("region", {
-         name: "Game 1 summary",
-      })).toHaveClass("assistant-result-card__scroll-region");
+      // The summary now sits in Game details; reasoning stays on the card.
+      expect(firstCard.querySelector("details")).toContainElement(
+         within(firstCard).getByText("Game summary 1.")
+      );
       expect(within(firstCard).getByRole("region", {
          name: "Game 1 reasoning",
       })).toHaveClass("assistant-result-card__scroll-region");

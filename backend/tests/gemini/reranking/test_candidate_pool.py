@@ -16,9 +16,10 @@ from app.gemini.reranking.candidate_pool import (
 from app.gemini.reranking.contracts import RerankFilters
 from app.gemini.reranking.reranker import (
     MAX_RERANK_REQUEST_BYTES,
+    build_rerank_user_prompt,
     rerank_user_prompt_size_bytes,
 )
-from app.models import GameIGDBMetadataTerm, IGDBMetadataTerm, Profile
+from app.models import Game, GameIGDBMetadataTerm, IGDBMetadataTerm, Profile
 from app.recommendations.contracts import PlayStatus
 from tests.recommendations.recommendation_api_support import (
     _owned_game,
@@ -391,3 +392,30 @@ def test_complete_pool_uses_the_approved_adaptive_projection(
         rerank_user_prompt_size_bytes(pool.request)
         <= MAX_RERANK_REQUEST_BYTES
     )
+
+
+def test_ratings_reach_presentation_but_never_the_provider_prompt(
+    database_session: Session,
+) -> None:
+    _add_game(database_session, profile_id=1, steam_app_id=7)
+    game = database_session.get(Game, 7)
+    game.igdb_total_rating = 87.4
+    game.igdb_total_rating_count = 1_204
+    game.igdb_aggregated_rating = 93.6
+    game.igdb_aggregated_rating_count = 12
+    database_session.commit()
+
+    pool = build_rerank_candidate_pool(
+        database_session,
+        profile_id=1,
+        prompt="Something tense",
+        selected_genre_id=31,
+        filters=RerankFilters(),
+    )
+
+    assert pool.request is not None
+    assert pool.presentations[0].ratings.headline is not None
+    prompt = build_rerank_user_prompt(pool.request).lower()
+    assert "rating" not in prompt
+    assert "critic" not in prompt
+    assert "87.4" not in prompt and "93.6" not in prompt and "1204" not in prompt

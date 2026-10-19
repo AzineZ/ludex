@@ -45,6 +45,7 @@ function recommendationItems(
       cover_url: null,
       profile_playtime_minutes: 0,
       normal_completion_seconds: null,
+      ratings: { headline: null, critics: null, total: null },
       factual_evidence: {
          version: "factual-overlap-v1",
          score_basis_points: 10000 - index,

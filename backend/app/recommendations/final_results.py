@@ -8,6 +8,7 @@ from app.recommendations.factual_scoring import (
     FacetMatchState,
     FactualScoreEvidence,
 )
+from app.recommendations.ratings import GameRatings
 from app.recommendations.retrieval import FactualCandidatePool
 
 FINAL_RECOMMENDATION_LIMIT = 6
@@ -52,6 +53,7 @@ class CandidatePresentationFacts:
     cover_url: str | None
     profile_playtime_minutes: int
     normal_completion_seconds: int | None
+    ratings: GameRatings = GameRatings()
 
 
 @dataclass(frozen=True)

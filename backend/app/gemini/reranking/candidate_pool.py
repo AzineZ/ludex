@@ -16,6 +16,11 @@ from app.gemini.reranking.projection import (
     select_product_projection,
 )
 from app.integrations.igdb.images import igdb_cover_url
+from app.recommendations.ratings import (
+    RATING_COLUMNS,
+    GameRatings,
+    game_ratings,
+)
 from app.models import (
     Game,
     GameIGDBMetadataTerm,
@@ -81,6 +86,8 @@ class RerankCandidatePresentation:
     cover_url: str | None
     profile_playtime_minutes: int
     normal_completion_seconds: int | None
+    # Display only: ratings never enter the provider candidate projection.
+    ratings: GameRatings = GameRatings()
 
 
 @dataclass(frozen=True)
@@ -354,6 +361,7 @@ def load_rerank_snapshot_data(
             Game.cover_image_id,
             Game.time_to_beat_normally_seconds,
             ProfileGame.playtime_minutes,
+            *RATING_COLUMNS,
         )
         .join(ProfileGame, ProfileGame.steam_app_id == Game.steam_app_id)
         .where(
@@ -423,6 +431,7 @@ def load_rerank_snapshot_data(
             cover_url=igdb_cover_url(row.cover_image_id),
             profile_playtime_minutes=row.playtime_minutes,
             normal_completion_seconds=row.time_to_beat_normally_seconds,
+            ratings=game_ratings(row),
         )
         for row in rows
     )

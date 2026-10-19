@@ -9,6 +9,7 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     DateTime,
+    Float,
     Integer,
     String,
     Text,
@@ -55,6 +56,27 @@ class Game(Base):
             "time_to_beat_submission_count IS NULL "
             "OR time_to_beat_submission_count >= 0",
             name="ck_games_time_submission_count_nonnegative",
+        ),
+        CheckConstraint(
+            "igdb_total_rating IS NULL "
+            "OR (igdb_total_rating >= 0 AND igdb_total_rating <= 100)",
+            name="ck_games_igdb_total_rating_range",
+        ),
+        CheckConstraint(
+            "igdb_aggregated_rating IS NULL "
+            "OR (igdb_aggregated_rating >= 0 "
+            "AND igdb_aggregated_rating <= 100)",
+            name="ck_games_igdb_aggregated_rating_range",
+        ),
+        CheckConstraint(
+            "igdb_total_rating_count IS NULL "
+            "OR igdb_total_rating_count >= 0",
+            name="ck_games_igdb_total_rating_count_nonnegative",
+        ),
+        CheckConstraint(
+            "igdb_aggregated_rating_count IS NULL "
+            "OR igdb_aggregated_rating_count >= 0",
+            name="ck_games_igdb_aggregated_rating_count_nonnegative",
         ),
     )
     steam_app_id: Mapped[int] = mapped_column(
@@ -123,6 +145,26 @@ class Game(Base):
         nullable=True,
     )
     time_to_beat_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    igdb_total_rating: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+    igdb_total_rating_count: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    igdb_aggregated_rating: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+    igdb_aggregated_rating_count: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    igdb_ratings_checked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )

@@ -17,12 +17,13 @@ def test_migration_history_is_one_linear_chain() -> None:
     alembic_config = Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
     migration_history = ScriptDirectory.from_config(alembic_config)
 
-    assert migration_history.get_heads() == ["8e1a4c9d7b20"]
+    assert migration_history.get_heads() == ["b4c7e2d91f35"]
     assert migration_history.get_bases() == ["cfafdeae2044"]
     assert [
         revision.revision
         for revision in migration_history.walk_revisions(base="base", head="heads")
     ] == [
+        "b4c7e2d91f35",
         "8e1a4c9d7b20",
         "7c4f1e2a9b06",
         "3f2d8b7c1a90",
@@ -36,7 +37,7 @@ def test_migration_history_is_one_linear_chain() -> None:
 
 
 def test_shared_migration_head_resolver_matches_alembic_history() -> None:
-    assert get_single_alembic_head() == "8e1a4c9d7b20"
+    assert get_single_alembic_head() == "b4c7e2d91f35"
 
 
 def test_local_recovery_rehearsal_uses_only_generated_databases() -> None:

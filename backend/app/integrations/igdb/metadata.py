@@ -8,10 +8,16 @@ from collections.abc import Sequence
 METADATA_BATCH_SIZE = 100
 METADATA_QUERY_LIMIT = 500
 
+GAME_RATING_FIELDS = (
+    "total_rating,total_rating_count,"
+    "aggregated_rating,aggregated_rating_count"
+)
+
 GAME_METADATA_FIELDS = (
     "id,name,summary,first_release_date,updated_at,"
     "cover.image_id,genres.name,themes.name,"
-    "keywords.name,game_modes.name"
+    "keywords.name,game_modes.name,"
+    + GAME_RATING_FIELDS
 )
 
 TIME_TO_BEAT_FIELDS = (
@@ -40,6 +46,16 @@ class IGDBTimeToBeat:
 
 
 @dataclass(frozen=True)
+class IGDBRatings:
+    """Represent IGDB's 0–100 average scores and their vote counts."""
+
+    total_rating: float | None = None
+    total_rating_count: int | None = None
+    aggregated_rating: float | None = None
+    aggregated_rating_count: int | None = None
+
+
+@dataclass(frozen=True)
 class IGDBGameMetadata:
     igdb_game_id: int
     name: str
@@ -52,6 +68,7 @@ class IGDBGameMetadata:
     game_modes: tuple[IGDBNamedEntity, ...]
     updated_at: datetime
     time_to_beat: IGDBTimeToBeat | None = None
+    ratings: IGDBRatings = IGDBRatings()
 
 
 def _unique_game_ids(
@@ -163,11 +180,11 @@ def fetch_game_metadata(
     return results
 
 
-def _normalize_optional_seconds(
+def _normalize_optional_non_negative_int(
     value: object,
     field_name: str,
 ) -> int | None:
-    """Validate an optional non-negative duration."""
+    """Validate an optional non-negative integer such as seconds or votes."""
 
     if value is None:
         return None
@@ -251,6 +268,43 @@ def _normalize_named_entities(
     )
 
 
+def _normalize_optional_score(value: object, field_name: str) -> float | None:
+    """Validate an optional IGDB 0–100 average."""
+    if value is None:
+        return None
+
+    if (
+        not isinstance(value, (int, float))
+        or isinstance(value, bool)
+        or not 0 <= value <= 100
+    ):
+        raise IGDBResponseError(f"IGDB returned an invalid {field_name}.")
+
+    return float(value)
+
+
+def normalize_ratings(game: dict[str, Any]) -> IGDBRatings:
+    """Normalize the rating fields of one IGDB game response."""
+    return IGDBRatings(
+        total_rating=_normalize_optional_score(
+            game.get("total_rating"),
+            "total rating",
+        ),
+        total_rating_count=_normalize_optional_non_negative_int(
+            game.get("total_rating_count"),
+            "total rating count",
+        ),
+        aggregated_rating=_normalize_optional_score(
+            game.get("aggregated_rating"),
+            "aggregated rating",
+        ),
+        aggregated_rating_count=_normalize_optional_non_negative_int(
+            game.get("aggregated_rating_count"),
+            "aggregated rating count",
+        ),
+    )
+
+
 def normalize_game_metadata(
     game: dict[str, Any],
 ) -> IGDBGameMetadata:
@@ -320,6 +374,7 @@ def normalize_game_metadata(
             "game mode",
         ),
         updated_at=updated_at,
+        ratings=normalize_ratings(game),
     )
 
 
@@ -361,15 +416,15 @@ def normalize_time_to_beat(
 
     return IGDBTimeToBeat(
         igdb_game_id=igdb_game_id,
-        hastily_seconds=_normalize_optional_seconds(
+        hastily_seconds=_normalize_optional_non_negative_int(
             record.get("hastily"),
             "hastily time",
         ),
-        normally_seconds=_normalize_optional_seconds(
+        normally_seconds=_normalize_optional_non_negative_int(
             record.get("normally"),
             "normally time",
         ),
-        completely_seconds=_normalize_optional_seconds(
+        completely_seconds=_normalize_optional_non_negative_int(
             record.get("completely"),
             "completionist time",
         ),

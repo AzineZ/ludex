@@ -80,6 +80,7 @@ const finalRecommendations: FinalRecommendationResponse = {
          cover_url: null,
          profile_playtime_minutes: 42,
          normal_completion_seconds: null,
+         ratings: { headline: null, critics: null, total: null },
          factual_evidence: {
             version: "factual-overlap-v1",
             score_basis_points: 8000,

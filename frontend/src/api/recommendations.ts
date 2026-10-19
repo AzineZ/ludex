@@ -127,6 +127,22 @@ export type RecommendationTradeoffResponse =
    | UnmatchedPreferenceTradeoffResponse
    | UnknownCompletionTimeTradeoffResponse;
 
+export type RatingScoreResponse = {
+   score: number;
+   count: number;
+};
+
+export type RatingHeadlineResponse = {
+   source: "critics" | "total";
+   score: number;
+};
+
+export type GameRatingsResponse = {
+   headline: RatingHeadlineResponse | null;
+   critics: RatingScoreResponse | null;
+   total: RatingScoreResponse | null;
+};
+
 export type FinalRecommendationItemResponse = {
    rank: number;
    steam_app_id: number;
@@ -134,6 +150,7 @@ export type FinalRecommendationItemResponse = {
    cover_url: string | null;
    profile_playtime_minutes: number;
    normal_completion_seconds: number | null;
+   ratings: GameRatingsResponse;
    factual_evidence: FactualScoreEvidenceResponse;
    facet_labels: FacetLabelResponse[];
    match_summary: MatchSummaryResponse;
@@ -241,6 +258,7 @@ export type AssistantRecommendationItemResponse = {
    cover_url: string | null;
    profile_playtime_minutes: number;
    normal_completion_seconds: number | null;
+   ratings: GameRatingsResponse;
    summary: string;
    reasoning: string;
    content_source: "ai_generated";

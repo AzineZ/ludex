@@ -110,6 +110,23 @@ aggregate before/after coverage and batch counts, and exits nonzero with a
 sanitized report when IGDB fails; successful earlier batches remain committed
 for a safe retry. A transaction-scoped PostgreSQL advisory lock prevents
 overlapping manual and automatic runs.
+
+Enrichment also caches IGDB's display-only ratings (the critic score and the
+combined IGDB rating, each with its vote count). Games enriched before ratings
+were cached need a one-time backfill. Like the enrichment command, it is
+report-only by default:
+
+```bash
+uv run python -m app.igdb_ratings_backfill_command
+uv run python -m app.igdb_ratings_backfill_command --apply
+```
+
+The backfill only fetches the four rating fields for ready games that have
+never had ratings checked, in 100-game batches under the same lock. It never
+changes a game's match status, facets, or other metadata, and a second run
+finds nothing to do. Ratings are shown on result cards but never affect
+scoring, eligibility, or what is sent to Gemini.
+
 Neither recommendation path contacts Steam or IGDB. Gemini remains optional,
 and Guided Recommendations remains the complete provider-free fallback.
 

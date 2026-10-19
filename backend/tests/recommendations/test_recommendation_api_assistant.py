@@ -131,6 +131,7 @@ def test_assistant_submit_maps_ai_summary_and_prompt_specific_reasoning(
                 "cover_url": "https://images.example/cover.jpg",
                 "profile_playtime_minutes": 0,
                 "normal_completion_seconds": 7200,
+                "ratings": {"headline": None, "critics": None, "total": None},
                 "summary": "A gentle, low-pressure hiking adventure.",
                 "reasoning": (
                     "Its gentle pace fits your request for something relaxing."

@@ -61,7 +61,7 @@ function rowRegion(name: string | RegExp): HTMLElement {
 
 function cardTitles(region: HTMLElement): string[] {
    return within(region)
-      .getAllByRole("heading", { level: 3 })
+      .getAllByRole("heading", { level: 5 })
       .map((heading) => heading.textContent ?? "");
 }
 

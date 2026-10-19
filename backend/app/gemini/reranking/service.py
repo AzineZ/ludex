@@ -40,6 +40,7 @@ from app.gemini.reranking.reranker import (
     rerank_with_metadata,
 )
 from app.recommendations.contracts import PositiveIdentifier
+from app.recommendations.ratings import GameRatings
 
 
 RerankCall = Callable[..., object]
@@ -91,6 +92,7 @@ class RerankAssistantItem:
     normal_completion_seconds: int | None
     summary: str
     reasoning: str
+    ratings: GameRatings = GameRatings()
 
 
 @dataclass(frozen=True)
@@ -263,6 +265,7 @@ def _ranked_result(
             ].normal_completion_seconds,
             summary=recommendation.summary,
             reasoning=recommendation.reasoning,
+            ratings=presentations[recommendation.steam_app_id].ratings,
         )
         for rank, recommendation in enumerate(
             response.recommendations, start=1

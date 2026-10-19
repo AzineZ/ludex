@@ -32,8 +32,10 @@ from app.recommendations.api.common import (
     create_recommendation_api_router,
 )
 from app.recommendations.api.schemas import (
+    GameRatingsResponse,
     RecommendationErrorCode,
     RecommendationHTTPModel,
+    to_game_ratings_response,
 )
 from app.recommendations.api.validation import RecommendationHTTPError
 from app.recommendations.contracts import (
@@ -95,6 +97,7 @@ class RerankAssistantItemResponse(RecommendationHTTPModel):
     cover_url: str | None
     profile_playtime_minutes: int
     normal_completion_seconds: int | None
+    ratings: GameRatingsResponse
     summary: str
     reasoning: str
     content_source: Literal["ai_generated"] = "ai_generated"
@@ -137,6 +140,7 @@ def _item(item: RerankAssistantItem) -> RerankAssistantItemResponse:
         cover_url=item.cover_url,
         profile_playtime_minutes=item.profile_playtime_minutes,
         normal_completion_seconds=item.normal_completion_seconds,
+        ratings=to_game_ratings_response(item.ratings),
         summary=item.summary,
         reasoning=item.reasoning,
     )

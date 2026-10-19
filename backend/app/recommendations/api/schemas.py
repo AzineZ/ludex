@@ -28,6 +28,11 @@ from app.recommendations.final_results import (
     UnmatchedPreferenceReason,
     UnmatchedPreferenceTradeoff,
 )
+from app.recommendations.ratings import (
+    GameRatings,
+    RatingScore,
+    RatingSource,
+)
 from app.recommendations.reference_reads import MetadataStatus
 
 
@@ -203,6 +208,53 @@ RecommendationTradeoffResponse: TypeAlias = Annotated[
 ]
 
 
+class RatingScoreResponse(RecommendationHTTPModel):
+    """Expose one rounded IGDB average and its vote count."""
+
+    score: int
+    count: int
+
+
+class RatingHeadlineResponse(RecommendationHTTPModel):
+    """Expose the single score a result card shows."""
+
+    source: RatingSource
+    score: int
+
+
+class GameRatingsResponse(RecommendationHTTPModel):
+    """Expose display-only IGDB ratings for one recommended game."""
+
+    headline: RatingHeadlineResponse | None
+    critics: RatingScoreResponse | None
+    total: RatingScoreResponse | None
+
+
+def _rating_score_response(
+    score: RatingScore | None,
+) -> RatingScoreResponse | None:
+    if score is None:
+        return None
+    return RatingScoreResponse(score=score.score, count=score.count)
+
+
+def to_game_ratings_response(ratings: GameRatings) -> GameRatingsResponse:
+    """Convert domain ratings, including the thresholded headline."""
+    headline = ratings.headline
+    return GameRatingsResponse(
+        headline=(
+            None
+            if headline is None
+            else RatingHeadlineResponse(
+                source=headline.source,
+                score=headline.score,
+            )
+        ),
+        critics=_rating_score_response(ratings.critics),
+        total=_rating_score_response(ratings.total),
+    )
+
+
 class FinalRecommendationItemResponse(RecommendationHTTPModel):
     """Expose one self-contained final recommendation."""
 
@@ -212,6 +264,7 @@ class FinalRecommendationItemResponse(RecommendationHTTPModel):
     cover_url: str | None
     profile_playtime_minutes: int
     normal_completion_seconds: int | None
+    ratings: GameRatingsResponse
     factual_evidence: FactualScoreEvidenceResponse
     facet_labels: tuple[FacetLabelResponse, ...]
     match_summary: MatchSummaryResponse
@@ -389,6 +442,7 @@ def _final_item_response(
         normal_completion_seconds=(
             presentation.normal_completion_seconds
         ),
+        ratings=to_game_ratings_response(presentation.ratings),
         factual_evidence=FactualScoreEvidenceResponse(
             version=evidence.version,
             score_basis_points=evidence.score_basis_points,

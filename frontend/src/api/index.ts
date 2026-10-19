@@ -33,6 +33,8 @@ export {
    type AutomaticRecommendationStatus,
    type AutomaticSourceGameResponse,
    type FacetOptionResponse,
+   type GameRatingsResponse,
+   type MatchReasonResponse,
    type MoreLikeThisRequest,
    type FacetKind,
    type FacetLabelResponse,

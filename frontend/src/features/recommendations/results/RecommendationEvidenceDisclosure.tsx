@@ -6,11 +6,13 @@ import type {
    FacetMatchState,
    FactualScoreEvidenceResponse,
 } from "../../../api";
+import { CardHeading, type CardHeadingLevel } from "./ResultCardParts";
 
 
 type RecommendationEvidenceDisclosureProps = {
    evidence: FactualScoreEvidenceResponse;
    facetLabels: readonly FacetLabelResponse[];
+   headingLevel?: CardHeadingLevel | 6;
 };
 
 const FACET_KIND_LABELS: Record<FacetKind, string> = {
@@ -29,6 +31,7 @@ const MATCH_STATE_LABELS: Record<FacetMatchState, string> = {
 function RecommendationEvidenceDisclosure({
    evidence,
    facetLabels,
+   headingLevel = 4,
 }: RecommendationEvidenceDisclosureProps) {
    const headingId = useId();
    const labelsByIdentity = new Map(
@@ -43,7 +46,9 @@ function RecommendationEvidenceDisclosure({
          className="recommendation-evidence"
          aria-labelledby={headingId}
       >
-         <h4 id={headingId}>Preference comparison</h4>
+         <CardHeading level={headingLevel} id={headingId}>
+            Preference comparison
+         </CardHeading>
          <div className="recommendation-evidence__content">
             <p>
                This comparison uses the factual preferences you selected.

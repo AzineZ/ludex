@@ -2,12 +2,20 @@ import { useId } from "react";
 
 import type { FinalRecommendationItemResponse } from "../../../api";
 import RecommendationEvidenceDisclosure from "./RecommendationEvidenceDisclosure";
-import { ResultCardCover, ResultCardFacts } from "./ResultCardParts";
-import { showAnotherLabel } from "./resultCardFormat";
+import {
+   CardHeading,
+   CardTitle,
+   ResultCardCover,
+   ResultCardFacts,
+   ResultCardMeta,
+   type CardHeadingLevel,
+} from "./ResultCardParts";
+import { describeShortMatch, showAnotherLabel } from "./resultCardFormat";
 import { useFocusOnRequest } from "./useFocusOnRequest";
 
 type RecommendationResultCardProps = {
    item: FinalRecommendationItemResponse;
+   headingLevel?: CardHeadingLevel;
    onPlayThis?: () => void;
    onShowAnother?: () => void;
    showAnotherDisabled?: boolean;
@@ -18,8 +26,10 @@ type RecommendationResultCardProps = {
    isAccepted?: boolean;
 };
 
+/** Shows one Guided result: full cover, then title, facts, and actions. */
 function RecommendationResultCard({
    item,
+   headingLevel = 3,
    onPlayThis,
    onShowAnother,
    showAnotherDisabled = false,
@@ -31,6 +41,7 @@ function RecommendationResultCard({
 }: RecommendationResultCardProps) {
    const headingId = useId();
    const cardRef = useFocusOnRequest<HTMLElement>(focusRequestId);
+   const innerHeadingLevel = (headingLevel + 1) as CardHeadingLevel | 6;
    const alternativeCountText = remainingAlternatives === undefined
       ? null
       : remainingAlternatives === 0
@@ -38,6 +49,9 @@ function RecommendationResultCard({
       : remainingAlternatives === 1
          ? "1 alternative remaining"
          : `${remainingAlternatives} alternatives remaining`;
+   const hasActions = onPlayThis !== undefined
+      || onShowAnother !== undefined
+      || onMoreLikeThis !== undefined;
 
    return (
       <article
@@ -49,27 +63,21 @@ function RecommendationResultCard({
       >
          <ResultCardCover title={item.title} coverUrl={item.cover_url} />
 
-         <div className="recommendation-result-card__stage">
-            <p className="recommendation-result-card__rank">
-               {isAccepted ? "Your pick" : `Recommendation ${item.rank}`}
+         <div className="recommendation-result-card__body">
+            {isAccepted && (
+               <p className="recommendation-result-card__badge">Your pick</p>
+            )}
+            <CardTitle level={headingLevel} id={headingId} title={item.title} />
+            <ResultCardMeta
+               ratings={item.ratings}
+               normalCompletionSeconds={item.normal_completion_seconds}
+               profilePlaytimeMinutes={item.profile_playtime_minutes}
+            />
+            <p className="recommendation-result-card__match">
+               {describeShortMatch(item.match_summary.reasons)}
             </p>
 
-            <div className="recommendation-result-card__content">
-               <header>
-                  <h3 id={headingId}>{item.title}</h3>
-               </header>
-
-               <section className="recommendation-result-card__reason">
-                  <h4>Why it matches</h4>
-                  <p>{item.match_summary.text}</p>
-               </section>
-            </div>
-
-            {(
-               onPlayThis !== undefined
-               || onShowAnother !== undefined
-               || onMoreLikeThis !== undefined
-            ) && (
+            {hasActions && (
                <div className="recommendation-result-card__actions">
                   {onPlayThis !== undefined && (
                      <button
@@ -115,14 +123,20 @@ function RecommendationResultCard({
          <details className="recommendation-result-card__details">
             <summary>Game details</summary>
             <div className="recommendation-result-card__details-content">
+               <section className="recommendation-result-card__reason">
+                  <CardHeading level={innerHeadingLevel}>Why it matches</CardHeading>
+                  <p>{item.match_summary.text}</p>
+               </section>
+
                <ResultCardFacts
                   profilePlaytimeMinutes={item.profile_playtime_minutes}
                   normalCompletionSeconds={item.normal_completion_seconds}
+                  ratings={item.ratings}
                />
 
                {item.tradeoff !== null && (
                   <aside className="recommendation-result-card__tradeoff">
-                     <h4>Keep in mind</h4>
+                     <CardHeading level={innerHeadingLevel}>Keep in mind</CardHeading>
                      <p>{item.tradeoff.text}</p>
                   </aside>
                )}
@@ -130,6 +144,7 @@ function RecommendationResultCard({
                <RecommendationEvidenceDisclosure
                   evidence={item.factual_evidence}
                   facetLabels={item.facet_labels}
+                  headingLevel={innerHeadingLevel}
                />
             </div>
          </details>

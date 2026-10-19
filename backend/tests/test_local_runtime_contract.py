@@ -98,6 +98,14 @@ def test_setup_guide_documents_the_supported_data_workflow() -> None:
     assert "IGDB_AUTO_ENRICHMENT_ENABLED=false" in normalized_readme
     assert "never returns an IGDB failure to the browser" in normalized_readme
     assert "at most 500" in normalized_readme
+    assert "uv run python -m app.igdb_ratings_backfill_command" in readme
+    assert (
+        "uv run python -m app.igdb_ratings_backfill_command --apply" in readme
+    )
+    assert (
+        "never affect scoring, eligibility, or what is sent to Gemini"
+        in normalized_readme
+    )
     assert "PostgreSQL advisory lock" in normalized_readme
     assert "Neither recommendation path contacts Steam or IGDB" in (
         normalized_readme

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { page } from "vitest/browser";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { page, userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SessionProfileResponse } from "../../api";
@@ -69,6 +69,7 @@ vi.mock("../../api", async (importOriginal) => {
                   cover_url: null,
                   profile_playtime_minutes: 0,
                   normal_completion_seconds: 7_200,
+                  ratings: { headline: null, critics: null, total: null },
                   factual_evidence: {
                      version: "factual-overlap-v1",
                      score_basis_points: 9_000,
@@ -105,6 +106,7 @@ vi.mock("../../api", async (importOriginal) => {
                cover_url: null,
                profile_playtime_minutes: 0,
                normal_completion_seconds: 3_600,
+               ratings: { headline: null, critics: null, total: null },
                factual_evidence: {
                   version: "factual-overlap-v1",
                   score_basis_points: 8_000,
@@ -134,8 +136,9 @@ vi.mock("../../api", async (importOriginal) => {
             cover_url: null,
             profile_playtime_minutes: index * 60,
             normal_completion_seconds: 7_200,
+            ratings: { headline: null, critics: null, total: null },
             summary: "A bounded AI-generated summary describing the game's premise, setting, central activity, and moment-to-moment play for this responsive fixture. ".repeat(3),
-            reasoning: "Its relaxed pacing, low-pressure exploration, and gentle progression directly match your request for something relaxing after work. ".repeat(2),
+            reasoning: "Its relaxed pacing, low-pressure exploration, and gentle progression directly match your request for something relaxing after work. ".repeat(6),
             content_source: "ai_generated",
          })),
       }),
@@ -537,22 +540,64 @@ describe("responsive layout contracts", () => {
                   .toBeLessThanOrEqual(rowBounds.right + 0.5);
                expect(card.scrollWidth, `card content width at ${name}`)
                   .toBeLessThanOrEqual(card.clientWidth + 1);
-               // Long titles must not run into the reason below them.
-               const title = card.querySelector<HTMLElement>("h3");
-               const reason = card.querySelector<HTMLElement>(
-                  ".recommendation-result-card__reason"
-               );
+               // The whole portrait cover shows, and text stacks below it.
+               const cover = card.querySelector<HTMLElement>(
+                  ".recommendation-result-card__cover-frame"
+               ) as HTMLElement;
+               const coverBounds = cover.getBoundingClientRect();
                expect(
-                  (title as HTMLElement).getBoundingClientRect().bottom,
-                  `card title clear of its reason at ${name}`
-               ).toBeLessThanOrEqual(
-                  (reason as HTMLElement).getBoundingClientRect().top + 0.5
+                  coverBounds.height / coverBounds.width,
+                  `cover ratio at ${name}`
+               ).toBeCloseTo(374 / 264, 1);
+               const parts = [
+                  ".recommendation-result-card__title",
+                  ".recommendation-result-card__meta",
+                  ".recommendation-result-card__match",
+                  ".recommendation-result-card__actions",
+               ].map((selector) =>
+                  (card.querySelector(selector) as HTMLElement)
+                     .getBoundingClientRect()
                );
+               expect(parts[0].top, `title below cover at ${name}`)
+                  .toBeGreaterThanOrEqual(coverBounds.bottom - 0.5);
+               for (let index = 1; index < parts.length; index += 1) {
+                  expect(
+                     parts[index].top,
+                     `card text stacks without overlap at ${name}`
+                  ).toBeGreaterThanOrEqual(parts[index - 1].bottom - 0.5);
+               }
+               for (const button of Array.from(
+                  card.querySelectorAll<HTMLElement>(
+                     ".recommendation-result-card__actions button"
+                  )
+               )) {
+                  const bounds = button.getBoundingClientRect();
+                  expect(bounds.right, `action inside card at ${name}`)
+                     .toBeLessThanOrEqual(card.getBoundingClientRect().right + 0.5);
+                  expect(button.scrollWidth, `action label fits at ${name}`)
+                     .toBeLessThanOrEqual(button.clientWidth + 1);
+               }
             }
+            const titleHeights = cards.map(
+               (card) => (card.querySelector(
+                  ".recommendation-result-card__title"
+               ) as HTMLElement).getBoundingClientRect().height
+            );
+            expect(
+               Math.max(...titleHeights) - Math.min(...titleHeights),
+               `titles stay one line at ${name}`
+            ).toBeLessThan(1);
             if (viewport.width >= 1024) {
                expect(
                   Math.max(...tops) - Math.min(...tops),
                   `three cards share a line at ${name}`
+               ).toBeLessThan(1);
+               const heights = cards.map(
+                  (card) => card.getBoundingClientRect().height
+               );
+               expect(
+                  Math.max(...heights) - Math.min(...heights),
+                  `cards in a row are equally tall at ${name}`
                ).toBeLessThan(1);
             } else {
                expect(tops[1], `stacked cards at ${name}`)
@@ -562,6 +607,44 @@ describe("responsive layout contracts", () => {
             }
          }
       }
+   });
+
+   it("scrolls a long title only while its card is hovered", async () => {
+      await setTestViewport({ width: 1280, height: 900 });
+      render(<AutomaticFixture />);
+      await screen.findByRole("region", {
+         name: /^Because you played An Extraordinarily Long/,
+      });
+      const [longCard] = screen.getAllByRole("article", {
+         name: "Supercalifragilisticexpialidocious Responsive Automatic Game",
+      });
+      const titleOf = (card: HTMLElement) => card.querySelector<HTMLElement>(
+         ".recommendation-result-card__title"
+      ) as HTMLElement;
+      const offset = (card: HTMLElement) => {
+         const text = card.querySelector<HTMLElement>(
+            ".recommendation-result-card__title-text"
+         ) as HTMLElement;
+         return text.getBoundingClientRect().left
+            - titleOf(card).getBoundingClientRect().left;
+      };
+
+      await waitFor(() => {
+         expect(titleOf(longCard).dataset.overflowing).toBe("true");
+      });
+      expect(getComputedStyle(titleOf(longCard)).maskImage).toContain("gradient");
+
+      await userEvent.hover(longCard);
+      await waitFor(() => {
+         expect(offset(longCard)).toBeLessThan(-20);
+      }, { timeout: 5_000 });
+      expect(titleOf(longCard).dataset.marquee).toBe("active");
+
+      await userEvent.unhover(longCard);
+      await waitFor(() => {
+         expect(Math.abs(offset(longCard))).toBeLessThan(1);
+      }, { timeout: 2_000 });
+      expect(titleOf(longCard).dataset.marquee).toBeUndefined();
    });
 
    it("brings a new More like row into view from the last row", async () => {
@@ -664,48 +747,45 @@ describe("responsive layout contracts", () => {
          const firstCard = screen.getByRole("article", {
             name: "Responsive Assistant Game 1",
          });
-         const stage = firstCard.querySelector<HTMLElement>(
-            ".recommendation-result-card__stage"
-         );
-         const actions = firstCard.querySelector<HTMLElement>(
-            ".assistant-result-card__actions"
-         );
+         const name = viewportName(viewport);
+         const cover = firstCard.querySelector<HTMLElement>(
+            ".recommendation-result-card__cover-frame"
+         ) as HTMLElement;
          const explanation = firstCard.querySelector<HTMLElement>(
             ".assistant-result-card__explanation"
-         );
-         const summaryRegion = screen.getByRole("region", {
-            name: "Responsive Assistant Game 1 summary",
-         });
+         ) as HTMLElement;
+         const actions = firstCard.querySelector<HTMLElement>(
+            ".recommendation-result-card__actions"
+         ) as HTMLElement;
          const reasoningRegion = screen.getByRole("region", {
             name: "Responsive Assistant Game 1 reasoning",
          });
-         expect(stage).not.toBeNull();
-         expect(actions).not.toBeNull();
-         expect(explanation).not.toBeNull();
+         const coverBounds = cover.getBoundingClientRect();
          expect(
-            (actions as HTMLElement).getBoundingClientRect().top,
-            `assistant actions after image stage at ${viewportName(viewport)}`
-         ).toBeGreaterThanOrEqual(
-            (stage as HTMLElement).getBoundingClientRect().bottom - 1
-         );
+            coverBounds.height / coverBounds.width,
+            `assistant cover ratio at ${name}`
+         ).toBeCloseTo(374 / 264, 1);
          expect(
-            (explanation as HTMLElement).getBoundingClientRect().bottom,
-            `assistant explanation inside image stage at ${viewportName(viewport)}`
-         ).toBeLessThanOrEqual(
-            (stage as HTMLElement).getBoundingClientRect().bottom
-         );
-         expect(getComputedStyle(summaryRegion).overflowY).toBe("auto");
+            explanation.getBoundingClientRect().top,
+            `assistant reasoning below cover at ${name}`
+         ).toBeGreaterThanOrEqual(coverBounds.bottom - 0.5);
+         expect(
+            actions.getBoundingClientRect().top,
+            `assistant actions after reasoning at ${name}`
+         ).toBeGreaterThanOrEqual(explanation.getBoundingClientRect().bottom - 1);
          expect(getComputedStyle(reasoningRegion).overflowY).toBe("auto");
-         expect(summaryRegion.parentElement?.dataset.hasOverflow).toBe("true");
-         expect(summaryRegion.parentElement?.dataset.atEnd).toBe("false");
-         expect(
-            summaryRegion.getBoundingClientRect().height,
-            `summary/reasoning height at ${viewportName(viewport)}`
-         ).toBeGreaterThan(0);
+         expect(reasoningRegion.parentElement?.dataset.hasOverflow).toBe("true");
+         expect(reasoningRegion.parentElement?.dataset.atEnd).toBe("false");
          expect(
             reasoningRegion.getBoundingClientRect().height,
-            `reasoning scroll height at ${viewportName(viewport)}`
+            `reasoning scroll height at ${name}`
          ).toBeGreaterThan(0);
+         expect(
+            firstCard.querySelector("details"),
+            `assistant summary in Game details at ${name}`
+         ).toContainElement(
+            within(firstCard).getByText(/A bounded AI-generated summary/)
+         );
       }
    });
 

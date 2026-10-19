@@ -4,6 +4,7 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
 from app.integrations.igdb.images import igdb_cover_url
+from app.recommendations.ratings import RATING_COLUMNS, game_ratings
 from app.models import Game, IGDBMetadataTerm, ProfileGame
 from app.recommendations.factual_scoring import FacetKind
 from app.recommendations.final_results import (
@@ -50,6 +51,7 @@ def load_final_result_presentation(
                 Game.cover_image_id,
                 ProfileGame.playtime_minutes,
                 Game.time_to_beat_normally_seconds,
+                *RATING_COLUMNS,
             )
             .join(
                 ProfileGame,
@@ -71,6 +73,7 @@ def load_final_result_presentation(
                 normal_completion_seconds=(
                     row.time_to_beat_normally_seconds
                 ),
+                ratings=game_ratings(row),
             )
             for row in game_rows
         )

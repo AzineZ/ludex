@@ -68,6 +68,7 @@ function AutomaticRowSection({
             <RecommendationResultCard
                key={item.steam_app_id}
                item={item}
+               headingLevel={5}
                onShowAnother={() =>
                   automatic.showAnother(row.key, item.steam_app_id)
                }

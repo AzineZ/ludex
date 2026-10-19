@@ -5,7 +5,7 @@ from app.integrations.igdb.matching import (
     IGDBMatchResult,
     IGDBMatchStatus,
 )
-from app.integrations.igdb.metadata import IGDBGameMetadata
+from app.integrations.igdb.metadata import IGDBGameMetadata, IGDBRatings
 from app.models import (
     Game,
     GameIGDBMetadataTerm,
@@ -13,6 +13,22 @@ from app.models import (
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
+
+
+def apply_ratings(
+    game: Game,
+    ratings: IGDBRatings,
+    checked_at: datetime,
+) -> None:
+    """Store display-only IGDB ratings and when they were fetched."""
+    if checked_at.utcoffset() is None:
+        raise ValueError("The rating check time must be timezone-aware.")
+
+    game.igdb_total_rating = ratings.total_rating
+    game.igdb_total_rating_count = ratings.total_rating_count
+    game.igdb_aggregated_rating = ratings.aggregated_rating
+    game.igdb_aggregated_rating_count = ratings.aggregated_rating_count
+    game.igdb_ratings_checked_at = checked_at
 
 
 def apply_ready_metadata(
@@ -33,6 +49,7 @@ def apply_ready_metadata(
     game.summary = metadata.summary
     game.first_release_at = metadata.first_release_at
     game.cover_image_id = metadata.cover_image_id
+    apply_ratings(game, metadata.ratings, enriched_at)
 
     time_to_beat = metadata.time_to_beat
 
