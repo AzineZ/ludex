@@ -1,6 +1,7 @@
+import math
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from sqlalchemy import func, select
@@ -28,7 +29,8 @@ from app.recommendations.reference_reads import (
 from app.recommendations.service import recommend_cached_games
 
 AUTOMATIC_MINIMUM_PLAYTIME_MINUTES = 60
-RECENT_PLAYTIME_WEIGHT = 4
+RECENCY_HALF_LIFE_DAYS = 90
+FINISHED_GAME_BONUS = 1.5
 AUTOMATIC_SOURCE_GAME_LIMIT = 3
 AUTOMATIC_SOURCE_SCAN_LIMIT = 10
 AUTOMATIC_KEYWORD_LIMIT = 3
@@ -56,6 +58,11 @@ class AutomaticRecommendationStatus(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+def _as_utc(moment: datetime) -> datetime:
+    """Treat naive stored timestamps as UTC."""
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+
+
 @dataclass(frozen=True)
 class PlayedGame:
     """Hold the cached play facts used to rank one owned game."""
@@ -65,15 +72,38 @@ class PlayedGame:
     cover_url: str | None
     igdb_status: str
     playtime_minutes: int
-    recent_playtime_minutes: int | None
     last_played_at: datetime | None
+    normal_completion_seconds: int | None
 
     @property
-    def interest_score(self) -> int:
-        """Weight total playtime toward the last two weeks of play."""
-        return self.playtime_minutes + RECENT_PLAYTIME_WEIGHT * (
-            self.recent_playtime_minutes or 0
+    def looks_finished(self) -> bool:
+        """Estimate completion from playtime versus IGDB's normal length."""
+        return (
+            self.normal_completion_seconds is not None
+            and self.normal_completion_seconds > 0
+            and self.playtime_minutes * 60 >= self.normal_completion_seconds
         )
+
+    def interest_score(self, reference_time: datetime) -> float:
+        """Weight log-scaled hours by recency and an estimated finish.
+
+        Recency halves every 90 days before ``reference_time``, so hundreds
+        of hours from years ago no longer outrank a game played or finished
+        in the last few months.
+        """
+        if self.last_played_at is None:
+            return 0.0
+        days_since_played = max(
+            0.0,
+            (
+                _as_utc(reference_time) - _as_utc(self.last_played_at)
+            ).total_seconds()
+            / 86_400,
+        )
+        recency = 0.5 ** (days_since_played / RECENCY_HALF_LIFE_DAYS)
+        hours = self.playtime_minutes / 60
+        finished_bonus = FINISHED_GAME_BONUS if self.looks_finished else 1.0
+        return math.log2(1 + hours) * recency * finished_bonus
 
 
 @dataclass(frozen=True)
@@ -106,8 +136,9 @@ class AutomaticRecommendations:
 
 def rank_played_games(
     games: tuple[PlayedGame, ...],
+    reference_time: datetime,
 ) -> tuple[PlayedGame, ...]:
-    """Order played games by weighted interest, then recency and ID."""
+    """Order played games by interest, then latest play and ID."""
     return tuple(
         sorted(
             (
@@ -117,10 +148,10 @@ def rank_played_games(
                 >= AUTOMATIC_MINIMUM_PLAYTIME_MINUTES
             ),
             key=lambda game: (
-                -game.interest_score,
+                -game.interest_score(reference_time),
                 game.last_played_at is None,
                 -(
-                    game.last_played_at.timestamp()
+                    _as_utc(game.last_played_at).timestamp()
                     if game.last_played_at is not None
                     else 0
                 ),
@@ -130,21 +161,36 @@ def rank_played_games(
     )
 
 
+def _played_game(row: object) -> PlayedGame:
+    return PlayedGame(
+        steam_app_id=row.steam_app_id,
+        title=row.name,
+        cover_url=igdb_cover_url(row.cover_image_id),
+        igdb_status=row.igdb_status,
+        playtime_minutes=row.playtime_minutes,
+        last_played_at=row.last_played_at,
+        normal_completion_seconds=row.time_to_beat_normally_seconds,
+    )
+
+
+_PLAYED_GAME_COLUMNS = (
+    Game.steam_app_id,
+    Game.name,
+    Game.cover_image_id,
+    Game.igdb_status,
+    Game.time_to_beat_normally_seconds,
+    ProfileGame.playtime_minutes,
+    ProfileGame.last_played_at,
+)
+
+
 def _load_played_games(
     session: Session,
     profile_id: int,
 ) -> tuple[PlayedGame, ...]:
     """Project one profile's owned games with enough playtime."""
     rows = session.execute(
-        select(
-            Game.steam_app_id,
-            Game.name,
-            Game.cover_image_id,
-            Game.igdb_status,
-            ProfileGame.playtime_minutes,
-            ProfileGame.recent_playtime_minutes,
-            ProfileGame.last_played_at,
-        )
+        select(*_PLAYED_GAME_COLUMNS)
         .join(
             ProfileGame,
             ProfileGame.steam_app_id == Game.steam_app_id,
@@ -156,18 +202,7 @@ def _load_played_games(
         )
         .execution_options(autoflush=False)
     ).all()
-    return tuple(
-        PlayedGame(
-            steam_app_id=row.steam_app_id,
-            title=row.name,
-            cover_url=igdb_cover_url(row.cover_image_id),
-            igdb_status=row.igdb_status,
-            playtime_minutes=row.playtime_minutes,
-            recent_playtime_minutes=row.recent_playtime_minutes,
-            last_played_at=row.last_played_at,
-        )
-        for row in rows
-    )
+    return tuple(_played_game(row) for row in rows)
 
 
 def is_meta_keyword(name: str) -> bool:
@@ -362,8 +397,12 @@ def recommend_automatic_rows(
     wait_for_pending: bool,
 ) -> AutomaticRecommendations:
     """Build one recommendation row per top played game."""
+    # Exponential decay scales every score by the same factor whatever the
+    # reference time, so measuring from now orders games exactly as
+    # measuring from the library's last sync would.
     ranked_games = rank_played_games(
-        _load_played_games(session, profile_id)
+        _load_played_games(session, profile_id),
+        datetime.now(UTC),
     )
     scanned_ready_ids = tuple(
         game.steam_app_id
@@ -450,15 +489,7 @@ def recommend_more_like_game(
 ) -> AutomaticRecommendationRow:
     """Build one row using a single owned ready game as the reference."""
     row = session.execute(
-        select(
-            Game.steam_app_id,
-            Game.name,
-            Game.cover_image_id,
-            Game.igdb_status,
-            ProfileGame.playtime_minutes,
-            ProfileGame.recent_playtime_minutes,
-            ProfileGame.last_played_at,
-        )
+        select(*_PLAYED_GAME_COLUMNS)
         .join(
             ProfileGame,
             ProfileGame.steam_app_id == Game.steam_app_id,
@@ -486,18 +517,7 @@ def recommend_more_like_game(
             "Factual metadata is unavailable for this reference game."
         )
 
-    source_game = _source_game(
-        PlayedGame(
-            steam_app_id=row.steam_app_id,
-            title=row.name,
-            cover_url=igdb_cover_url(row.cover_image_id),
-            igdb_status=row.igdb_status,
-            playtime_minutes=row.playtime_minutes,
-            recent_playtime_minutes=row.recent_playtime_minutes,
-            last_played_at=row.last_played_at,
-        ),
-        facets,
-    )
+    source_game = _source_game(_played_game(row), facets)
     result = recommend_cached_games(
         session,
         profile_id=profile_id,

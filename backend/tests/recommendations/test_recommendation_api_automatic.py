@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -59,12 +59,19 @@ def _more_like_body(
     }
 
 
+REFERENCE_TIME = datetime(2026, 10, 1, tzinfo=UTC)
+
+
+def _days_before_reference(days: int) -> datetime:
+    return REFERENCE_TIME - timedelta(days=days)
+
+
 def _played(
     steam_app_id: int,
     playtime_minutes: int,
     *,
-    recent_playtime_minutes: int | None = None,
-    last_played_at: datetime | None = None,
+    days_since_played: int | None = 0,
+    normal_completion_hours: int | None = None,
 ) -> PlayedGame:
     return PlayedGame(
         steam_app_id=steam_app_id,
@@ -72,8 +79,16 @@ def _played(
         cover_url=None,
         igdb_status="ready",
         playtime_minutes=playtime_minutes,
-        recent_playtime_minutes=recent_playtime_minutes,
-        last_played_at=last_played_at,
+        last_played_at=(
+            None
+            if days_since_played is None
+            else _days_before_reference(days_since_played)
+        ),
+        normal_completion_seconds=(
+            None
+            if normal_completion_hours is None
+            else normal_completion_hours * 3_600
+        ),
     )
 
 
@@ -100,6 +115,7 @@ def _add_played_library(
             101,
             "Alpha",
             playtime_minutes=600,
+            last_played_at=_days_before_reference(90),
             links=links(adventure, single_player),
         ),
         _owned_game(
@@ -108,7 +124,7 @@ def _add_played_library(
             "Beta",
             status=beta_status,
             playtime_minutes=300,
-            recent_playtime_minutes=100,
+            last_played_at=_days_before_reference(0),
             links=(
                 links(adventure)
                 if beta_status == "ready"
@@ -120,6 +136,7 @@ def _add_played_library(
             103,
             "Gamma",
             playtime_minutes=500,
+            last_played_at=_days_before_reference(180),
             links=links(adventure),
         ),
         _owned_game(
@@ -128,6 +145,7 @@ def _add_played_library(
             "Delta",
             status="missing",
             playtime_minutes=400,
+            last_played_at=_days_before_reference(1),
         ),
         _owned_game(
             profile,
@@ -158,22 +176,46 @@ def _row_ids(row: dict[str, Any]) -> list[int]:
     ]
 
 
-def test_ranking_weights_recent_play_and_breaks_ties_deterministically() -> None:
-    earlier = datetime(2026, 10, 1, tzinfo=UTC)
-    later = datetime(2026, 10, 10, tzinfo=UTC)
+def test_ranking_favours_recent_and_finished_games_over_old_hours() -> None:
     ranked = rank_played_games(
         (
             _played(1, 600),
-            _played(2, 300, recent_playtime_minutes=100),
-            _played(3, 500, last_played_at=earlier),
-            _played(4, 500, last_played_at=later),
-            _played(5, 500),
-            _played(6, 400),
-            _played(7, 59, recent_playtime_minutes=1_000),
-        )
+            _played(2, 6_000, days_since_played=365),
+            _played(3, 300, normal_completion_hours=4),
+            _played(4, 300, normal_completion_hours=10),
+            _played(6, 120, days_since_played=90),
+            _played(7, 120, days_since_played=90),
+            _played(8, 6_000, days_since_played=None),
+            _played(9, 59),
+        ),
+        REFERENCE_TIME,
     )
 
-    assert [game.steam_app_id for game in ranked] == [2, 1, 4, 3, 5, 6]
+    # 5 h just finished > 10 h today > 5 h unfinished today > 2 h three
+    # months ago > 100 h a year ago > no play date; under an hour is ignored.
+    assert [game.steam_app_id for game in ranked] == [3, 1, 4, 6, 7, 2, 8]
+
+
+def test_interest_halves_every_ninety_days_and_rewards_a_finish() -> None:
+    today = _played(1, 420)
+    three_months = _played(1, 420, days_since_played=90)
+    finished = _played(1, 420, normal_completion_hours=7)
+    played_after_sync = PlayedGame(
+        steam_app_id=1,
+        title="Game 1",
+        cover_url=None,
+        igdb_status="ready",
+        playtime_minutes=420,
+        last_played_at=REFERENCE_TIME + timedelta(days=3),
+        normal_completion_seconds=None,
+    )
+
+    assert today.interest_score(REFERENCE_TIME) == 3.0
+    assert three_months.interest_score(REFERENCE_TIME) == 1.5
+    assert finished.looks_finished
+    assert finished.interest_score(REFERENCE_TIME) == 4.5
+    assert played_after_sync.interest_score(REFERENCE_TIME) == 3.0
+    assert not _played(1, 420, normal_completion_hours=0).looks_finished
 
 
 def test_automatic_rows_follow_top_played_games_without_repeats(

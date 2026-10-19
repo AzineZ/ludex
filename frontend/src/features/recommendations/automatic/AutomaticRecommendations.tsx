@@ -152,8 +152,7 @@ function AutomaticRecommendations({
             <div>
                <h3 id={headingId}>Picked from your library</h3>
                <p>
-                  Based on the games you’ve played most, with recent play
-                  counting extra.
+                  Based on games you’ve played or finished recently.
                </p>
             </div>
             <button
