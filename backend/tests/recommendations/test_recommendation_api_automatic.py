@@ -1,11 +1,16 @@
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
 from sqlalchemy import event
 
 from app.main import app
 from app.models import GameIGDBMetadataTerm, IGDBMetadataTerm
-from app.recommendations.automatic import PlayedGame, rank_played_games
+from app.recommendations.automatic import (
+    PlayedGame,
+    is_meta_keyword,
+    rank_played_games,
+)
 from app.sessions.http import require_access_session
 from tests.recommendations.recommendation_api_support import (
     RecommendationAPI,
@@ -227,7 +232,7 @@ def test_automatic_rows_follow_top_played_games_without_repeats(
                     "genre_ids": [10],
                     "theme_ids": [],
                     "keyword_ids": [],
-                    "game_mode_ids": [30],
+                    "game_mode_ids": [],
                 },
             },
             {
@@ -359,54 +364,163 @@ def test_library_without_qualifying_played_games_is_unavailable(
     }
 
 
-def test_source_keywords_prefer_those_most_shared_in_the_library(
+def _add_facet_library(
     recommendation_api: RecommendationAPI,
+    source_terms: tuple[IGDBMetadataTerm, ...],
+    other_game_terms: tuple[tuple[IGDBMetadataTerm, ...], ...],
 ) -> None:
     profile = _profile()
-    keywords = {
-        keyword_id: IGDBMetadataTerm(
-            kind="keyword",
-            igdb_id=keyword_id,
-            name=f"Keyword {keyword_id}",
-        )
-        for keyword_id in (40, 41, 42, 43, 44)
-    }
-    other_owner_counts = {40: 2, 41: 3, 42: 3, 43: 0, 44: 2}
     games = [
         _owned_game(
             profile,
             101,
             "Source",
             playtime_minutes=600,
-            links=tuple(
-                GameIGDBMetadataTerm(term=term)
-                for term in keywords.values()
-            ),
+            links=tuple(GameIGDBMetadataTerm(term=term) for term in source_terms),
         )
     ]
-    for index in range(3):
-        games.append(
-            _owned_game(
-                profile,
-                200 + index,
-                f"Candidate {index}",
-                links=tuple(
-                    GameIGDBMetadataTerm(term=keywords[keyword_id])
-                    for keyword_id, count in other_owner_counts.items()
-                    if index < count
-                ),
-            )
+    games.extend(
+        _owned_game(
+            profile,
+            200 + index,
+            f"Candidate {index}",
+            links=tuple(GameIGDBMetadataTerm(term=term) for term in terms),
         )
+        for index, terms in enumerate(other_game_terms)
+    )
     recommendation_api.database_session.add_all(games)
     recommendation_api.database_session.commit()
+
+
+def _source_facets(recommendation_api: RecommendationAPI) -> dict[str, Any]:
+    response = recommendation_api.client.post(
+        "/recommendations/automatic",
+        json=_automatic_body(),
+    )
+    assert response.status_code == 200
+    return response.json()["suggested_preference"]["references"][0]["facets"]
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("steam achievements", True),
+        ("achievements", True),
+        ("the game awards - best audio design - winner", True),
+        ("xbox one x enhanced", True),
+        ("regional censorship", True),
+        ("steam deck", True),
+        ("controller support", True),
+        ("steampunk", False),
+        ("wild west", False),
+        ("cowboys", False),
+    ],
+)
+def test_store_and_platform_keywords_are_recognised(
+    name: str,
+    expected: bool,
+) -> None:
+    assert is_meta_keyword(name) is expected
+
+
+def test_source_keywords_prefer_the_rarest_shared_play_keywords(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    def keyword(igdb_id: int, name: str) -> IGDBMetadataTerm:
+        return IGDBMetadataTerm(kind="keyword", igdb_id=igdb_id, name=name)
+
+    western = keyword(40, "western")
+    cowboys = keyword(41, "cowboys")
+    achievements = keyword(42, "steam achievements")
+    unique = keyword(43, "unique to the source")
+    action = keyword(44, "action-adventure")
+    bear = keyword(45, "bear")
+    steampunk = keyword(46, "steampunk")
+    _add_facet_library(
+        recommendation_api,
+        (western, cowboys, achievements, unique, action, bear, steampunk),
+        (
+            (western, cowboys, achievements, action, bear, steampunk),
+            (cowboys, achievements, action, bear, steampunk),
+            (action, bear),
+            (),
+        ),
+    )
+
+    # Other owners: western 1, cowboys 2, steampunk 2, action and bear 3.
+    assert _source_facets(recommendation_api)["keyword_ids"] == [40, 41, 46]
+
+
+def test_source_facets_drop_library_wide_genres_themes_and_game_modes(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    adventure = IGDBMetadataTerm(kind="genre", igdb_id=10, name="Adventure")
+    shooter = IGDBMetadataTerm(kind="genre", igdb_id=11, name="Shooter")
+    action = IGDBMetadataTerm(kind="theme", igdb_id=20, name="Action")
+    western = IGDBMetadataTerm(kind="theme", igdb_id=21, name="Western")
+    single_player = IGDBMetadataTerm(
+        kind="game_mode",
+        igdb_id=30,
+        name="Single player",
+    )
+    _add_facet_library(
+        recommendation_api,
+        (adventure, shooter, action, western, single_player),
+        (
+            (adventure, action, single_player),
+            (adventure, action, single_player),
+            (adventure, shooter, western, single_player),
+        ),
+    )
+
+    # Adventure and Action are on all four ready games; exactly half is kept.
+    assert _source_facets(recommendation_api) == {
+        "genre_ids": [11],
+        "theme_ids": [21],
+        "keyword_ids": [],
+        "game_mode_ids": [],
+    }
+
+
+def test_source_facets_fall_back_to_common_genres_and_themes(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    adventure = IGDBMetadataTerm(kind="genre", igdb_id=10, name="Adventure")
+    action = IGDBMetadataTerm(kind="theme", igdb_id=20, name="Action")
+    _add_facet_library(
+        recommendation_api,
+        (adventure, action),
+        ((adventure, action), (adventure, action)),
+    )
+
+    assert _source_facets(recommendation_api) == {
+        "genre_ids": [10],
+        "theme_ids": [20],
+        "keyword_ids": [],
+        "game_mode_ids": [],
+    }
+
+
+def test_game_with_only_game_modes_is_not_a_source(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    single_player = IGDBMetadataTerm(
+        kind="game_mode",
+        igdb_id=30,
+        name="Single player",
+    )
+    _add_facet_library(
+        recommendation_api,
+        (single_player,),
+        ((single_player,),),
+    )
 
     response = recommendation_api.client.post(
         "/recommendations/automatic",
         json=_automatic_body(),
     )
 
-    reference = response.json()["suggested_preference"]["references"][0]
-    assert reference["facets"]["keyword_ids"] == [40, 41, 42]
+    assert response.json()["status"] == "unavailable"
 
 
 def test_automatic_rows_use_a_bounded_number_of_selects(
@@ -448,8 +562,8 @@ def test_automatic_rows_use_a_bounded_number_of_selects(
         for statement in statements
         if statement.lstrip().upper().startswith("SELECT")
     ]
-    # Ranking and facets need three; each row needs at most five.
-    assert len(selects) <= 18
+    # Ranking and facets need four; each row needs at most five.
+    assert len(selects) <= 19
     assert len(statements) == len(selects)
 
 

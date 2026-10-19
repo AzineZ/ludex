@@ -18,6 +18,9 @@ vi.mock("../../api", async (importOriginal) => {
    };
 });
 vi.mock("../../features/session/SessionGameLibrary", () => ({ default: () => null }));
+vi.mock("../../features/recommendations/automatic/AutomaticRecommendations", () => ({
+   default: () => null,
+}));
 vi.mock("../../features/recommendations/references/ReferenceSelectionSection", () => ({
    default: () => null,
 }));

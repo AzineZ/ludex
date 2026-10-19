@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -31,6 +32,20 @@ RECENT_PLAYTIME_WEIGHT = 4
 AUTOMATIC_SOURCE_GAME_LIMIT = 3
 AUTOMATIC_SOURCE_SCAN_LIMIT = 10
 AUTOMATIC_KEYWORD_LIMIT = 3
+
+_AUTOMATIC_FACET_KINDS = (
+    FacetKind.GENRE,
+    FacetKind.THEME,
+    FacetKind.KEYWORD,
+)
+# Whole words only, so a play description such as "steampunk" is not
+# mistaken for a store or platform keyword.
+_META_KEYWORD_PATTERN = re.compile(
+    r"\b(?:achievements?|awards?|steam|xbox|playstation|ps[345]|nintendo|"
+    r"controllers?|censorship|dlc|trophy|trophies|cloud saves?|"
+    r"trading cards?|game pass)\b",
+    re.IGNORECASE,
+)
 
 
 class AutomaticRecommendationStatus(StrEnum):
@@ -155,12 +170,24 @@ def _load_played_games(
     )
 
 
+def is_meta_keyword(name: str) -> bool:
+    """Return whether a keyword describes the store or platform, not play."""
+    return _META_KEYWORD_PATTERN.search(name) is not None
+
+
 def _load_source_facets(
     session: Session,
     profile_id: int,
     steam_app_ids: tuple[int, ...],
 ) -> dict[int, SelectedFacets]:
-    """Build each ready game's implicit facets in two selects."""
+    """Build each ready game's distinctive implicit facets in three selects.
+
+    Genres and themes carried by more than half of the visitor's ready
+    library are dropped because nearly every candidate matches them, unless
+    nothing distinctive would remain. Game modes are never selected
+    automatically. Keywords are the rarest ones that at least one other
+    ready owned game shares, excluding store and platform keywords.
+    """
     if not steam_app_ids:
         return {}
 
@@ -169,33 +196,43 @@ def _load_source_facets(
             GameIGDBMetadataTerm.steam_app_id,
             IGDBMetadataTerm.kind,
             IGDBMetadataTerm.igdb_id,
+            IGDBMetadataTerm.name,
         )
         .join(
             IGDBMetadataTerm,
             IGDBMetadataTerm.id == GameIGDBMetadataTerm.term_id,
         )
-        .where(GameIGDBMetadataTerm.steam_app_id.in_(steam_app_ids))
+        .where(
+            GameIGDBMetadataTerm.steam_app_id.in_(steam_app_ids),
+            IGDBMetadataTerm.kind.in_(
+                tuple(kind.value for kind in _AUTOMATIC_FACET_KINDS)
+            ),
+        )
         .execution_options(autoflush=False)
     ).all()
 
     ids_by_game: dict[int, dict[FacetKind, set[int]]] = {
-        steam_app_id: {kind: set() for kind in FacetKind}
+        steam_app_id: {kind: set() for kind in _AUTOMATIC_FACET_KINDS}
         for steam_app_id in steam_app_ids
     }
+    meta_keyword_ids: set[int] = set()
     for row in term_rows:
-        ids_by_game[row.steam_app_id][FacetKind(row.kind)].add(
-            row.igdb_id
-        )
+        kind = FacetKind(row.kind)
+        ids_by_game[row.steam_app_id][kind].add(row.igdb_id)
+        if kind is FacetKind.KEYWORD and is_meta_keyword(row.name):
+            meta_keyword_ids.add(row.igdb_id)
 
-    keyword_ids = {
-        keyword_id
-        for facets in ids_by_game.values()
-        for keyword_id in facets[FacetKind.KEYWORD]
+    term_identities = {
+        (kind.value, igdb_id)
+        for ids in ids_by_game.values()
+        for kind, kind_ids in ids.items()
+        for igdb_id in kind_ids
     }
-    ready_owner_counts: dict[int, int] = {}
-    if keyword_ids:
+    ready_owner_counts: dict[tuple[FacetKind, int], int] = {}
+    if term_identities:
         count_rows = session.execute(
             select(
+                IGDBMetadataTerm.kind,
                 IGDBMetadataTerm.igdb_id,
                 func.count(
                     GameIGDBMetadataTerm.steam_app_id.distinct()
@@ -216,43 +253,73 @@ def _load_source_facets(
             .where(
                 ProfileGame.profile_id == profile_id,
                 Game.igdb_status == "ready",
-                IGDBMetadataTerm.kind == FacetKind.KEYWORD.value,
-                IGDBMetadataTerm.igdb_id.in_(keyword_ids),
+                IGDBMetadataTerm.kind.in_(
+                    {kind for kind, _ in term_identities}
+                ),
+                IGDBMetadataTerm.igdb_id.in_(
+                    {igdb_id for _, igdb_id in term_identities}
+                ),
             )
-            .group_by(IGDBMetadataTerm.igdb_id)
+            .group_by(IGDBMetadataTerm.kind, IGDBMetadataTerm.igdb_id)
             .execution_options(autoflush=False)
         ).all()
         ready_owner_counts = {
-            row.igdb_id: row.game_count for row in count_rows
+            (FacetKind(row.kind), row.igdb_id): row.game_count
+            for row in count_rows
         }
+
+    ready_library_size = session.scalar(
+        select(func.count())
+        .select_from(ProfileGame)
+        .join(Game, Game.steam_app_id == ProfileGame.steam_app_id)
+        .where(
+            ProfileGame.profile_id == profile_id,
+            Game.igdb_status == "ready",
+        )
+        .execution_options(autoflush=False)
+    ) or 0
+
+    def owner_count(kind: FacetKind, igdb_id: int) -> int:
+        return ready_owner_counts.get((kind, igdb_id), 0)
+
+    def distinctive(kind: FacetKind, ids: set[int]) -> tuple[int, ...]:
+        return tuple(
+            igdb_id
+            for igdb_id in ids
+            if owner_count(kind, igdb_id) * 2 <= ready_library_size
+        )
 
     facets_by_game: dict[int, SelectedFacets] = {}
     for steam_app_id, ids in ids_by_game.items():
         # A keyword no other owned ready game carries cannot match.
-        shared_keywords = sorted(
-            (
-                keyword_id
-                for keyword_id in ids[FacetKind.KEYWORD]
-                if ready_owner_counts.get(keyword_id, 0) > 1
-            ),
-            key=lambda keyword_id: (
-                -ready_owner_counts[keyword_id],
-                keyword_id,
-            ),
-        )[:AUTOMATIC_KEYWORD_LIMIT]
-        if not (
-            ids[FacetKind.GENRE]
-            or ids[FacetKind.THEME]
-            or ids[FacetKind.GAME_MODE]
-            or shared_keywords
-        ):
+        keywords = tuple(
+            sorted(
+                (
+                    keyword_id
+                    for keyword_id in ids[FacetKind.KEYWORD]
+                    if keyword_id not in meta_keyword_ids
+                    and owner_count(FacetKind.KEYWORD, keyword_id) > 1
+                ),
+                key=lambda keyword_id: (
+                    owner_count(FacetKind.KEYWORD, keyword_id),
+                    keyword_id,
+                ),
+            )[:AUTOMATIC_KEYWORD_LIMIT]
+        )
+        genres = distinctive(FacetKind.GENRE, ids[FacetKind.GENRE])
+        themes = distinctive(FacetKind.THEME, ids[FacetKind.THEME])
+        if not (genres or themes or keywords):
+            # Common facets still beat having no reference at all.
+            genres = tuple(ids[FacetKind.GENRE])
+            themes = tuple(ids[FacetKind.THEME])
+        if not (genres or themes or keywords):
             continue
 
         facets_by_game[steam_app_id] = SelectedFacets(
-            genre_ids=tuple(ids[FacetKind.GENRE]),
-            theme_ids=tuple(ids[FacetKind.THEME]),
-            keyword_ids=tuple(shared_keywords),
-            game_mode_ids=tuple(ids[FacetKind.GAME_MODE]),
+            genre_ids=genres,
+            theme_ids=themes,
+            keyword_ids=keywords,
+            game_mode_ids=(),
         )
 
     return facets_by_game

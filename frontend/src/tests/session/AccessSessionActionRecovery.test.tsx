@@ -22,6 +22,9 @@ vi.mock("../../api", async (importOriginal) => {
 vi.mock("../../features/recommendations/references/ReferenceSelectionSection", () => ({
    default: () => null,
 }));
+vi.mock("../../features/recommendations/automatic/AutomaticRecommendations", () => ({
+   default: () => null,
+}));
 
 const originalProfile: SessionProfileResponse = {
    steam_id: "76561198000000001",
