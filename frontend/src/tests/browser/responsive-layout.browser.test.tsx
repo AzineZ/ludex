@@ -87,6 +87,40 @@ vi.mock("../../api", async (importOriginal) => {
          })),
          suggested_preference: null,
       }),
+      getMoreLikeThisRecommendations: vi.fn().mockResolvedValue({
+         source_game: {
+            steam_app_id: 1_020,
+            title: "Responsive More Like Source",
+            cover_url: null,
+            playtime_minutes: 0,
+         },
+         recommendations: {
+            outcome: "sparse",
+            eligible_count: 3,
+            returned_count: 3,
+            items: Array.from({ length: 3 }, (_, index) => ({
+               rank: index + 1,
+               steam_app_id: 1_100 + index,
+               title: `Responsive More Like Game ${index + 1}`,
+               cover_url: null,
+               profile_playtime_minutes: 0,
+               normal_completion_seconds: 3_600,
+               factual_evidence: {
+                  version: "factual-overlap-v1",
+                  score_basis_points: 8_000,
+                  active_budget: 100,
+                  contributions: [],
+               },
+               facet_labels: [],
+               match_summary: {
+                  reasons: [],
+                  additional_match_count: 0,
+                  text: "Matches your Fantasy preference.",
+               },
+               tradeoff: null,
+            })),
+         },
+      }),
       getAssistantRecommendations: vi.fn().mockResolvedValue({
          status: "ranked",
          eligible_count: 6,
@@ -527,6 +561,65 @@ describe("responsive layout contracts", () => {
                   .toBeGreaterThan(tops[1]);
             }
          }
+      }
+   });
+
+   it("brings a new More like row into view from the last row", async () => {
+      for (const viewport of [
+         { width: 390, height: 844 },
+         { width: 3840, height: 2160 },
+      ]) {
+         await setTestViewport(viewport);
+         const { unmount } = render(<AutomaticFixture />);
+         await screen.findByRole("region", {
+            name: /^Because you played An Extraordinarily Long/,
+         });
+         const button = screen.getByRole("button", {
+            name: "More games like Responsive Automatic Game 23",
+         });
+         button.scrollIntoView({ block: "center" });
+         fireEvent.click(button);
+
+         const heading = await screen.findByRole("heading", {
+            name: "More like Responsive More Like Source",
+         });
+         await waitFor(() => expect(heading).toHaveFocus());
+         await waitFor(() => {
+            const top = heading.getBoundingClientRect().top;
+            expect(top, `new row top at ${viewportName(viewport)}`)
+               .toBeGreaterThanOrEqual(0);
+            expect(top, `new row top at ${viewportName(viewport)}`)
+               .toBeLessThan(viewport.height / 3);
+         }, { timeout: 5_000 });
+
+         // A second request collapses the first More like row to one line.
+         fireEvent.click(screen.getByRole("button", {
+            name: "More games like Responsive Automatic Game 22",
+         }));
+         await waitFor(() => {
+            expect(
+               document.querySelectorAll(".automatic-recommendations__collapsed")
+            ).toHaveLength(1);
+         });
+         for (const width of [320, viewport.width]) {
+            await setTestViewport({ width, height: viewport.height });
+            const summary = document.querySelector<HTMLElement>(
+               ".automatic-recommendations__collapsed > summary"
+            ) as HTMLElement;
+            const rows = document.querySelector<HTMLElement>(
+               ".automatic-recommendations__rows"
+            ) as HTMLElement;
+            const summaryBounds = summary.getBoundingClientRect();
+            expect(summaryBounds.left, `collapsed row left at ${width}`)
+               .toBeGreaterThanOrEqual(rows.getBoundingClientRect().left - 0.5);
+            expect(summaryBounds.right, `collapsed row right at ${width}`)
+               .toBeLessThanOrEqual(rows.getBoundingClientRect().right + 0.5);
+            expect(summaryBounds.height, `collapsed row height at ${width}`)
+               .toBeLessThan(120);
+            expect(document.documentElement.scrollWidth, `page width at ${width}`)
+               .toBeLessThanOrEqual(width);
+         }
+         unmount();
       }
    });
 

@@ -40,6 +40,7 @@ type AutomaticRecommendationState = {
    error: string | null;
    pendingMoreLikeSteamAppId: number | null;
    announcement: string | null;
+   focusRowKey: string | null;
 };
 
 export type AutomaticRecommendationsResult = AutomaticRecommendationState & {
@@ -61,6 +62,7 @@ const INITIAL_STATE: AutomaticRecommendationState = {
    error: null,
    pendingMoreLikeSteamAppId: null,
    announcement: null,
+   focusRowKey: null,
 };
 
 function requestErrorMessage(error: unknown, fallback: string): string {
@@ -274,6 +276,7 @@ export function useAutomaticRecommendations(
                ...current,
                moreLikeRows: addMoreLikeRow(current.moreLikeRows, row),
                pendingMoreLikeSteamAppId: null,
+               focusRowKey: row.key,
                announcement: `Added more games like ${item.title}.`,
             }));
          })

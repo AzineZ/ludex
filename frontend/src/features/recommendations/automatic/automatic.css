@@ -76,6 +76,7 @@
    opacity: 0.6;
 }
 
+.automatic-recommendations__row h4:focus-visible,
 .automatic-toggles .recommendation-choice-pill:focus-visible {
    outline: 2px solid var(--color-alarm-red);
    outline-offset: 3px;
@@ -107,9 +108,68 @@
 }
 
 .automatic-recommendations__row h4 {
+   scroll-margin-top: 1.5rem;
    margin: 0;
    overflow-wrap: anywhere;
    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+}
+
+.automatic-recommendations__row--collapsed {
+   gap: 0;
+}
+
+.automatic-recommendations__collapsed {
+   min-width: 0;
+   border: 1px solid rgb(239 226 192 / 45%);
+   background: rgb(0 0 0 / 70%);
+}
+
+.automatic-recommendations__collapsed > summary {
+   display: flex;
+   list-style: none;
+   flex-wrap: wrap;
+   align-items: baseline;
+   gap: 0.25rem 0.75rem;
+   min-width: 0;
+   padding: 0.75rem 1rem;
+   color: var(--color-bone-cream);
+   font-weight: 800;
+   cursor: pointer;
+}
+
+/* Flex layout drops the native marker, so draw one that shows the state. */
+.automatic-recommendations__collapsed > summary::-webkit-details-marker {
+   display: none;
+}
+
+.automatic-recommendations__collapsed > summary::before {
+   flex: 0 0 auto;
+   content: "▸";
+}
+
+.automatic-recommendations__collapsed[open] > summary::before {
+   content: "▾";
+}
+
+.automatic-recommendations__collapsed > summary:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 3px;
+}
+
+.automatic-recommendations__collapsed-title {
+   flex: 1 1 12rem;
+   min-width: 0;
+   overflow-wrap: anywhere;
+}
+
+.automatic-recommendations__collapsed-count {
+   color: var(--color-ash-taupe);
+   font-size: 0.875rem;
+   font-weight: 400;
+}
+
+.automatic-recommendations__collapsed[open] > .automatic-recommendations__cards {
+   padding: 0 1rem 1rem;
 }
 
 /* The shared result card needs about 18rem, so rows go three-across only

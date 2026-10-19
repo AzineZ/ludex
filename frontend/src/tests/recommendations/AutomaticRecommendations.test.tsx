@@ -67,8 +67,8 @@ function cardTitles(region: HTMLElement): string[] {
 
 function rowHeadings(): string[] {
    return Array.from(
-      document.querySelectorAll(".automatic-recommendations__row > h4")
-   ).map((heading) => heading.textContent ?? "");
+      document.querySelectorAll<HTMLElement>(".automatic-recommendations__row")
+   ).map((row) => row.dataset.rowTitle ?? "");
 }
 
 function lastAutomaticRequest() {
@@ -266,6 +266,27 @@ describe("AutomaticRecommendations", () => {
          "Because you played Source 103 · 2 h",
       ]);
 
+      // Only the newest More like row stays open; older ones are one line.
+      const newest = rowRegion("More like Source 207");
+      expect(newest.querySelector(".automatic-recommendations__collapsed"))
+         .toBeNull();
+      expect(cardTitles(newest)).toEqual(["Game 430", "Game 431"]);
+      for (const name of ["More like Source 203", "More like Source 202"]) {
+         const collapsed = rowRegion(name);
+         const disclosure = collapsed.querySelector(
+            ".automatic-recommendations__collapsed"
+         );
+         expect(disclosure).not.toBeNull();
+         expect(disclosure).not.toHaveAttribute("open");
+         expect(within(collapsed).getByText("2 games")).toBeInTheDocument();
+      }
+
+      const older = rowRegion("More like Source 202");
+      fireEvent.click(within(older).getByText("More like Source 202"));
+      expect(older.querySelector(".automatic-recommendations__collapsed"))
+         .toHaveAttribute("open");
+      expect(cardTitles(older)).toEqual(["Game 410", "Game 411"]);
+
       mockedAutomatic.mockResolvedValueOnce(readyAutomaticResponse());
       fireEvent.click(screen.getByRole("button", { name: "Either" }));
       await waitFor(() => {
@@ -323,5 +344,37 @@ describe("AutomaticRecommendations", () => {
             name: "Because you played Source 101 · 42 h",
          })
       ).toBeInTheDocument();
+   });
+
+   it("scrolls to and focuses a new More like row", async () => {
+      const scrollIntoView = vi.fn();
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = scrollIntoView;
+      try {
+         mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
+         mockedMoreLike.mockResolvedValue(automaticRowResponse(213, [401, 402]));
+         renderAutomatic();
+         await screen.findByRole("region", {
+            name: "Because you played Source 101 · 42 h",
+         });
+         expect(scrollIntoView).not.toHaveBeenCalled();
+
+         fireEvent.click(
+            screen.getByRole("button", { name: "More games like Game 213" })
+         );
+
+         const heading = await screen.findByRole("heading", {
+            name: "More like Source 213",
+         });
+         await waitFor(() => expect(heading).toHaveFocus());
+         expect(scrollIntoView).toHaveBeenCalledOnce();
+         expect(scrollIntoView.mock.contexts[0]).toBe(heading);
+         expect(scrollIntoView).toHaveBeenCalledWith({
+            behavior: "smooth",
+            block: "start",
+         });
+      } finally {
+         Element.prototype.scrollIntoView = original;
+      }
    });
 });
