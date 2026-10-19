@@ -6,6 +6,7 @@ import {
    ApiError,
    createAccessSession,
    deleteAccessSession,
+   getAutomaticRecommendations,
    getCurrentSessionProfile,
    getHealth,
    refreshCurrentSessionProfile,
@@ -20,6 +21,7 @@ vi.mock("../api", async (importOriginal) => {
       ...actual,
       createAccessSession: vi.fn(),
       deleteAccessSession: vi.fn(),
+      getAutomaticRecommendations: vi.fn(),
       getCurrentSessionProfile: vi.fn(),
       getHealth: vi.fn(),
       refreshCurrentSessionProfile: vi.fn(),
@@ -61,6 +63,7 @@ const sessionProfile: SessionProfileResponse = {
 
 const mockedCreate = vi.mocked(createAccessSession);
 const mockedDelete = vi.mocked(deleteAccessSession);
+const mockedAutomatic = vi.mocked(getAutomaticRecommendations);
 const mockedGetCurrent = vi.mocked(getCurrentSessionProfile);
 const mockedGetHealth = vi.mocked(getHealth);
 const mockedRefresh = vi.mocked(refreshCurrentSessionProfile);
@@ -78,6 +81,12 @@ describe("App session experience", () => {
       mockedGetCurrent.mockReset();
       mockedGetHealth.mockReset();
       mockedRefresh.mockReset();
+      mockedAutomatic.mockReset();
+      mockedAutomatic.mockResolvedValue({
+         status: "unavailable",
+         rows: [],
+         suggested_preference: null,
+      });
       mockedGetHealth.mockImplementation(
          () => new Promise<HealthResponse>(() => {})
       );
@@ -131,8 +140,10 @@ describe("App session experience", () => {
       expect(profileActions).toContainElement(
          screen.getByRole("button", { name: "Pause background" })
       );
-      expect(screen.getByRole("heading", { name: "Choose reference games" }))
-         .toBeInTheDocument();
+      // A library without qualifying played games falls back to the form.
+      expect(
+         await screen.findByRole("heading", { name: "Choose reference games" })
+      ).toBeInTheDocument();
       expect(screen.queryByText(/saved profiles/i)).not.toBeInTheDocument();
    });
 

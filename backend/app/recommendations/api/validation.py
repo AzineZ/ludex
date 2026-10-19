@@ -289,6 +289,26 @@ def _translate_contract_validator(
             ),
         )
 
+    if "Excluded game IDs must be unique." in message:
+        duplicate_index = _later_duplicate_index(error.get("input"))
+        return RecommendationErrorDetail(
+            code=RecommendationErrorCode.DUPLICATE_EXCLUDED_GAME,
+            field=f"{field}[{duplicate_index}]",
+            message="Excluded game IDs must be unique.",
+        )
+
+    if (
+        "More like this may exclude at most 60 shown games."
+        in message
+    ):
+        return RecommendationErrorDetail(
+            code=RecommendationErrorCode.TOO_MANY_EXCLUDED_GAMES,
+            field=field,
+            message=(
+                "More like this may exclude at most 60 shown games."
+            ),
+        )
+
     return None
 
 
@@ -389,7 +409,9 @@ def _is_identifier_field(field: str) -> bool:
         ".game_mode_ids[",
     )
 
-    if field.startswith("rejected_steam_app_ids["):
+    if field.startswith(
+        ("rejected_steam_app_ids[", "excluded_steam_app_ids[")
+    ):
         return True
 
     return any(

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
    ApiError,
    getReferenceDetails,
+   getReferenceKeywords,
    type OwnedGameSuggestionResponse,
    type ReferenceDetailsResponse,
 } from "../../api";
@@ -19,6 +20,7 @@ vi.mock("../../api", async (importOriginal) => {
    return {
       ...actual,
       getReferenceDetails: vi.fn(),
+      getReferenceKeywords: vi.fn(),
    };
 });
 
@@ -74,6 +76,7 @@ function detailsFor(
 }
 
 const mockedGetReferenceDetails = vi.mocked(getReferenceDetails);
+const mockedGetReferenceKeywords = vi.mocked(getReferenceKeywords);
 
 function deferred<Value>(): Deferred<Value> {
    let resolve!: (value: Value) => void;
@@ -494,5 +497,106 @@ describe("useReferenceSelection", () => {
 
       expect(added).toBe(false);
       expect(result.current.references).toEqual([]);
+   });
+
+   it("prefills suggested references with their selected facet names", async () => {
+      mockedGetReferenceDetails.mockReset();
+      mockedGetReferenceKeywords.mockReset();
+      mockedGetReferenceDetails.mockImplementation(async (steamAppId) =>
+         detailsFor(
+            suggestions.find(
+               (candidate) => candidate.steam_app_id === steamAppId
+            ) as OwnedGameSuggestionResponse
+         )
+      );
+      mockedGetReferenceKeywords.mockResolvedValue({
+         items: [
+            { id: 7, name: "Roguelite" },
+            { id: 8, name: "Pixel art" },
+         ],
+         truncated: false,
+      });
+      const { result } = renderHook(() => useReferenceSelection(1));
+
+      let prefilled = false;
+      await act(async () => {
+         prefilled = await result.current.prefillReferences({
+            references: [
+               {
+                  steam_app_id: 100,
+                  facets: {
+                     genre_ids: [101],
+                     theme_ids: [],
+                     keyword_ids: [8, 99],
+                     game_mode_ids: [103],
+                  },
+               },
+               {
+                  steam_app_id: 200,
+                  facets: {
+                     genre_ids: [201],
+                     theme_ids: [202],
+                     keyword_ids: [],
+                     game_mode_ids: [],
+                  },
+               },
+            ],
+            constraints: {
+               maximum_completion_minutes: null,
+               play_status: "unplayed",
+            },
+         });
+      });
+
+      expect(prefilled).toBe(true);
+      expect(mockedGetReferenceKeywords).toHaveBeenCalledOnce();
+      expect(mockedGetReferenceKeywords).toHaveBeenCalledWith(100);
+      expect(result.current.references.map((reference) => reference.selectedFacets))
+         .toEqual([
+            {
+               genres: [{ id: 101, name: "Genre" }],
+               themes: [],
+               keywords: [{ id: 8, name: "Pixel art" }],
+               gameModes: [{ id: 103, name: "Single player" }],
+            },
+            {
+               genres: [{ id: 201, name: "Genre" }],
+               themes: [{ id: 202, name: "Theme" }],
+               keywords: [],
+               gameModes: [],
+            },
+         ]);
+      expect(result.current.pendingSteamAppId).toBeNull();
+   });
+
+   it("reports a failed prefill and leaves the form empty", async () => {
+      mockedGetReferenceDetails.mockReset();
+      mockedGetReferenceDetails.mockRejectedValue(new ApiError(503, "Down."));
+      const { result } = renderHook(() => useReferenceSelection(1));
+
+      await act(async () => {
+         await result.current.prefillReferences({
+            references: [
+               {
+                  steam_app_id: 100,
+                  facets: {
+                     genre_ids: [101],
+                     theme_ids: [],
+                     keyword_ids: [],
+                     game_mode_ids: [],
+                  },
+               },
+            ],
+            constraints: {
+               maximum_completion_minutes: null,
+               play_status: "either",
+            },
+         });
+      });
+
+      expect(result.current.references).toEqual([]);
+      expect(result.current.error).toBe(
+         "Unable to load your suggested reference games. Choose games below instead."
+      );
    });
 });

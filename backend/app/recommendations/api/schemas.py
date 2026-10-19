@@ -3,8 +3,14 @@ from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.recommendations.automatic import (
+    AutomaticRecommendationRow,
+    AutomaticRecommendations,
+    AutomaticRecommendationStatus,
+)
 from app.recommendations.contracts import (
     PositiveIdentifier,
+    PreferenceConstraints,
     RecommendationPreference,
 )
 from app.recommendations.factual_scoring import (
@@ -48,6 +54,8 @@ class RecommendationErrorCode(StrEnum):
     TOO_MANY_KEYWORDS = "too_many_keywords"
     DUPLICATE_REJECTED_GAME = "duplicate_rejected_game"
     TOO_MANY_REJECTED_GAMES = "too_many_rejected_games"
+    DUPLICATE_EXCLUDED_GAME = "duplicate_excluded_game"
+    TOO_MANY_EXCLUDED_GAMES = "too_many_excluded_games"
     INVALID_QUERY = "invalid_query"
     PROFILE_NOT_FOUND = "profile_not_found"
     REFERENCE_NOT_OWNED = "reference_not_owned"
@@ -222,6 +230,17 @@ class FinalRecommendationResponse(RecommendationHTTPModel):
 MAX_SESSION_REJECTED_GAMES = 30
 
 
+def _validate_rejected_ids(steam_app_ids: tuple[int, ...]) -> tuple[int, ...]:
+    """Reject duplicate or unbounded session exclusions."""
+    if len(steam_app_ids) > MAX_SESSION_REJECTED_GAMES:
+        raise ValueError(
+            "A session may exclude at most 30 rejected games."
+        )
+    if len(set(steam_app_ids)) != len(steam_app_ids):
+        raise ValueError("Rejected game IDs must be unique.")
+    return steam_app_ids
+
+
 class RecommendationRefinementRequest(RecommendationHTTPModel):
     """Carry one canonical preference and bounded session exclusions."""
 
@@ -235,13 +254,74 @@ class RecommendationRefinementRequest(RecommendationHTTPModel):
         steam_app_ids: tuple[int, ...],
     ) -> tuple[int, ...]:
         """Reject duplicate or unbounded session exclusions."""
-        if len(steam_app_ids) > MAX_SESSION_REJECTED_GAMES:
+        return _validate_rejected_ids(steam_app_ids)
+
+
+MAX_MORE_LIKE_THIS_EXCLUDED_GAMES = 60
+
+
+class AutomaticRecommendationRequest(RecommendationHTTPModel):
+    """Carry quick constraints and dismissed games for automatic rows."""
+
+    constraints: PreferenceConstraints
+    rejected_steam_app_ids: tuple[PositiveIdentifier, ...]
+    wait_for_pending: bool = Field(strict=True)
+
+    @field_validator("rejected_steam_app_ids")
+    @classmethod
+    def validate_rejected_steam_app_ids(
+        cls,
+        steam_app_ids: tuple[int, ...],
+    ) -> tuple[int, ...]:
+        """Reject duplicate or unbounded session exclusions."""
+        return _validate_rejected_ids(steam_app_ids)
+
+
+class MoreLikeThisRequest(RecommendationHTTPModel):
+    """Carry one owned game and every game already shown."""
+
+    steam_app_id: PositiveIdentifier
+    constraints: PreferenceConstraints
+    excluded_steam_app_ids: tuple[PositiveIdentifier, ...]
+
+    @field_validator("excluded_steam_app_ids")
+    @classmethod
+    def validate_excluded_steam_app_ids(
+        cls,
+        steam_app_ids: tuple[int, ...],
+    ) -> tuple[int, ...]:
+        """Reject duplicate or unbounded shown-game exclusions."""
+        if len(steam_app_ids) > MAX_MORE_LIKE_THIS_EXCLUDED_GAMES:
             raise ValueError(
-                "A session may exclude at most 30 rejected games."
+                "More like this may exclude at most 60 shown games."
             )
         if len(set(steam_app_ids)) != len(steam_app_ids):
-            raise ValueError("Rejected game IDs must be unique.")
+            raise ValueError("Excluded game IDs must be unique.")
         return steam_app_ids
+
+
+class AutomaticSourceGameResponse(RecommendationHTTPModel):
+    """Describe the played game behind one automatic row."""
+
+    steam_app_id: int
+    title: str
+    cover_url: str | None
+    playtime_minutes: int
+
+
+class AutomaticRecommendationRowResponse(RecommendationHTTPModel):
+    """Pair one source game with its final recommendations."""
+
+    source_game: AutomaticSourceGameResponse
+    recommendations: FinalRecommendationResponse
+
+
+class AutomaticRecommendationResponse(RecommendationHTTPModel):
+    """Envelope automatic rows and the preference used for Customize."""
+
+    status: AutomaticRecommendationStatus
+    rows: tuple[AutomaticRecommendationRowResponse, ...]
+    suggested_preference: RecommendationPreference | None
 
 
 def _match_reason_response(reason: MatchReason) -> MatchReasonResponse:
@@ -358,6 +438,36 @@ def to_final_recommendation_response(
         eligible_count=result.eligible_count,
         returned_count=result.returned_count,
         items=tuple(_final_item_response(item) for item in result.items),
+    )
+
+
+def to_automatic_row_response(
+    row: AutomaticRecommendationRow,
+) -> AutomaticRecommendationRowResponse:
+    """Convert one automatic row into its public response."""
+    source_game = row.source_game
+    return AutomaticRecommendationRowResponse(
+        source_game=AutomaticSourceGameResponse(
+            steam_app_id=source_game.steam_app_id,
+            title=source_game.title,
+            cover_url=source_game.cover_url,
+            playtime_minutes=source_game.playtime_minutes,
+        ),
+        recommendations=to_final_recommendation_response(row.result),
+    )
+
+
+def to_automatic_recommendation_response(
+    recommendations: AutomaticRecommendations,
+) -> AutomaticRecommendationResponse:
+    """Convert automatic rows into their public response."""
+    return AutomaticRecommendationResponse(
+        status=recommendations.status,
+        rows=tuple(
+            to_automatic_row_response(row)
+            for row in recommendations.rows
+        ),
+        suggested_preference=recommendations.suggested_preference,
     )
 
 

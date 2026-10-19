@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.recommendations.api.common import STANDARD_ERROR_RESPONSES
 from app.recommendations.api.assistant import router as assistant_router
+from app.recommendations.api.automatic import router as automatic_router
 from app.recommendations.api.preferences import router as preferences_router
 from app.recommendations.api.references import router as references_router
 from app.recommendations.api.results import (
@@ -28,3 +29,4 @@ router.include_router(results_router)
 router.include_router(references_router)
 router.include_router(preferences_router)
 router.include_router(assistant_router)
+router.include_router(automatic_router)

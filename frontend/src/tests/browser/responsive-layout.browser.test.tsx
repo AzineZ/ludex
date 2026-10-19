@@ -7,6 +7,7 @@ import Hero from "../../components/Hero";
 import PublicDataNotice from "../../components/PublicDataNotice";
 import ServerStatus from "../../components/ServerStatus";
 import AssistantWorkspace from "../../features/recommendations/assistant/AssistantWorkspace";
+import AutomaticRecommendations from "../../features/recommendations/automatic/AutomaticRecommendations";
 import SessionGameLibrary from "../../features/session/SessionGameLibrary";
 import SteamSessionForm from "../../features/session/SteamSessionForm";
 import "../../index.css";
@@ -43,6 +44,48 @@ vi.mock("../../api", async (importOriginal) => {
             { igdb_id: 2, name: "Split screen cooperative", eligible_count: 8 },
             { igdb_id: 3, name: "Multiplayer", eligible_count: 5 },
          ],
+      }),
+      getAutomaticRecommendations: vi.fn().mockResolvedValue({
+         status: "ready",
+         rows: [0, 1, 2].map((rowIndex) => ({
+            source_game: {
+               steam_app_id: 900 + rowIndex,
+               title: rowIndex === 0
+                  ? "An Extraordinarily Long Responsive Source Game Title With Many Words"
+                  : `Responsive Source ${rowIndex + 1}`,
+               cover_url: null,
+               playtime_minutes: 2_520 * (rowIndex + 1),
+            },
+            recommendations: {
+               outcome: "complete",
+               eligible_count: 6,
+               returned_count: 6,
+               items: Array.from({ length: 6 }, (_, index) => ({
+                  rank: index + 1,
+                  steam_app_id: 1_000 + rowIndex * 10 + index,
+                  title: index === 0
+                     ? "Supercalifragilisticexpialidocious Responsive Automatic Game"
+                     : `Responsive Automatic Game ${rowIndex * 10 + index + 1}`,
+                  cover_url: null,
+                  profile_playtime_minutes: 0,
+                  normal_completion_seconds: 7_200,
+                  factual_evidence: {
+                     version: "factual-overlap-v1",
+                     score_basis_points: 9_000,
+                     active_budget: 100,
+                     contributions: [],
+                  },
+                  facet_labels: [],
+                  match_summary: {
+                     reasons: [],
+                     additional_match_count: 0,
+                     text: "Matches your Adventure, Fantasy, and Single player preferences, plus 2 more.",
+                  },
+                  tradeoff: null,
+               })),
+            },
+         })),
+         suggested_preference: null,
       }),
       getAssistantRecommendations: vi.fn().mockResolvedValue({
          status: "ranked",
@@ -190,6 +233,22 @@ function LibraryBackdropFixture() {
             refreshSucceeded={false}
             onRefresh={vi.fn().mockResolvedValue(true)}
          />
+      </div>
+   );
+}
+
+function AutomaticFixture() {
+   return (
+      <div className="app">
+         <main className="app__content">
+            <section className="app__session">
+               <div className="app__current-profile" />
+               <AutomaticRecommendations
+                  onCustomize={vi.fn()}
+                  onUnavailable={vi.fn()}
+               />
+            </section>
+         </main>
       </div>
    );
 }
@@ -395,6 +454,79 @@ describe("responsive layout contracts", () => {
             secondCard.bottom,
             `second/third row overlap at ${viewportName(viewport)}`
          ).toBeLessThanOrEqual(thirdCard.top);
+      }
+   });
+
+   it("keeps automatic rows and toggles within every supported width", async () => {
+      render(<AutomaticFixture />);
+      await screen.findByRole("region", {
+         name: /^Because you played An Extraordinarily Long/,
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Up to 10 hours" }));
+      await screen.findByText(/Games without a known completion time/);
+
+      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
+         await setTestViewport(viewport);
+         const name = viewportName(viewport);
+         expect(
+            document.documentElement.scrollWidth,
+            `automatic page width at ${name}`
+         ).toBeLessThanOrEqual(viewport.width);
+
+         const toggles = document.querySelector<HTMLElement>(".automatic-toggles");
+         expect(toggles).not.toBeNull();
+         const togglesBounds = (toggles as HTMLElement).getBoundingClientRect();
+         for (const pill of Array.from(
+            (toggles as HTMLElement).querySelectorAll<HTMLElement>("button")
+         )) {
+            const bounds = pill.getBoundingClientRect();
+            expect(bounds.left, `toggle left at ${name}`)
+               .toBeGreaterThanOrEqual(togglesBounds.left - 0.5);
+            expect(bounds.right, `toggle right at ${name}`)
+               .toBeLessThanOrEqual(togglesBounds.right + 0.5);
+         }
+
+         for (const row of Array.from(
+            document.querySelectorAll<HTMLElement>(".automatic-recommendations__row")
+         )) {
+            const rowBounds = row.getBoundingClientRect();
+            const cards = Array.from(
+               row.querySelectorAll<HTMLElement>(".recommendation-result-card")
+            );
+            expect(cards, `row card count at ${name}`).toHaveLength(3);
+            const tops = cards.map((card) => card.getBoundingClientRect().top);
+            for (const card of cards) {
+               const bounds = card.getBoundingClientRect();
+               expect(bounds.left, `card left at ${name}`)
+                  .toBeGreaterThanOrEqual(rowBounds.left - 0.5);
+               expect(bounds.right, `card right at ${name}`)
+                  .toBeLessThanOrEqual(rowBounds.right + 0.5);
+               expect(card.scrollWidth, `card content width at ${name}`)
+                  .toBeLessThanOrEqual(card.clientWidth + 1);
+               // Long titles must not run into the reason below them.
+               const title = card.querySelector<HTMLElement>("h3");
+               const reason = card.querySelector<HTMLElement>(
+                  ".recommendation-result-card__reason"
+               );
+               expect(
+                  (title as HTMLElement).getBoundingClientRect().bottom,
+                  `card title clear of its reason at ${name}`
+               ).toBeLessThanOrEqual(
+                  (reason as HTMLElement).getBoundingClientRect().top + 0.5
+               );
+            }
+            if (viewport.width >= 1024) {
+               expect(
+                  Math.max(...tops) - Math.min(...tops),
+                  `three cards share a line at ${name}`
+               ).toBeLessThan(1);
+            } else {
+               expect(tops[1], `stacked cards at ${name}`)
+                  .toBeGreaterThan(tops[0]);
+               expect(tops[2], `stacked cards at ${name}`)
+                  .toBeGreaterThan(tops[1]);
+            }
+         }
       }
    });
 

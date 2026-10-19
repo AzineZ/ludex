@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import type { PreferenceConstraints } from "../../../api";
+import type {
+   PreferenceConstraints,
+   RecommendationPreference,
+} from "../../../api";
 import PreferenceValidationPanel from "../preferences/PreferenceValidationPanel";
 import RecommendationConstraints from "../preferences/RecommendationConstraints";
 import ReferenceGameAutocomplete from "./ReferenceGameAutocomplete";
@@ -15,6 +18,7 @@ type ReferenceSelectionSectionProps = {
    activeView?: RecommendationWorkspaceView;
    onRecommendationsReady?: () => void;
    onRecommendationsReset?: () => void;
+   prefill?: RecommendationPreference | null;
 };
 
 const DEFAULT_CONSTRAINTS: PreferenceConstraints = {
@@ -27,11 +31,28 @@ function ReferenceSelectionSession({
    activeView = "preferences",
    onRecommendationsReady,
    onRecommendationsReset,
+   prefill = null,
 }: ReferenceSelectionSectionProps) {
    const selection = useReferenceSelection(sessionEpoch);
    const [constraints, setConstraints] = useState<PreferenceConstraints>({
       ...DEFAULT_CONSTRAINTS,
    });
+   const lastPrefillRef = useRef<string | null>(null);
+
+   useEffect(() => {
+      if (prefill === null) {
+         return;
+      }
+      const prefillKey = JSON.stringify(prefill);
+      // Re-entering Customize keeps edits unless the suggestions changed.
+      if (lastPrefillRef.current === prefillKey) {
+         return;
+      }
+      lastPrefillRef.current = prefillKey;
+      void selection.prefillReferences(prefill).then(() => {
+         setConstraints({ ...prefill.constraints });
+      });
+   }, [prefill, selection]);
    const [requestedExpandedSteamAppId, setRequestedExpandedSteamAppId] =
       useState<number | null | undefined>(undefined);
    const selectedSteamAppIds = selection.references.map(

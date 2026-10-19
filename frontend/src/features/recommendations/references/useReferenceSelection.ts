@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 import {
    getReferenceDetails,
+   getReferenceKeywords,
    type FacetOptionResponse,
    type OwnedGameSuggestionResponse,
+   type RecommendationPreference,
    type ReferenceDetailsResponse,
+   type SelectedFacets,
 } from "../../../api";
 
 type SelectedReferenceFacets = {
@@ -38,6 +41,7 @@ export type ReferenceSelectionResult = {
       option: FacetOptionResponse
    ) => boolean;
    removeReference: (steamAppId: number) => void;
+   prefillReferences: (preference: RecommendationPreference) => Promise<boolean>;
 };
 
 type ReferenceSelectionState = {
@@ -80,6 +84,33 @@ function directFacetOptions(
          return reference.details.facets.game_modes;
    }
 }
+
+function pickOptions(
+   options: readonly FacetOptionResponse[],
+   selectedIds: readonly number[]
+): FacetOptionResponse[] {
+   return options.filter((option) => selectedIds.includes(option.id));
+}
+
+/** Rebuilds a selected reference from loaded details and canonical IDs. */
+export function selectedReferenceFromFacets(
+   details: ReferenceDetailsResponse,
+   keywordOptions: readonly FacetOptionResponse[],
+   facets: SelectedFacets
+): SelectedReference {
+   return {
+      details,
+      selectedFacets: {
+         genres: pickOptions(details.facets.genres, facets.genre_ids),
+         themes: pickOptions(details.facets.themes, facets.theme_ids),
+         keywords: pickOptions(keywordOptions, facets.keyword_ids).slice(0, 3),
+         gameModes: pickOptions(details.facets.game_modes, facets.game_mode_ids),
+      },
+   };
+}
+
+const PREFILL_ERROR_MESSAGE =
+   "Unable to load your suggested reference games. Choose games below instead.";
 
 function emptySelectionState(
    sessionEpoch: number | null
@@ -377,6 +408,84 @@ export function useReferenceSelection(
       return true;
    }
 
+   async function prefillReferences(
+      preference: RecommendationPreference
+   ): Promise<boolean> {
+      const firstReference = preference.references[0];
+      if (
+         sessionEpoch === null ||
+         firstReference === undefined ||
+         pendingForCurrentProfile() !== null
+      ) {
+         return false;
+      }
+
+      const requestSessionEpoch = sessionEpoch;
+      const pendingReference: PendingReference = {
+         sessionEpoch: requestSessionEpoch,
+         steamAppId: firstReference.steam_app_id,
+      };
+      pendingReferenceRef.current = pendingReference;
+      referencesRef.current = { sessionEpoch: requestSessionEpoch, references: [] };
+      setSelectionState({
+         sessionEpoch: requestSessionEpoch,
+         references: [],
+         pendingSteamAppId: firstReference.steam_app_id,
+         error: null,
+         failedSuggestion: null,
+      });
+
+      try {
+         const nextReferences = await Promise.all(
+            preference.references.slice(0, 3).map(async (reference) => {
+               const [details, keywords] = await Promise.all([
+                  getReferenceDetails(reference.steam_app_id),
+                  reference.facets.keyword_ids.length === 0
+                     ? Promise.resolve({ items: [], truncated: false })
+                     : getReferenceKeywords(reference.steam_app_id),
+               ]);
+               return selectedReferenceFromFacets(
+                  details,
+                  keywords.items,
+                  reference.facets
+               );
+            })
+         );
+         if (activeSessionEpochRef.current !== requestSessionEpoch) {
+            return false;
+         }
+
+         referencesRef.current = {
+            sessionEpoch: requestSessionEpoch,
+            references: nextReferences,
+         };
+         setSelectionState({
+            sessionEpoch: requestSessionEpoch,
+            references: nextReferences,
+            pendingSteamAppId: null,
+            error: null,
+            failedSuggestion: null,
+         });
+         return true;
+      } catch {
+         if (activeSessionEpochRef.current !== requestSessionEpoch) {
+            return false;
+         }
+         setSelectionState({
+            sessionEpoch: requestSessionEpoch,
+            references: [],
+            pendingSteamAppId: null,
+            error: PREFILL_ERROR_MESSAGE,
+            failedSuggestion: null,
+         });
+         return false;
+      } finally {
+         if (pendingReferenceRef.current === pendingReference) {
+            pendingReferenceRef.current = null;
+         }
+      }
+   }
+
    return {
       references: visibleState.references,
       pendingSteamAppId: visibleState.pendingSteamAppId,
@@ -390,5 +499,6 @@ export function useReferenceSelection(
       toggleDirectFacet,
       toggleKeyword,
       removeReference,
+      prefillReferences,
    };
 }

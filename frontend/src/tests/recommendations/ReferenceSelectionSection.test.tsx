@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OwnedGameSuggestionResponse } from "../../api";
+import type {
+   OwnedGameSuggestionResponse,
+   RecommendationPreference,
+} from "../../api";
 import ReferenceSelectionSection from "../../features/recommendations/references/ReferenceSelectionSection";
 import {
    useReferenceSelection,
@@ -103,6 +106,7 @@ function selectionResult(
       failedSuggestion: null,
       addReference: vi.fn().mockResolvedValue(true),
       retryReference: vi.fn().mockResolvedValue(true),
+      prefillReferences: vi.fn().mockResolvedValue(true),
       toggleDirectFacet: vi.fn().mockReturnValue(true),
       toggleKeyword: vi.fn().mockReturnValue(true),
       removeReference: vi.fn(),
@@ -318,5 +322,49 @@ describe("ReferenceSelectionSection", () => {
       openConstraints();
       expect(screen.getByRole("button", { name: "Either" }))
          .toHaveAttribute("aria-pressed", "true");
+   });
+
+   it("prefills once per suggested preference and applies its toggles", async () => {
+      const prefillReferences = vi.fn().mockResolvedValue(true);
+      mockedUseReferenceSelection.mockReturnValue(
+         selectionResult({ prefillReferences })
+      );
+      const prefill: RecommendationPreference = {
+         references: [
+            {
+               steam_app_id: 100,
+               facets: {
+                  genre_ids: [11],
+                  theme_ids: [],
+                  keyword_ids: [],
+                  game_mode_ids: [],
+               },
+            },
+         ],
+         constraints: {
+            maximum_completion_minutes: 600,
+            play_status: "unplayed",
+         },
+      };
+
+      const { rerender } = render(
+         <ReferenceSelectionSection sessionEpoch={7} prefill={prefill} />
+      );
+      rerender(
+         <ReferenceSelectionSection
+            sessionEpoch={7}
+            prefill={{ ...prefill }}
+         />
+      );
+
+      openConstraints();
+      await waitFor(() => {
+         expect(screen.getByRole("button", { name: "Not started" }))
+            .toHaveAttribute("aria-pressed", "true");
+      });
+      expect(screen.getByRole("button", { name: "Up to 10 hours" }))
+         .toHaveAttribute("aria-pressed", "true");
+      expect(prefillReferences).toHaveBeenCalledOnce();
+      expect(prefillReferences).toHaveBeenCalledWith(prefill);
    });
 });

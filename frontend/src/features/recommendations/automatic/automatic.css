@@ -1,0 +1,145 @@
+.automatic-recommendations {
+   display: grid;
+   min-width: 0;
+   gap: 1.5rem;
+   margin-top: 2rem;
+   padding-top: 2rem;
+   border-top: 2px solid var(--color-alarm-red);
+}
+
+.automatic-recommendations__header {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: end;
+   justify-content: space-between;
+   gap: 1rem;
+}
+
+.automatic-recommendations__header > div {
+   flex: 1 1 18rem;
+   min-width: 0;
+   text-align: left;
+}
+
+.automatic-recommendations__header h3,
+.automatic-recommendations__header p {
+   margin: 0;
+   text-align: left;
+}
+
+.automatic-recommendations__header p {
+   margin-top: 0.5rem;
+   color: var(--color-ash-taupe);
+}
+
+.automatic-recommendations__customize {
+   flex: 0 0 auto;
+   margin: 0;
+}
+
+.automatic-toggles {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 1rem 2rem;
+   min-width: 0;
+}
+
+.automatic-toggles__group {
+   min-width: 0;
+   margin: 0;
+   padding: 0;
+   border: 0;
+}
+
+.automatic-toggles__group legend {
+   margin-bottom: 0.5rem;
+   padding: 0;
+   color: var(--color-bone-cream);
+   font-size: 0.875rem;
+   font-weight: 800;
+}
+
+.automatic-toggles__choices {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0.5rem;
+   min-width: 0;
+}
+
+.automatic-toggles__choices .recommendation-choice-pill {
+   justify-content: center;
+   text-align: center;
+}
+
+.automatic-toggles__choices .recommendation-choice-pill:disabled {
+   cursor: progress;
+   opacity: 0.6;
+}
+
+.automatic-toggles .recommendation-choice-pill:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 3px;
+}
+
+.automatic-toggles__note {
+   flex-basis: 100%;
+   margin: 0;
+   color: var(--color-ash-taupe);
+   font-size: 0.8rem;
+}
+
+.automatic-recommendations__status {
+   min-height: 1.5em;
+   margin: 0;
+   color: var(--color-ash-taupe);
+}
+
+.automatic-recommendations__rows {
+   display: grid;
+   min-width: 0;
+   gap: 2.5rem;
+}
+
+.automatic-recommendations__row {
+   display: grid;
+   min-width: 0;
+   gap: 1rem;
+}
+
+.automatic-recommendations__row h4 {
+   margin: 0;
+   overflow-wrap: anywhere;
+   font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+}
+
+/* The shared result card needs about 18rem, so rows go three-across only
+   where the existing results grid does; narrower screens stack them. */
+.automatic-recommendations__cards {
+   display: grid;
+   grid-template-columns: minmax(0, 24rem);
+   justify-content: center;
+   gap: 1.5rem;
+   align-items: start;
+}
+
+@media (min-width: 64rem) {
+   .automatic-recommendations__cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      justify-content: stretch;
+   }
+}
+
+.app__recommendation-workspace__back {
+   display: block;
+   max-width: 100%;
+   margin: 0 0 1rem;
+}
+
+.app__recommendation-workspace__notice {
+   margin: 0 0 1rem;
+   padding: 0.8rem 1rem;
+   border-left: 3px solid var(--color-alarm-red);
+   color: var(--color-ash-taupe);
+   font-size: 0.9rem;
+   line-height: 1.5;
+}

@@ -11,6 +11,8 @@ type RecommendationResultCardProps = {
    onPlayThis?: () => void;
    onShowAnother?: () => void;
    showAnotherDisabled?: boolean;
+   onMoreLikeThis?: () => void;
+   moreLikeThisDisabled?: boolean;
    remainingAlternatives?: number;
    focusRequestId?: number;
    isAccepted?: boolean;
@@ -21,6 +23,8 @@ function RecommendationResultCard({
    onPlayThis,
    onShowAnother,
    showAnotherDisabled = false,
+   onMoreLikeThis,
+   moreLikeThisDisabled = false,
    remainingAlternatives,
    focusRequestId,
    isAccepted = false,
@@ -61,7 +65,11 @@ function RecommendationResultCard({
                </section>
             </div>
 
-            {(onPlayThis !== undefined || onShowAnother !== undefined) && (
+            {(
+               onPlayThis !== undefined
+               || onShowAnother !== undefined
+               || onMoreLikeThis !== undefined
+            ) && (
                <div className="recommendation-result-card__actions">
                   {onPlayThis !== undefined && (
                      <button
@@ -87,6 +95,17 @@ function RecommendationResultCard({
                         disabled={showAnotherDisabled}
                      >
                         {showAnotherLabel(remainingAlternatives)}
+                     </button>
+                  )}
+                  {onMoreLikeThis !== undefined && (
+                     <button
+                        className="app__secondary-button"
+                        type="button"
+                        aria-label={`More games like ${item.title}`}
+                        onClick={onMoreLikeThis}
+                        disabled={moreLikeThisDisabled}
+                     >
+                        More like this
                      </button>
                   )}
                </div>

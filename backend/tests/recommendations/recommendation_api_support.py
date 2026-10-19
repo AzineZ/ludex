@@ -107,6 +107,8 @@ def _owned_game(
     status: str = "ready",
     cover_image_id: str | None = None,
     playtime_minutes: int = 0,
+    recent_playtime_minutes: int | None = None,
+    last_played_at: datetime | None = None,
     normal_completion_seconds: int | None = None,
     links: tuple[GameIGDBMetadataTerm, ...] = (),
 ) -> Game:
@@ -122,6 +124,8 @@ def _owned_game(
         ProfileGame(
             profile=profile,
             playtime_minutes=playtime_minutes,
+            recent_playtime_minutes=recent_playtime_minutes,
+            last_played_at=last_played_at,
         )
     )
     return game

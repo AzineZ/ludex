@@ -152,6 +152,41 @@ export type RecommendationRefinementRequest = {
    rejected_steam_app_ids: number[];
 };
 
+export type AutomaticRecommendationStatus =
+   | "ready"
+   | "preparing"
+   | "unavailable";
+
+export type AutomaticRecommendationRequest = {
+   constraints: PreferenceConstraints;
+   rejected_steam_app_ids: number[];
+   wait_for_pending: boolean;
+};
+
+export type MoreLikeThisRequest = {
+   steam_app_id: number;
+   constraints: PreferenceConstraints;
+   excluded_steam_app_ids: number[];
+};
+
+export type AutomaticSourceGameResponse = {
+   steam_app_id: number;
+   title: string;
+   cover_url: string | null;
+   playtime_minutes: number;
+};
+
+export type AutomaticRecommendationRowResponse = {
+   source_game: AutomaticSourceGameResponse;
+   recommendations: FinalRecommendationResponse;
+};
+
+export type AutomaticRecommendationResponse = {
+   status: AutomaticRecommendationStatus;
+   rows: AutomaticRecommendationRowResponse[];
+   suggested_preference: RecommendationPreference | null;
+};
+
 export type AssistantOptionResponse = {
    igdb_id: number;
    name: string;
@@ -281,6 +316,24 @@ export function refineFinalRecommendations(
    return postJson<FinalRecommendationResponse>(
       `${recommendationPath}/refine`,
       refinement
+   );
+}
+
+export function getAutomaticRecommendations(
+   request: AutomaticRecommendationRequest
+): Promise<AutomaticRecommendationResponse> {
+   return postJson<AutomaticRecommendationResponse>(
+      `${recommendationPath}/automatic`,
+      request
+   );
+}
+
+export function getMoreLikeThisRecommendations(
+   request: MoreLikeThisRequest
+): Promise<AutomaticRecommendationRowResponse> {
+   return postJson<AutomaticRecommendationRowResponse>(
+      `${recommendationPath}/automatic/more-like-this`,
+      request
    );
 }
 

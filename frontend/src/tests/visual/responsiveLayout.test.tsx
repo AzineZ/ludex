@@ -16,6 +16,7 @@ const recommendationCss = [
    "src/features/recommendations/preferences/preferences.css",
    "src/features/recommendations/results/results.css",
    "src/features/recommendations/assistant/assistant.css",
+   "src/features/recommendations/automatic/automatic.css",
 ].map((path) => readFileSync(path, "utf8")).join("\n");
 const sessionCss = readFileSync(
    "src/features/session/session.css",
@@ -50,6 +51,32 @@ describe("responsive layout contract", () => {
       render(<RecommendationResultCard item={recommendation} />);
       expect(screen.getByRole("article", { name: longToken }))
          .toBeInTheDocument();
+   });
+
+   it("stacks automatic rows on phones and wraps their toggles without fixed widths", () => {
+      const automaticCss = readFileSync(
+         "src/features/recommendations/automatic/automatic.css",
+         "utf8"
+      );
+
+      expect(automaticCss).toMatch(
+         /\.automatic-recommendations__cards\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*24rem\)[^}]*justify-content:\s*center/
+      );
+      expect(automaticCss).toMatch(
+         /@media \(min-width:\s*64rem\)\s*\{\s*\.automatic-recommendations__cards\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/
+      );
+      expect(automaticCss).toMatch(
+         /\.automatic-toggles\s*\{[^}]*flex-wrap:\s*wrap/
+      );
+      expect(automaticCss).toMatch(
+         /\.automatic-toggles__choices\s*\{[^}]*flex-wrap:\s*wrap/
+      );
+      expect(automaticCss).toMatch(
+         /\.automatic-recommendations__row h4\s*\{[^}]*overflow-wrap:\s*anywhere/
+      );
+      expect(automaticCss).not.toMatch(/(?:^|[\s;{])(?:min-)?width:\s*\d+(?:px|rem)/m);
+      expect(automaticCss).not.toMatch(/min-width:\s*48rem/);
+      expect(automaticCss).not.toMatch(/overflow-x:\s*auto/);
    });
 
    it("keeps bounded scroll regions and overflow-resistant text at every width", () => {
