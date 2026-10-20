@@ -820,6 +820,41 @@ describe("responsive layout contracts", () => {
       }
    });
 
+   it("keeps the search scope and a no-match message within every supported width", async () => {
+      vi.mocked(getAssistantRecommendations).mockResolvedValueOnce({
+         status: "no_match",
+         eligible_count: 108,
+         candidate_limit: 2000,
+         items: [],
+         message: "None of the supplied candidate games fit a relaxing play style, as they are primarily action, horror, shooter, and survival titles.",
+         guided_fallback_available: true,
+      });
+      render(<AutomaticFixture />);
+      await screen.findByRole("region", {
+         name: /^Because you played An Extraordinarily Long/,
+      });
+      fireEvent.change(screen.getByLabelText("Ask Ludex"), {
+         target: { value: "I'm in the mood for a relaxing game" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      const button = await screen.findByRole("button", { name: "Search all my games" });
+      const miss = button.closest(".ask-ludex__miss") as HTMLElement;
+      const scope = document.querySelector<HTMLElement>(".ask-ludex__scope") as HTMLElement;
+
+      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
+         await setTestViewport(viewport);
+         const name = viewportName(viewport);
+         expect(document.documentElement.scrollWidth, `miss page width at ${name}`)
+            .toBeLessThanOrEqual(viewport.width);
+         for (const element of [miss, scope]) {
+            expect(element.scrollWidth, `scope and miss text fit at ${name}`)
+               .toBeLessThanOrEqual(element.clientWidth + 1);
+         }
+         expect(button.getBoundingClientRect().right, `widen button inside at ${name}`)
+            .toBeLessThanOrEqual(miss.getBoundingClientRect().right + 0.5);
+      }
+   });
+
    it("keeps the inline genre step within every supported width", async () => {
       vi.mocked(getAssistantRecommendations).mockResolvedValueOnce({
          status: "needs_genre",

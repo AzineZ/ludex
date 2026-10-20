@@ -272,6 +272,16 @@ function AutomaticRecommendations({
 
          <AskLudexBar
             askLudex={askLudex}
+            constraints={automatic.constraints}
+            onSearchAll={() => {
+               // Widen the shared filters (rows follow) and ask again.
+               const everything = {
+                  play_status: "either" as const,
+                  maximum_completion_minutes: null,
+               };
+               automatic.changeConstraints(everything);
+               askLudex.ask(everything, askExcluded);
+            }}
             suggestedCount={suggested.length}
             includeSuggested={includeSuggested}
             onToggleIncludeSuggested={() => setIncludeSuggested((value) => !value)}

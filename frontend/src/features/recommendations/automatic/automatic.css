@@ -334,3 +334,33 @@
    justify-self: start;
    margin: 0;
 }
+
+.ask-ludex__scope strong {
+   color: var(--color-bone-cream);
+}
+
+.ask-ludex__miss {
+   display: grid;
+   min-width: 0;
+   gap: 0.4rem;
+   padding-left: 0.75rem;
+   border-left: 3px solid var(--color-alarm-red);
+}
+
+.ask-ludex__miss p {
+   margin: 0;
+   color: var(--color-bone-cream);
+   line-height: 1.45;
+   overflow-wrap: anywhere;
+   text-align: left;
+}
+
+.ask-ludex__miss .ask-ludex__miss-reason {
+   color: var(--color-ash-taupe);
+   font-size: 0.85rem;
+}
+
+.ask-ludex__miss .app__secondary-button {
+   justify-self: start;
+   margin: 0;
+}

@@ -27,10 +27,33 @@ export type AskLudexRow = {
 
 export type AskLudexStep = "prompt" | "genre" | "refine";
 
+/** A search that found nothing, kept so the bar can explain the scope. */
+export type AskLudexMiss = {
+   kind: "no_match" | "empty";
+   prompt: string;
+   eligibleCount: number;
+   constraints: PreferenceConstraints;
+   reason: string | null;
+};
+
+/** Rephrase the model's internal wording ("supplied candidate games"). */
+export function cleanMissReason(reason: string | null): string | null {
+   if (reason === null || reason.trim() === "") {
+      return null;
+   }
+   return reason
+      .replace(/\b(?:the\s+)?supplied candidate games\b/gi, "these games")
+      .replace(/\b(?:the\s+)?supplied candidates\b/gi, "these games")
+      .replace(/\b(?:the\s+)?candidate games\b/gi, "these games")
+      .replace(/\bcandidates\b/gi, "games")
+      .trim();
+}
+
 type AskLudexState = {
    isAsking: boolean;
    step: AskLudexStep;
    message: string | null;
+   miss: AskLudexMiss | null;
    error: string | null;
    rows: AskLudexRow[];
    genres: readonly AssistantOptionResponse[];
@@ -47,6 +70,7 @@ const INITIAL_STATE: AskLudexState = {
    isAsking: false,
    step: "prompt",
    message: null,
+   miss: null,
    error: null,
    rows: [],
    genres: [],
@@ -110,6 +134,7 @@ export function useAskLudex() {
          ...current,
          isAsking: true,
          message: null,
+         miss: null,
          error: null,
          genreId,
          themeIds,
@@ -189,6 +214,24 @@ export function useAskLudex() {
                   themes: options?.themes ?? [],
                   gameModes: options?.game_modes ?? [],
                   message: response.message,
+               }));
+               return;
+            }
+            if (response.status === "no_match" || response.status === "empty") {
+               const kind = response.status;
+               setState((current) => ({
+                  ...current,
+                  isAsking: false,
+                  miss: {
+                     kind,
+                     prompt: text,
+                     eligibleCount: response.eligible_count,
+                     constraints,
+                     reason:
+                        kind === "no_match"
+                           ? cleanMissReason(response.message)
+                           : null,
+                  },
                }));
                return;
             }

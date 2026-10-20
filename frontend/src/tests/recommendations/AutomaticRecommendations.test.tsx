@@ -562,4 +562,88 @@ describe("AutomaticRecommendations", () => {
       ).toBeInTheDocument();
       expect(screen.getByLabelText("Ask Ludex")).toHaveValue("Anything");
    });
+
+   it("shows the search scope and widens to all games after a narrowed miss", async () => {
+      mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
+      mockedAsk.mockResolvedValueOnce({
+         status: "no_match",
+         eligible_count: 108,
+         candidate_limit: 2000,
+         items: [],
+         message:
+            "None of the supplied candidate games fit a relaxing play style.",
+         guided_fallback_available: true,
+      });
+      mockedAsk.mockResolvedValueOnce(ranked([601, 602, 603]));
+      renderAutomatic();
+      await screen.findByRole("region", {
+         name: "Because you played Source 101 · 42 h",
+      });
+      expect(
+         screen.getByText("Searching games you haven’t started, any length.")
+      ).toBeInTheDocument();
+
+      await askLudex("I'm in the mood for a relaxing game");
+
+      expect(
+         await screen.findByText(
+            "Ludex looked at 108 games you haven’t started and none felt like "
+               + "a fit for “I'm in the mood for a relaxing game”."
+         )
+      ).toBeInTheDocument();
+      expect(
+         screen.getByText("None of these games fit a relaxing play style.")
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Search all my games" }));
+
+      expect(mockedAsk).toHaveBeenLastCalledWith(
+         expect.objectContaining({
+            prompt: "I'm in the mood for a relaxing game",
+            filters: expect.objectContaining({
+               play_status: "either",
+               maximum_completion_minutes: null,
+            }),
+         })
+      );
+      expect(lastAutomaticRequest()?.constraints).toEqual({
+         play_status: "either",
+         maximum_completion_minutes: null,
+      });
+      expect(screen.getByRole("button", { name: "Either" }))
+         .toHaveAttribute("aria-pressed", "true");
+      expect(
+         await screen.findByRole("region", {
+            name: "Ludex AI picks for “I'm in the mood for a relaxing game”",
+         })
+      ).toBeInTheDocument();
+   });
+
+   it("does not offer widening when every game was already searched", async () => {
+      mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
+      mockedAsk.mockResolvedValue({
+         status: "no_match",
+         eligible_count: 410,
+         candidate_limit: 2000,
+         items: [],
+         message: null,
+         guided_fallback_available: true,
+      });
+      renderAutomatic();
+      await screen.findByRole("region", {
+         name: "Because you played Source 101 · 42 h",
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Either" }));
+      await waitFor(() => {
+         expect(screen.getByRole("button", { name: "Either" })).toBeEnabled();
+      });
+
+      await askLudex("A space opera");
+
+      expect(
+         await screen.findByText(/Ludex looked at 410 games in your library/)
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Search all my games" }))
+         .not.toBeInTheDocument();
+   });
 });

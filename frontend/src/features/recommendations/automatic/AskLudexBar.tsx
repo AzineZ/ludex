@@ -1,10 +1,19 @@
 import { useId, type FormEvent } from "react";
 
+import type { PreferenceConstraints } from "../../../api";
+import {
+   describeNothingToSearch,
+   describeScope,
+   describeSearchedGames,
+   isNarrowed,
+} from "./askLudexScope";
 import type { AskLudex } from "./useAskLudex";
 import { MAX_ASK_LUDEX_PROMPT_CHARACTERS } from "./useAskLudex";
 
 type AskLudexBarProps = {
    askLudex: AskLudex;
+   constraints: PreferenceConstraints;
+   onSearchAll: () => void;
    suggestedCount: number;
    includeSuggested: boolean;
    onToggleIncludeSuggested: () => void;
@@ -15,6 +24,8 @@ type AskLudexBarProps = {
 /** One prompt for Gemini, with genre or narrowing steps only when needed. */
 function AskLudexBar({
    askLudex,
+   constraints,
+   onSearchAll,
    suggestedCount,
    includeSuggested,
    onToggleIncludeSuggested,
@@ -62,9 +73,10 @@ function AskLudexBar({
                {askLudex.isAsking ? "Asking…" : "Ask"}
             </button>
          </div>
-         <p className="ask-ludex__note" id={noteId}>
-            Gemini sees only the eligible games’ titles and facts, never your
-            Steam ID or name. The filters below apply here too.
+         <p className="ask-ludex__note ask-ludex__scope" id={noteId}>
+            <strong>{describeScope(constraints)}</strong> Set by the filters
+            below. Gemini sees only these games’ titles and facts, never your
+            Steam ID or name.
          </p>
          {suggestedCount > 0 && (
             <p className="ask-ludex__note ask-ludex__suggested" role="status">
@@ -156,6 +168,28 @@ function AskLudexBar({
                   Use the whole library
                </button>
             </p>
+         )}
+
+         {askLudex.miss !== null && !askLudex.isAsking && (
+            <div className="ask-ludex__miss" role="status">
+               <p>
+                  {askLudex.miss.kind === "empty"
+                     ? describeNothingToSearch(askLudex.miss.constraints)
+                     : `Ludex looked at ${describeSearchedGames(askLudex.miss.eligibleCount, askLudex.miss.constraints)} and none felt like a fit for “${askLudex.miss.prompt}”.`}
+               </p>
+               {askLudex.miss.reason !== null && (
+                  <p className="ask-ludex__miss-reason">{askLudex.miss.reason}</p>
+               )}
+               {isNarrowed(askLudex.miss.constraints) && (
+                  <button
+                     className="app__secondary-button"
+                     type="button"
+                     onClick={onSearchAll}
+                  >
+                     Search all my games
+                  </button>
+               )}
+            </div>
          )}
 
          <p className="ask-ludex__status" role="status" aria-atomic="true">
