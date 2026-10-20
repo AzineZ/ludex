@@ -19,7 +19,7 @@ from app.gemini.reranking.evaluation.ceiling import (
     run_rich_context_evaluation,
 )
 from app.gemini.reranking.contracts import (
-    MAX_RERANK_CANDIDATES,
+    MAX_RERANK_DETAILED_CANDIDATES,
     RerankRequest,
     RerankResponse,
 )
@@ -65,7 +65,7 @@ def test_historical_ceiling_fixtures_fit_the_expanded_product_contract() -> None
 
     assert len(product_size.candidates) == 100
     assert len(evaluation_only.candidates) == 150
-    assert MAX_RERANK_CANDIDATES == 400
+    assert MAX_RERANK_DETAILED_CANDIDATES == 400
     assert len(
         RerankRequest.model_validate(product_size.model_dump()).candidates
     ) == 100

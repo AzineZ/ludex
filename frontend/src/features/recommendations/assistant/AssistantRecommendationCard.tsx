@@ -4,6 +4,7 @@ import type { AssistantRecommendationItemResponse } from "../../../api";
 import {
    CardHeading,
    CardTitle,
+   ResultCardBackdrop,
    ResultCardCover,
    ResultCardFacts,
    ResultCardMeta,
@@ -21,6 +22,8 @@ type AssistantRecommendationCardProps = {
    focusRequestId?: number;
    onChoose?: () => void;
    onShowAnother?: () => void;
+   onMoreLikeThis?: () => void;
+   moreLikeThisDisabled?: boolean;
 };
 
 /** Shows one Ask Ludex result with its AI reasoning below the full cover. */
@@ -32,6 +35,8 @@ function AssistantRecommendationCard({
    focusRequestId,
    onChoose,
    onShowAnother,
+   onMoreLikeThis,
+   moreLikeThisDisabled = false,
 }: AssistantRecommendationCardProps) {
    const headingId = useId();
    const cardRef = useFocusOnRequest<HTMLElement>(focusRequestId);
@@ -45,6 +50,7 @@ function AssistantRecommendationCard({
          aria-labelledby={headingId}
          tabIndex={focusRequestId === undefined ? undefined : -1}
       >
+         <ResultCardBackdrop coverUrl={item.cover_url} />
          <ResultCardCover title={item.title} coverUrl={item.cover_url} />
 
          <div className="recommendation-result-card__body">
@@ -70,7 +76,11 @@ function AssistantRecommendationCard({
                </ScrollFadeFrame>
             </section>
 
-            {(onChoose !== undefined || onShowAnother !== undefined) && (
+            {(
+               onChoose !== undefined
+               || onShowAnother !== undefined
+               || onMoreLikeThis !== undefined
+            ) && (
                <div className="recommendation-result-card__actions">
                   {onChoose !== undefined && (
                      <button
@@ -91,6 +101,17 @@ function AssistantRecommendationCard({
                         disabled={remainingAlternatives === 0}
                      >
                         {showAnotherLabel(remainingAlternatives)}
+                     </button>
+                  )}
+                  {onMoreLikeThis !== undefined && (
+                     <button
+                        className="app__secondary-button"
+                        type="button"
+                        aria-label={`More games like ${item.title}`}
+                        onClick={onMoreLikeThis}
+                        disabled={moreLikeThisDisabled}
+                     >
+                        More like this
                      </button>
                   )}
                </div>

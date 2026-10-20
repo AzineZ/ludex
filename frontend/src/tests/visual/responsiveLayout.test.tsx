@@ -89,8 +89,8 @@ describe("responsive layout contract", () => {
       expect(recommendationCss).toMatch(/\.reference-game-suggestions span\s*\{[^}]*overflow-wrap:\s*anywhere/);
       expect(recommendationCss).toMatch(/\.recommendation-result-card__title\s*\{[^}]*overflow-wrap:\s*anywhere/);
       expect(recommendationCss).toMatch(/\.recommendation-result-card__meta\s*\{[^}]*overflow-wrap:\s*anywhere/);
-      expect(recommendationCss).toMatch(/\.assistant-result-card__explanation\s*\{[^}]*height:\s*clamp\(9rem,\s*14vw,\s*11rem\)[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\)/);
-      expect(recommendationCss).toMatch(/\.assistant-result-card__scroll-region\s*\{[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/);
+      expect(recommendationCss).not.toMatch(/\.assistant-result-card__explanation\s*\{[^}]*(?:^|[\s;])height:/m);
+      expect(recommendationCss).toMatch(/\.assistant-result-card__scroll-region\s*\{[^}]*max-height:\s*clamp\(7\.5rem,\s*12vw,\s*9\.5rem\)[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/);
       expect(recommendationCss).toMatch(/\.assistant-result-card__explanation \.assistant-scroll-frame\s*\{[^}]*--assistant-scroll-fade-height:\s*1\.5rem/);
       expect(recommendationCss).toMatch(/\.assistant-scroll-frame\[data-has-overflow="true"\]\[data-at-end="false"\]::after\s*\{[^}]*opacity:\s*1/);
    });
@@ -191,15 +191,22 @@ describe("responsive layout contract", () => {
       );
    });
 
-   it("keeps the assistant bounded, fluid, and visually aligned with Ludex", () => {
-      expect(recommendationCss).toMatch(
-         /\.assistant-workspace\s*\{[^}]*margin-top:\s*2rem[^}]*padding-top:\s*3rem[^}]*border-top:\s*2px solid var\(--color-alarm-red\)/
+   it("keeps Ask Ludex and shared choice controls fluid and aligned with Ludex", () => {
+      const automaticCss = readFileSync(
+         "src/features/recommendations/automatic/automatic.css",
+         "utf8"
       );
-      expect(recommendationCss).toMatch(
-         /\.assistant-workspace__heading,\s*\.assistant-step\s*\{[^}]*width:\s*min\(100%,\s*42\.5rem\)[^}]*margin-inline:\s*auto/
+      expect(automaticCss).toMatch(
+         /\.ask-ludex__field\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/
       );
-      expect(recommendationCss).toMatch(
-         /\.assistant-step__heading h4[^}]*font-family:\s*var\(--font-display\)/
+      expect(automaticCss).toMatch(
+         /\.ask-ludex__field input\s*\{[^}]*flex:\s*1 1 14rem[^}]*min-width:\s*0/
+      );
+      expect(automaticCss).toMatch(
+         /\.ask-ludex__choices\s*\{[^}]*flex-wrap:\s*wrap[^}]*max-height:\s*16rem[^}]*overflow-y:\s*auto/
+      );
+      expect(automaticCss).toMatch(
+         /\.ask-ludex__note,\s*\.ask-ludex__status,\s*\.ask-ludex__error\s*\{[^}]*overflow-wrap:\s*anywhere/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-choice-pill\s*\{[^}]*border:\s*2px solid var\(--color-bone-cream\)[^}]*border-radius:\s*999px/
@@ -208,45 +215,17 @@ describe("responsive layout contract", () => {
          /\.recommendation-constraints\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/
       );
       expect(recommendationCss).toMatch(
-         /\.recommendation-constraints\[open\] > \.recommendation-constraints__summary\s*\{[^}]*color:\s*var\(--color-void-black\)[^}]*background:\s*var\(--color-bone-cream\)/
-      );
-      expect(recommendationCss).toMatch(
-         /\.assistant-filters\s*\{[^}]*padding:\s*0[^}]*border:\s*0[^}]*background:\s*transparent/
-      );
-      expect(recommendationCss).toMatch(
-         /\.assistant-option-grid--genres\s*\{[^}]*max-height:\s*24rem[^}]*overflow-y:\s*auto/
-      );
-      expect(recommendationCss).toMatch(
          /\.recommendation-choice-grid--equal\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)[^}]*grid-auto-rows:\s*4\.25rem/
-      );
-      expect(recommendationCss).toMatch(
-         /\.assistant-option-grid--compact\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)[^}]*max-height:\s*15rem/
-      );
-      expect(recommendationCss).toMatch(
-         /\.assistant-option-grid--compact \.recommendation-choice-pill\s*\{[^}]*width:\s*100%/
-      );
-      expect(recommendationCss).not.toMatch(
-         /\.assistant-option-grid--compact\s*\{[^}]*grid-auto-rows/
-      );
-      expect(recommendationCss).not.toMatch(
-         /\.assistant-option-grid--compact \.recommendation-choice-pill\s*\{[^}]*height:\s*100%/
       );
       expect(recommendationCss).toMatch(
          /\.assistant-scroll-frame\[data-has-overflow="true"\]\[data-at-end="false"\]::after\s*\{[^}]*opacity:\s*1/
       );
-      expect(recommendationCss).toMatch(
-         /\.assistant-prompt textarea\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0[^}]*max-width:\s*100%/
-      );
-      expect(recommendationCss).toMatch(
-         /@media \(max-width:\s*36rem\)[\s\S]*\.recommendation-choice-grid--equal\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)[\s\S]*\.assistant-option-grid--genres\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/
-      );
-      expect(recommendationCss).toMatch(
-         /\.assistant-data-use\s*\{[^}]*border-left:\s*3px solid var\(--color-alarm-red\)[^}]*color:\s*var\(--color-ash-taupe\)/
+      expect(recommendationCss).not.toMatch(
+         /\.assistant-(?:workspace|step|filters|option-grid|prompt|data-use|state)\b/
       );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__cover-fallback\s*\{[^}]*place-items:\s*center/
       );
-      expect(recommendationCss).not.toMatch(/\.assistant-result-card \.recommendation-result-card__cover-fallback/);
       expect(recommendationCss).not.toMatch(/!important/);
    });
 
@@ -352,6 +331,15 @@ describe("responsive layout contract", () => {
    });
 
    it("keeps expanded recommendation details visually simple", () => {
+      expect(recommendationCss).toMatch(
+         /\.recommendation-evidence__list\s*\{[^}]*display:\s*grid[^}]*list-style:\s*none/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-evidence__list li\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto auto[^}]*gap:\s*0\.75rem/
+      );
+      expect(recommendationCss).toMatch(
+         /\.recommendation-evidence :is\(h4, h5, h6\)\s*\{[^}]*text-transform:\s*uppercase/
+      );
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__details > summary:focus-visible\s*\{[^}]*outline:\s*none[^}]*box-shadow:\s*inset 0 -3px 0 var\(--color-bone-cream\)/
       );

@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import {
    getAutomaticRecommendations,
    getMoreLikeThisRecommendations,
-   type FinalRecommendationItemResponse,
    type PreferenceConstraints,
    type RecommendationPreference,
 } from "../../../api";
@@ -49,7 +48,7 @@ export type AutomaticRecommendationsResult = AutomaticRecommendationState & {
    changeConstraints: (constraints: PreferenceConstraints) => void;
    retry: () => void;
    showAnother: (rowKey: string, steamAppId: number) => void;
-   moreLikeThis: (item: FinalRecommendationItemResponse) => void;
+   moreLikeThis: (item: { steam_app_id: number; title: string }) => void;
 };
 
 const INITIAL_STATE: AutomaticRecommendationState = {
@@ -231,7 +230,7 @@ export function useAutomaticRecommendations(
       }));
    }
 
-   function moreLikeThis(item: FinalRecommendationItemResponse): void {
+   function moreLikeThis(item: { steam_app_id: number; title: string }): void {
       if (state.isRefreshing || state.pendingMoreLikeSteamAppId !== null) {
          return;
       }

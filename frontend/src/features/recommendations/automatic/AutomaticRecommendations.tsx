@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import type { RecommendationPreference } from "../../../api";
+import AssistantRecommendationCard from "../assistant/AssistantRecommendationCard";
 import RecommendationResultCard from "../results/RecommendationResultCard";
 import {
    remainingAlternatives,
@@ -8,7 +9,9 @@ import {
    suggestedSteamAppIds,
    type AutomaticRow,
 } from "./automaticRows";
+import AskLudexBar from "./AskLudexBar";
 import QuickToggles from "./QuickToggles";
+import { useAskLudex, type AskLudex, type AskLudexRow } from "./useAskLudex";
 import {
    useAutomaticRecommendations,
    type AutomaticRecommendationsResult,
@@ -17,8 +20,7 @@ import "./automatic.css";
 
 type AutomaticRecommendationsProps = {
    onCustomize: (preference: RecommendationPreference | null) => void;
-   onUnavailable: () => void;
-   onSuggestedChange?: (steamAppIds: number[]) => void;
+   onUnavailable?: () => void;
 };
 
 type AutomaticRowSectionProps = {
@@ -34,18 +36,9 @@ function prefersReducedMotion(): boolean {
       ?? false;
 }
 
-function AutomaticRowSection({
-   row,
-   focusOnMount,
-   collapsed,
-   allRows,
-   automatic,
-}: AutomaticRowSectionProps) {
-   const headingId = useId();
+/** Brings a newly added row into view and moves focus to its heading. */
+function useFocusNewRow(focusOnMount: boolean) {
    const headingRef = useRef<HTMLHeadingElement>(null);
-
-   // A new "More like" row appears above the card that asked for it, so
-   // bring it into view and move keyboard focus to its heading.
    useEffect(() => {
       const heading = headingRef.current;
       if (!focusOnMount || heading === null) {
@@ -59,6 +52,101 @@ function AutomaticRowSection({
       // Only the first render of a newly added row should move the page.
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, []);
+   return headingRef;
+}
+
+function quotedPrompt(prompt: string): string {
+   return prompt.length > 80 ? `${prompt.slice(0, 79)}…` : prompt;
+}
+
+type AskLudexRowSectionProps = {
+   row: AskLudexRow;
+   collapsed: boolean;
+   focusOnMount: boolean;
+   askLudex: AskLudex;
+   onMoreLikeThis: (item: { steam_app_id: number; title: string }) => void;
+   moreLikeBusy: boolean;
+};
+
+/** One Gemini answer, shown with the same cards as other Ask Ludex results. */
+function AskLudexRowSection({
+   row,
+   collapsed,
+   focusOnMount,
+   askLudex,
+   onMoreLikeThis,
+   moreLikeBusy,
+}: AskLudexRowSectionProps) {
+   const headingId = useId();
+   const headingRef = useFocusNewRow(focusOnMount);
+   const heading = `Ludex AI picks for “${quotedPrompt(row.prompt)}”`;
+   const cards = (
+      <div className="automatic-recommendations__cards">
+         {row.visible.map((item) => (
+            <AssistantRecommendationCard
+               key={item.steam_app_id}
+               item={item}
+               headingLevel={5}
+               remainingAlternatives={row.waiting.length}
+               onShowAnother={() => askLudex.showAnother(row.key, item.steam_app_id)}
+               onMoreLikeThis={() => onMoreLikeThis(item)}
+               moreLikeThisDisabled={moreLikeBusy}
+            />
+         ))}
+      </div>
+   );
+
+   if (collapsed) {
+      return (
+         <section
+            className="automatic-recommendations__row automatic-recommendations__row--collapsed"
+            aria-label={heading}
+            data-row-kind="ask-ludex"
+            data-row-title={heading}
+         >
+            <details className="automatic-recommendations__collapsed">
+               <summary>
+                  <span className="automatic-recommendations__collapsed-title">
+                     {heading}
+                  </span>
+                  <span className="automatic-recommendations__collapsed-count">
+                     {row.visible.length === 1
+                        ? "1 game"
+                        : `${row.visible.length} games`}
+                  </span>
+               </summary>
+               {cards}
+            </details>
+         </section>
+      );
+   }
+
+   return (
+      <section
+         className="automatic-recommendations__row automatic-recommendations__row--ask-ludex"
+         aria-labelledby={headingId}
+         data-row-kind="ask-ludex"
+         data-row-title={heading}
+      >
+         <h4 id={headingId} ref={headingRef} tabIndex={-1}>
+            {heading}
+         </h4>
+         {cards}
+      </section>
+   );
+}
+
+function AutomaticRowSection({
+   row,
+   focusOnMount,
+   collapsed,
+   allRows,
+   automatic,
+}: AutomaticRowSectionProps) {
+   const headingId = useId();
+   // A new "More like" row appears above the card that asked for it, so
+   // bring it into view and move keyboard focus to its heading.
+   const headingRef = useFocusNewRow(focusOnMount);
    const alternatives = remainingAlternatives(allRows, row);
    const moreLikeBusy =
       automatic.isRefreshing || automatic.pendingMoreLikeSteamAppId !== null;
@@ -131,27 +219,29 @@ function AutomaticRowSection({
 }
 
 /** Shows input-free Guided rows built from the visitor's most-played games. */
+const NO_OP = () => {};
+
 function AutomaticRecommendations({
    onCustomize,
-   onUnavailable,
-   onSuggestedChange,
+   onUnavailable = NO_OP,
 }: AutomaticRecommendationsProps) {
    const headingId = useId();
    const automatic = useAutomaticRecommendations(onUnavailable);
+   const askLudex = useAskLudex();
+   const [includeSuggested, setIncludeSuggested] = useState(false);
    const allRows = [...automatic.moreLikeRows, ...automatic.rows];
-   const suggestedKey = suggestedSteamAppIds(
+   // Ask Ludex skips what these rows already suggested, unless included.
+   const suggested = suggestedSteamAppIds(
       allRows,
       automatic.rejectedSteamAppIds
-   ).join(",");
-
-   // Ask Ludex skips what these rows already suggested.
-   useEffect(() => {
-      onSuggestedChange?.(
-         suggestedKey === "" ? [] : suggestedKey.split(",").map(Number)
-      );
-   }, [onSuggestedChange, suggestedKey]);
+   );
    const visibleRows = allRows.filter((row) => row.visible.length > 0);
    const newestMoreLikeKey = automatic.moreLikeRows[0]?.key ?? null;
+   const askExcluded = includeSuggested ? [] : suggested;
+   const moreLikeBusy =
+      automatic.isRefreshing || automatic.pendingMoreLikeSteamAppId !== null;
+   const showFilters =
+      automatic.status === "ready" || automatic.status === "unavailable";
 
    return (
       <section
@@ -165,9 +255,10 @@ function AutomaticRecommendations({
       >
          <header className="automatic-recommendations__header">
             <div>
-               <h3 id={headingId}>Picked from your library</h3>
+               <h3 id={headingId}>Recommendations</h3>
                <p>
-                  Based on games you’ve played or finished recently.
+                  Ask Ludex for something specific, or browse picks based on
+                  games you’ve played or finished recently.
                </p>
             </div>
             <button
@@ -178,6 +269,51 @@ function AutomaticRecommendations({
                Customize
             </button>
          </header>
+
+         <AskLudexBar
+            askLudex={askLudex}
+            suggestedCount={suggested.length}
+            includeSuggested={includeSuggested}
+            onToggleIncludeSuggested={() => setIncludeSuggested((value) => !value)}
+            onAsk={() => askLudex.ask(automatic.constraints, askExcluded)}
+            onChooseGenre={(genreId) =>
+               askLudex.ask(automatic.constraints, askExcluded, { genreId })
+            }
+         />
+
+         {showFilters && (
+            <QuickToggles
+               value={automatic.constraints}
+               disabled={automatic.isRefreshing}
+               onChange={automatic.changeConstraints}
+            />
+         )}
+
+         {askLudex.rows.length > 0 && (
+            <div className="automatic-recommendations__rows">
+               {askLudex.rows.map((row, index) => (
+                  <AskLudexRowSection
+                     key={row.key}
+                     row={row}
+                     collapsed={index > 0}
+                     focusOnMount={row.key === askLudex.focusRowKey}
+                     askLudex={askLudex}
+                     onMoreLikeThis={automatic.moreLikeThis}
+                     moreLikeBusy={moreLikeBusy}
+                  />
+               ))}
+            </div>
+         )}
+
+         {automatic.status === "unavailable" && (
+            <div className="recommendation-results__state">
+               <p>
+                  Ludex needs at least one game you’ve played for an hour or
+                  more, with game details loaded, to suggest rows here. Ask
+                  Ludex above, or use Customize to choose reference games.
+               </p>
+            </div>
+         )}
 
          {automatic.status === "loading" && (
             <p className="recommendation-results__state" role="status">
@@ -210,12 +346,6 @@ function AutomaticRecommendations({
 
          {automatic.status === "ready" && (
             <>
-               <QuickToggles
-                  value={automatic.constraints}
-                  disabled={automatic.isRefreshing}
-                  onChange={automatic.changeConstraints}
-               />
-
                <p
                   className="automatic-recommendations__status"
                   role="status"

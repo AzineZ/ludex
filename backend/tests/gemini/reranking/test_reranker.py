@@ -15,6 +15,7 @@ from app.gemini.reranking.projection import (
 from app.gemini.reranking.reranker import (
     MAX_RERANK_OUTPUT_TOKENS,
     MAX_RERANK_REQUEST_BYTES,
+    RERANK_SYSTEM_INSTRUCTION,
     RerankRequestTooLarge,
     RerankResponseError,
     build_rerank_user_prompt,
@@ -99,31 +100,7 @@ def test_reranker_sends_one_bounded_untrusted_snapshot() -> None:
     assert "reasoning must repeat" in normalized_instruction
 
 
-@pytest.mark.parametrize(
-    "recommendations",
-    [
-        [
-            {
-                "steam_app_id": 999,
-                "summary": "Not allowed.",
-                "reasoning": "Not allowed by the candidate boundary.",
-            }
-        ],
-        [
-            {
-                "steam_app_id": 1,
-                "summary": "First.",
-                "reasoning": "Fits the visitor request.",
-            },
-            {
-                "steam_app_id": 1,
-                "summary": "Duplicate.",
-                "reasoning": "Also fits the visitor request.",
-            },
-        ],
-    ],
-)
-def test_reranker_rejects_foreign_or_duplicate_ids(recommendations) -> None:
+def _ranked_client(recommendations: list[dict[str, object]]) -> Mock:
     client = Mock()
     client.generate_structured_content_with_metadata.return_value = (
         GeminiStructuredContent(
@@ -137,13 +114,63 @@ def test_reranker_rejects_foreign_or_duplicate_ids(recommendations) -> None:
             total_tokens=None,
         )
     )
+    return client
+
+
+def test_reranker_rejects_an_answer_with_no_usable_pick() -> None:
+    client = _ranked_client(
+        [
+            {
+                "steam_app_id": 999,
+                "summary": "Not allowed.",
+                "reasoning": "Not allowed by the candidate boundary.",
+            }
+        ]
+    )
 
     with pytest.raises(RerankResponseError):
-        rerank_with_metadata(
-            client,
-            model_id="evaluation-model",
-            request=request(),
-        )
+        rerank_with_metadata(client, model_id="evaluation-model", request=request())
+
+
+def test_reranker_keeps_valid_picks_and_drops_invalid_ones() -> None:
+    client = _ranked_client(
+        [
+            {
+                "steam_app_id": 999,
+                "summary": "Outside the list.",
+                "reasoning": "Not allowed by the candidate boundary.",
+            },
+            {
+                "steam_app_id": 1,
+                "summary": "First.",
+                "reasoning": "Fits the visitor request.",
+            },
+            {
+                "steam_app_id": 1,
+                "summary": "Duplicate.",
+                "reasoning": "Also fits the visitor request.",
+            },
+            {
+                "steam_app_id": 2,
+                "summary": "Too long a reason.",
+                "reasoning": "x" * 300,
+            },
+            {
+                "steam_app_id": 3,
+                "summary": "Third.",
+                "reasoning": "Fits the visitor request too.",
+            },
+        ]
+    )
+
+    response, _ = rerank_with_metadata(
+        client,
+        model_id="evaluation-model",
+        request=request(),
+    )
+
+    assert [item.steam_app_id for item in response.recommendations] == [1, 3]
+    assert response.recommendations[0].summary == "First."
 
 
 def test_thirty_candidate_fixture_stays_within_request_budget() -> None:
@@ -259,3 +286,76 @@ def test_response_schema_uses_supported_shape_and_local_id_validation() -> None:
     assert "minLength" not in str(schema)
     assert "maxLength" not in str(schema)
     assert "default" not in str(schema)
+
+
+def test_worst_case_scored_pool_fits_and_reasoning_may_cite_supplied_facts() -> None:
+    candidates = tuple(
+        RerankCandidate(
+            steam_app_id=index,
+            title=f"Game {index}",
+            summary="s" * 1_200,
+            genres=("Adventure", "Role-playing", "Indie", "Action"),
+            themes=("Fantasy", "Drama", "Open world", "Science fiction"),
+            keywords=(
+                "Exploration",
+                "Story rich",
+                "Pixel graphics",
+                "Character customization",
+                "Atmospheric",
+            ),
+            game_modes=("Single player", "Multiplayer", "Co-operative"),
+            profile_playtime_minutes=0,
+            normal_completion_minutes=600,
+            critic_score=96,
+        )
+        for index in range(1, 401)
+    )
+    request_snapshot = RerankRequest(
+        prompt="x" * 500,
+        selected_genre_id=31,
+        selected_genre_name="Adventure",
+        filters=RerankFilters(),
+        candidates=project_rerank_candidates(candidates, COMPACT_PROJECTION),
+    )
+
+    prompt = build_rerank_user_prompt(request_snapshot)
+
+    assert MAX_RERANK_REQUEST_BYTES == 250_000
+    assert len(prompt.encode("utf-8")) <= MAX_RERANK_REQUEST_BYTES
+    assert '"critic_score":96' in prompt
+    assert '"igdb_rating"' not in prompt
+    instruction = " ".join(RERANK_SYSTEM_INSTRUCTION.split())
+    assert "mention one of those supplied facts" in instruction
+    assert "Never state a score, review, award" in instruction
+
+
+def test_typical_names_genres_pool_of_2000_fits_with_short_keys() -> None:
+    candidates = tuple(
+        RerankCandidate(
+            steam_app_id=1_000_000 + index,
+            title=f"A Typical Game Title {index:04d}",
+            summary=None,
+            genres=("Role-playing (RPG)", "Adventure"),
+            themes=(),
+            keywords=(),
+            game_modes=(),
+            profile_playtime_minutes=0,
+            critic_score=96 if index % 2 else None,
+        )
+        for index in range(2_000)
+    )
+    request_snapshot = RerankRequest(
+        prompt="x" * 500,
+        filters=RerankFilters(),
+        candidates=candidates,
+        candidate_format="names_genres",
+    )
+
+    prompt = build_rerank_user_prompt(request_snapshot)
+
+    assert len(prompt.encode("utf-8")) <= MAX_RERANK_REQUEST_BYTES
+    assert '"id":1000000' in prompt
+    assert '"steam_app_id"' not in prompt.split("<rerank_input>")[1]
+    assert '"summary"' not in prompt and '"themes"' not in prompt
+    instruction = " ".join(RERANK_SYSTEM_INSTRUCTION.split())
+    assert "return that id as steam_app_id" in instruction

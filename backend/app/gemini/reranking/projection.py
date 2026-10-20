@@ -18,6 +18,9 @@ RICH_PROJECTION = RerankProjection("rich", 1200, 8, 8, 12, 8)
 BALANCED_PROJECTION = RerankProjection("balanced", 300, 4, 4, 6, 4)
 COMPACT_PROJECTION = RerankProjection("compact", 240, 3, 3, 4, 3)
 MINIMAL_PROJECTION = RerankProjection("minimal", 0, 3, 3, 4, 3)
+# Large pools (401–2,000): only names, up to three genres, and a headline
+# score are serialized; see `candidate_format` on the request.
+NAMES_GENRES_PROJECTION = RerankProjection("names_genres", 0, 3, 0, 0, 0)
 
 
 def _bounded_summary(summary: str | None, characters: int) -> str | None:

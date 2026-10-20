@@ -241,7 +241,8 @@ export type AssistantFilters = {
 
 export type AssistantRecommendationSubmission = {
    prompt: string;
-   selected_genre_id: number;
+   /** Omit to consider the whole library (up to 2,000 eligible games). */
+   selected_genre_id?: number;
    filters: AssistantFilters;
    rejected_steam_app_ids: number[];
    excluded_steam_app_ids?: number[];
@@ -251,6 +252,7 @@ export type AssistantRecommendationStatus =
    | "ranked"
    | "no_match"
    | "empty"
+   | "needs_genre"
    | "needs_refinement"
    | "unavailable";
 

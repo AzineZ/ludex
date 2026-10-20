@@ -69,7 +69,7 @@ def test_assistant_filter_options_are_provider_free(
     assert response.status_code == 200
     assert response.json() == {
         "eligible_count": 1,
-        "candidate_limit": 400,
+        "candidate_limit": 2000,
         "themes": [{"igdb_id": 17, "name": "Fantasy", "eligible_count": 1}],
         "game_modes": [
             {"igdb_id": 1, "name": "Single player", "eligible_count": 1}
@@ -122,7 +122,7 @@ def test_assistant_submit_maps_ai_summary_and_prompt_specific_reasoning(
     assert response.json() == {
         "status": "ranked",
         "eligible_count": 1,
-        "candidate_limit": 400,
+        "candidate_limit": 2000,
         "items": [
             {
                 "rank": 1,
@@ -311,3 +311,39 @@ def test_assistant_bounds_games_already_suggested(
         field="excluded_steam_app_ids[2]",
         message="Excluded game IDs must be unique.",
     )
+
+
+def test_assistant_accepts_a_prompt_without_a_genre(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    _add_game(
+        recommendation_api.database_session,
+        profile_id=1,
+        steam_app_id=1,
+    )
+    _add_game(
+        recommendation_api.database_session,
+        profile_id=1,
+        steam_app_id=2,
+        genre=(12, "Role-playing (RPG)"),
+    )
+
+    response = recommendation_api.client.post(
+        "/recommendations/assistant",
+        json={
+            "prompt": "Anything good",
+            "filters": {
+                "play_status": "either",
+                "maximum_completion_minutes": None,
+                "theme_ids": [],
+                "game_mode_ids": [],
+            },
+            "rejected_steam_app_ids": [],
+        },
+    )
+
+    # The whole library is the pool; without a configured runtime the
+    # request still reports how many games it would have sent.
+    assert response.status_code == 200
+    assert response.json()["eligible_count"] == 2
+    assert response.json()["candidate_limit"] == 2000

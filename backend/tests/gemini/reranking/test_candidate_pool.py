@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -256,10 +258,20 @@ def test_filter_options_are_scoped_to_genre_and_current_basic_constraints(
     assert narrowed.game_modes == options.game_modes
 
 
+def _shrink_pool_limits(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stand in 2 and 3 for the 400 and 2,000 limits to test routing cheaply."""
+    import app.gemini.reranking.candidate_pool as candidate_pool
+
+    monkeypatch.setattr(candidate_pool, "MAX_RERANK_DETAILED_CANDIDATES", 2)
+    monkeypatch.setattr(candidate_pool, "MAX_RERANK_CANDIDATES", 3)
+
+
 def test_zero_and_oversized_pools_never_build_a_provider_request(
     database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    for steam_app_id in range(1, 402):
+    _shrink_pool_limits(monkeypatch)
+    for steam_app_id in range(1, 5):
         _add_game(
             database_session,
             profile_id=1,
@@ -273,6 +285,13 @@ def test_zero_and_oversized_pools_never_build_a_provider_request(
         selected_genre_id=31,
         filters=RerankFilters(),
     )
+    no_genre = build_rerank_candidate_pool(
+        database_session,
+        profile_id=1,
+        prompt="Something fun",
+        selected_genre_id=None,
+        filters=RerankFilters(),
+    )
     empty = build_rerank_candidate_pool(
         database_session,
         profile_id=1,
@@ -282,12 +301,60 @@ def test_zero_and_oversized_pools_never_build_a_provider_request(
     )
 
     assert oversized.state is RerankCandidatePoolState.NEEDS_REFINEMENT
-    assert oversized.eligible_count == 401
+    assert oversized.eligible_count == 4
     assert oversized.request is None
     assert oversized.presentations == ()
+    assert no_genre.state is RerankCandidatePoolState.NEEDS_GENRE
+    assert no_genre.request is None
     assert empty.state is RerankCandidatePoolState.EMPTY
     assert empty.eligible_count == 0
     assert empty.request is None
+
+
+def test_pool_size_picks_the_detailed_or_names_genres_format(
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _shrink_pool_limits(monkeypatch)
+    _add_game(database_session, profile_id=1, steam_app_id=1)
+    _add_game(
+        database_session,
+        profile_id=1,
+        steam_app_id=2,
+        genre=(12, "Role-playing (RPG)"),
+    )
+
+    def pool(selected_genre_id: int | None):
+        return build_rerank_candidate_pool(
+            database_session,
+            profile_id=1,
+            prompt="Something fun",
+            selected_genre_id=selected_genre_id,
+            filters=RerankFilters(),
+        )
+
+    small = pool(None)
+    assert small.state is RerankCandidatePoolState.READY
+    assert small.request.candidate_format == "detailed"
+    assert small.request.selected_genre_id is None
+    assert small.eligible_count == 2
+
+    _add_game(database_session, profile_id=1, steam_app_id=3)
+    large = pool(None)
+    assert large.request.candidate_format == "names_genres"
+    prompt = build_rerank_user_prompt(large.request)
+    payload = json.loads(
+        prompt.split("<rerank_input>\n")[1].split("\n</rerank_input>")[0]
+    )
+    assert payload["selected_genre"] is None
+    assert {
+        frozenset(candidate) for candidate in payload["candidates"]
+    } == {frozenset({"id", "title", "genres"})}
+
+    genre_pool = pool(31)
+    assert genre_pool.request.candidate_format == "detailed"
+    assert genre_pool.request.selected_genre_name == "Adventure"
+    assert genre_pool.eligible_count == 2
 
 
 def test_submitted_genre_and_filter_ids_are_revalidated_for_profile(
@@ -394,15 +461,25 @@ def test_complete_pool_uses_the_approved_adaptive_projection(
     )
 
 
-def test_ratings_reach_presentation_but_never_the_provider_prompt(
+def test_only_the_headline_score_reaches_the_provider_prompt(
     database_session: Session,
 ) -> None:
     _add_game(database_session, profile_id=1, steam_app_id=7)
-    game = database_session.get(Game, 7)
-    game.igdb_total_rating = 87.4
-    game.igdb_total_rating_count = 1_204
-    game.igdb_aggregated_rating = 93.6
-    game.igdb_aggregated_rating_count = 12
+    _add_game(database_session, profile_id=1, steam_app_id=8)
+    _add_game(database_session, profile_id=1, steam_app_id=9)
+    critics_game = database_session.get(Game, 7)
+    critics_game.igdb_total_rating = 87.4
+    critics_game.igdb_total_rating_count = 1_204
+    critics_game.igdb_aggregated_rating = 93.6
+    critics_game.igdb_aggregated_rating_count = 12
+    rated_game = database_session.get(Game, 8)
+    rated_game.igdb_total_rating = 81.2
+    rated_game.igdb_total_rating_count = 40
+    rated_game.igdb_aggregated_rating = 55.0
+    rated_game.igdb_aggregated_rating_count = 2
+    thin_game = database_session.get(Game, 9)
+    thin_game.igdb_total_rating = 99.0
+    thin_game.igdb_total_rating_count = 3
     database_session.commit()
 
     pool = build_rerank_candidate_pool(
@@ -414,8 +491,51 @@ def test_ratings_reach_presentation_but_never_the_provider_prompt(
     )
 
     assert pool.request is not None
-    assert pool.presentations[0].ratings.headline is not None
-    prompt = build_rerank_user_prompt(pool.request).lower()
-    assert "rating" not in prompt
-    assert "critic" not in prompt
-    assert "87.4" not in prompt and "93.6" not in prompt and "1204" not in prompt
+    scores = {
+        candidate.steam_app_id: (candidate.critic_score, candidate.igdb_rating)
+        for candidate in pool.request.candidates
+    }
+    assert scores == {7: (94, None), 8: (None, 81), 9: (None, None)}
+    prompt = build_rerank_user_prompt(pool.request)
+    payload = json.loads(
+        prompt.split("<rerank_input>\n")[1].split("\n</rerank_input>")[0]
+    )
+    sent = {
+        candidate["steam_app_id"]: candidate
+        for candidate in payload["candidates"]
+    }
+
+    assert sent[7]["critic_score"] == 94 and "igdb_rating" not in sent[7]
+    assert sent[8]["igdb_rating"] == 81 and "critic_score" not in sent[8]
+    assert "critic_score" not in sent[9] and "igdb_rating" not in sent[9]
+    # Vote counts and raw averages never reach the model.
+    assert not any(
+        "count" in key or "aggregated" in key or "total" in key
+        for candidate in payload["candidates"]
+        for key in candidate
+    )
+
+
+def test_an_oversized_large_payload_asks_for_narrowing_instead_of_failing(
+    database_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.gemini.reranking.candidate_pool as candidate_pool
+
+    _shrink_pool_limits(monkeypatch)
+    monkeypatch.setattr(candidate_pool, "MAX_RERANK_REQUEST_BYTES", 100)
+    for steam_app_id in range(1, 4):
+        _add_game(database_session, profile_id=1, steam_app_id=steam_app_id)
+
+    def pool(selected_genre_id: int | None):
+        return build_rerank_candidate_pool(
+            database_session,
+            profile_id=1,
+            prompt="Something fun",
+            selected_genre_id=selected_genre_id,
+            filters=RerankFilters(),
+        )
+
+    assert pool(None).state is RerankCandidatePoolState.NEEDS_GENRE
+    assert pool(31).state is RerankCandidatePoolState.NEEDS_REFINEMENT
+    assert pool(None).request is None

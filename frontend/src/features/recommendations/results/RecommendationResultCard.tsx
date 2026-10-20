@@ -5,6 +5,7 @@ import RecommendationEvidenceDisclosure from "./RecommendationEvidenceDisclosure
 import {
    CardHeading,
    CardTitle,
+   ResultCardBackdrop,
    ResultCardCover,
    ResultCardFacts,
    ResultCardMeta,
@@ -61,6 +62,7 @@ function RecommendationResultCard({
          aria-labelledby={headingId}
          tabIndex={focusRequestId === undefined ? undefined : -1}
       >
+         <ResultCardBackdrop coverUrl={item.cover_url} />
          <ResultCardCover title={item.title} coverUrl={item.cover_url} />
 
          <div className="recommendation-result-card__body">

@@ -147,8 +147,10 @@ describe("RecommendationResultCard", () => {
       expect(body).toContainElement(
          within(card).getByRole("heading", { level: 3, name: "Portal 2" })
       );
-      expect(within(card).getByText("Critics 91 · ~5 h · Played 2 h"))
-         .toHaveClass("recommendation-result-card__meta");
+      const meta = card.querySelector(".recommendation-result-card__meta");
+      expect(meta).toHaveTextContent("Critics 91~5 h · Played 2 h");
+      expect(within(card).getByText("Critics 91"))
+         .toHaveClass("recommendation-result-card__rating");
       expect(within(card).getByText("Matches Puzzle, Science fiction, and Co-op"))
          .toHaveClass("recommendation-result-card__match");
    });
@@ -312,12 +314,14 @@ describe("RecommendationResultCard", () => {
             }}
          />
       );
-      expect(screen.getByText("Rated 88 · ~5 h · Played 2 h"))
-         .toBeInTheDocument();
+      expect(screen.getByText("Rated 88"))
+         .toHaveClass("recommendation-result-card__rating");
       expect(facts()[2]).toBe("40/100 from 1 review");
 
       rerender(<RecommendationResultCard item={recommendation} />);
       expect(screen.getByText("~5 h · Played 2 h")).toBeInTheDocument();
+      expect(document.querySelector(".recommendation-result-card__rating"))
+         .toBeNull();
       expect(facts().slice(2)).toEqual(["No critic reviews", "Not rated"]);
    });
 
@@ -457,5 +461,20 @@ describe("RecommendationResultCard", () => {
       expect(document.querySelector(".recommendation-evidence"))
          .toBeInTheDocument();
       expect(screen.queryByRole("list")).not.toBeInTheDocument();
+   });
+
+   it("paints a blurred cover backdrop only when a cover exists", () => {
+      const { rerender } = render(<RecommendationResultCard item={recommendation} />);
+      const backdrop = document.querySelector<HTMLElement>(
+         ".recommendation-result-card__backdrop"
+      );
+      expect(backdrop).toHaveAttribute("aria-hidden", "true");
+      expect(backdrop?.style.backgroundImage).toContain("portal-2.jpg");
+
+      rerender(
+         <RecommendationResultCard item={{ ...recommendation, cover_url: null }} />
+      );
+      expect(document.querySelector(".recommendation-result-card__backdrop"))
+         .toBeNull();
    });
 });

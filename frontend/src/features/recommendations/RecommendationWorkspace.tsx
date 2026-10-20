@@ -2,7 +2,6 @@ import { useCallback, useState } from "react";
 
 import type { RecommendationPreference } from "../../api";
 import "./recommendations.css";
-import AssistantWorkspace from "./assistant/AssistantWorkspace";
 import AutomaticRecommendations from "./automatic/AutomaticRecommendations";
 import ReferenceSelectionSection from "./references/ReferenceSelectionSection";
 import type { RecommendationWorkspaceView } from "./recommendationWorkspaceTypes";
@@ -12,11 +11,6 @@ type RecommendationWorkspaceProps = {
 };
 
 type GuidedView = "suggestions" | "customize";
-
-const UNAVAILABLE_NOTICE =
-   "Ludex needs at least one game you’ve played for an hour or more, with " +
-   "game details loaded, to suggest games automatically. Choose reference " +
-   "games below instead.";
 
 type WorkspaceNavigationProps = {
    activeView: RecommendationWorkspaceView;
@@ -58,14 +52,9 @@ function WorkspaceNavigation({
 function RecommendationWorkspaceSession({
    sessionEpoch,
 }: RecommendationWorkspaceProps) {
-   const [mode, setMode] = useState<"guided" | "assistant">("guided");
    const [guidedView, setGuidedView] = useState<GuidedView>("suggestions");
-   const [suggestionsAvailable, setSuggestionsAvailable] = useState(true);
    const [prefill, setPrefill] = useState<RecommendationPreference | null>(
       null
-   );
-   const [suggestedSteamAppIds, setSuggestedSteamAppIds] = useState<number[]>(
-      []
    );
    const [activeView, setActiveView] =
       useState<RecommendationWorkspaceView>("preferences");
@@ -82,11 +71,6 @@ function RecommendationWorkspaceSession({
       setActiveView("preferences");
    }, []);
 
-   const handleSuggestionsUnavailable = useCallback(() => {
-      setSuggestionsAvailable(false);
-      setGuidedView("customize");
-   }, []);
-
    function openCustomize(preference: RecommendationPreference | null): void {
       if (preference !== null) {
          setPrefill(preference);
@@ -97,47 +81,17 @@ function RecommendationWorkspaceSession({
 
    return (
       <div className="app__recommendation-workspace">
-         <nav
-            className="app__recommendation-mode-nav"
-            aria-label="Recommendation method"
-         >
-            <button
-               type="button"
-               aria-current={mode === "guided" ? "page" : undefined}
-               onClick={() => setMode("guided")}
-            >
-               Guided recommendations
-            </button>
-            <button
-               type="button"
-               aria-current={mode === "assistant" ? "page" : undefined}
-               onClick={() => setMode("assistant")}
-            >
-               Ask Ludex AI
-            </button>
-         </nav>
-
-         <div hidden={mode !== "guided" || guidedView !== "suggestions"}>
-            <AutomaticRecommendations
-               onCustomize={openCustomize}
-               onUnavailable={handleSuggestionsUnavailable}
-               onSuggestedChange={setSuggestedSteamAppIds}
-            />
+         <div hidden={guidedView !== "suggestions"}>
+            <AutomaticRecommendations onCustomize={openCustomize} />
          </div>
-         <div hidden={mode !== "guided" || guidedView !== "customize"}>
-            {suggestionsAvailable ? (
-               <button
-                  className="app__secondary-button app__recommendation-workspace__back"
-                  type="button"
-                  onClick={() => setGuidedView("suggestions")}
-               >
-                  ← Back to suggestions
-               </button>
-            ) : (
-               <p className="app__recommendation-workspace__notice">
-                  {UNAVAILABLE_NOTICE}
-               </p>
-            )}
+         <div hidden={guidedView !== "customize"}>
+            <button
+               className="app__secondary-button app__recommendation-workspace__back"
+               type="button"
+               onClick={() => setGuidedView("suggestions")}
+            >
+               ← Back to recommendations
+            </button>
             <WorkspaceNavigation
                activeView={activeView}
                recommendationsAvailable={recommendationsAvailable}
@@ -153,17 +107,6 @@ function RecommendationWorkspaceSession({
                />
             </div>
          </div>
-         {mode === "assistant" && (
-            <AssistantWorkspace
-               sessionEpoch={sessionEpoch}
-               suggestedSteamAppIds={suggestedSteamAppIds}
-               onUseGuided={() => {
-                  setActiveView("preferences");
-                  setGuidedView("customize");
-                  setMode("guided");
-               }}
-            />
-         )}
       </div>
    );
 }

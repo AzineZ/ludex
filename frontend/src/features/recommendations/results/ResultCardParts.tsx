@@ -6,6 +6,7 @@ import type { GameRatingsResponse } from "../../../api";
 import {
    describeCardMeta,
    describeCompletion,
+   describeRatingHeadline,
    describeCriticScore,
    describeIgdbRating,
    describePlaytime,
@@ -39,6 +40,25 @@ export function ResultCardCover({ title, coverUrl }: ResultCardCoverProps) {
             />
          )}
       </div>
+   );
+}
+
+/**
+ * Paints a blurred, darkened copy of the cover behind the card's text so
+ * each card carries its game's colours without hurting readability.
+ */
+export function ResultCardBackdrop({ coverUrl }: { coverUrl: string | null }) {
+   if (coverUrl === null) {
+      return null;
+   }
+   return (
+      <div
+         className="recommendation-result-card__backdrop"
+         aria-hidden="true"
+         style={{
+            backgroundImage: `url("${getRecommendationCoverUrl(coverUrl)}")`,
+         }}
+      />
    );
 }
 
@@ -100,13 +120,18 @@ export function ResultCardMeta({
    normalCompletionSeconds,
    profilePlaytimeMinutes,
 }: ResultCardMetaProps) {
+   const rating = describeRatingHeadline(ratings);
+   const rest = describeCardMeta(
+      { ...ratings, headline: null },
+      normalCompletionSeconds,
+      profilePlaytimeMinutes
+   );
    return (
       <p className="recommendation-result-card__meta">
-         {describeCardMeta(
-            ratings,
-            normalCompletionSeconds,
-            profilePlaytimeMinutes
+         {rating !== null && (
+            <span className="recommendation-result-card__rating">{rating}</span>
          )}
+         <span className="recommendation-result-card__meta-text">{rest}</span>
       </p>
    );
 }

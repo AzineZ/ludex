@@ -8,26 +8,6 @@ function openCustomize(): void {
    fireEvent.click(screen.getByRole("button", { name: "Customize" }));
 }
 
-vi.mock("../../features/recommendations/assistant/AssistantWorkspace", () => ({
-   default: ({
-      onUseGuided,
-      sessionEpoch,
-      suggestedSteamAppIds,
-   }: {
-      onUseGuided: () => void;
-      sessionEpoch: number | null;
-      suggestedSteamAppIds?: readonly number[];
-   }) => (
-      <div>
-         <p>Assistant epoch: {sessionEpoch ?? "none"}</p>
-         <p>Assistant skips: {suggestedSteamAppIds?.join(",") || "none"}</p>
-         <button type="button" onClick={onUseGuided}>
-            Mock guided fallback
-         </button>
-      </div>
-   ),
-}));
-
 const suggestedPreference: RecommendationPreference = {
    references: [
       {
@@ -46,27 +26,18 @@ const suggestedPreference: RecommendationPreference = {
 vi.mock("../../features/recommendations/automatic/AutomaticRecommendations", () => ({
    default: ({
       onCustomize,
-      onUnavailable,
-      onSuggestedChange,
    }: {
       onCustomize: (preference: RecommendationPreference | null) => void;
-      onUnavailable: () => void;
-      onSuggestedChange?: (steamAppIds: number[]) => void;
    }) => (
       <div>
          <p>Mock automatic suggestions</p>
-         <button type="button" onClick={() => onSuggestedChange?.([501, 502])}>
-            Mock suggest games
-         </button>
          <button type="button" onClick={() => onCustomize(suggestedPreference)}>
             Customize
-         </button>
-         <button type="button" onClick={onUnavailable}>
-            Mock suggestions unavailable
          </button>
       </div>
    ),
 }));
+
 
 vi.mock("../../features/recommendations/references/ReferenceSelectionSection", () => ({
    default: ({
@@ -101,14 +72,16 @@ vi.mock("../../features/recommendations/references/ReferenceSelectionSection", (
 }));
 
 describe("RecommendationWorkspace", () => {
-   it("starts on automatic suggestions with the form behind Customize", () => {
+   it("starts on one recommendations area with no method tabs", () => {
       render(<RecommendationWorkspace sessionEpoch={4} />);
 
       expect(screen.getByText("Mock automatic suggestions")).toBeVisible();
+      expect(screen.queryByRole("navigation", { name: "Recommendation method" }))
+         .not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Ask Ludex AI" }))
+         .not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Preferences" }))
          .not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Guided recommendations" }))
-         .toHaveAttribute("aria-current", "page");
    });
 
    it("opens Customize prefilled and returns to the same suggestions", () => {
@@ -119,25 +92,11 @@ describe("RecommendationWorkspace", () => {
       expect(screen.getByText("Mock automatic suggestions")).not.toBeVisible();
 
       fireEvent.click(screen.getByRole("button", {
-         name: "← Back to suggestions",
+         name: "← Back to recommendations",
       }));
       expect(screen.getByText("Mock automatic suggestions")).toBeVisible();
       expect(screen.queryByRole("button", { name: "Preferences" }))
          .not.toBeInTheDocument();
-   });
-
-   it("falls back to the form with an explanation when suggestions are unavailable", () => {
-      render(<RecommendationWorkspace sessionEpoch={4} />);
-
-      fireEvent.click(screen.getByRole("button", {
-         name: "Mock suggestions unavailable",
-      }));
-
-      expect(screen.getByText(/Choose reference games below instead\./))
-         .toBeVisible();
-      expect(screen.queryByRole("button", { name: "← Back to suggestions" }))
-         .not.toBeInTheDocument();
-      expect(screen.getByText("Mock prefill: none")).toBeVisible();
    });
 
    it("starts Customize on preferences with unavailable recommendation navigation", () => {
@@ -151,34 +110,6 @@ describe("RecommendationWorkspace", () => {
          .toHaveAttribute("aria-current", "page");
       expect(screen.getByRole("button", { name: "Guided results" }))
          .toBeDisabled();
-      expect(screen.getByRole("button", { name: "Guided recommendations" }))
-         .toHaveAttribute("aria-current", "page");
-   });
-
-   it("hands games Guided suggested to Ask Ludex", () => {
-      render(<RecommendationWorkspace sessionEpoch={4} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "Mock suggest games" }));
-      fireEvent.click(screen.getByRole("button", { name: "Ask Ludex AI" }));
-
-      expect(screen.getByText("Assistant skips: 501,502")).toBeInTheDocument();
-   });
-
-   it("opens the optional assistant and returns through its guided fallback", () => {
-      render(<RecommendationWorkspace sessionEpoch={4} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "Ask Ludex AI" }));
-      expect(screen.getByText("Assistant epoch: 4")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Ask Ludex AI" }))
-         .toHaveAttribute("aria-current", "page");
-      expect(screen.queryByRole("button", { name: "Preferences" }))
-         .not.toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole("button", { name: "Mock guided fallback" }));
-      expect(screen.getByRole("button", { name: "Guided recommendations" }))
-         .toHaveAttribute("aria-current", "page");
-      expect(screen.getByRole("button", { name: "Preferences" }))
-         .toBeInTheDocument();
    });
 
    it("opens completed recommendations and preserves access after returning to preferences", () => {

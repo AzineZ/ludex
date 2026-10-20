@@ -10,8 +10,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
    ApiError,
+   getAssistantGenres,
+   getAssistantRecommendations,
    getAutomaticRecommendations,
    getMoreLikeThisRecommendations,
+   type AssistantRecommendationItemResponse,
+   type AssistantRecommendationResponse,
    type AutomaticRecommendationResponse,
 } from "../../api";
 import AutomaticRecommendations from "../../features/recommendations/automatic/AutomaticRecommendations";
@@ -29,6 +33,9 @@ vi.mock("../../api", async (importOriginal) => {
    const actual = await importOriginal<typeof import("../../api")>();
    return {
       ...actual,
+      getAssistantFilterOptions: vi.fn(),
+      getAssistantGenres: vi.fn(),
+      getAssistantRecommendations: vi.fn(),
       getAutomaticRecommendations: vi.fn(),
       getMoreLikeThisRecommendations: vi.fn(),
    };
@@ -36,6 +43,41 @@ vi.mock("../../api", async (importOriginal) => {
 
 const mockedAutomatic = vi.mocked(getAutomaticRecommendations);
 const mockedMoreLike = vi.mocked(getMoreLikeThisRecommendations);
+const mockedAsk = vi.mocked(getAssistantRecommendations);
+const mockedGenres = vi.mocked(getAssistantGenres);
+
+function aiItem(steamAppId: number): AssistantRecommendationItemResponse {
+   return {
+      rank: 1,
+      steam_app_id: steamAppId,
+      title: `AI Game ${steamAppId}`,
+      cover_url: null,
+      profile_playtime_minutes: 0,
+      normal_completion_seconds: null,
+      ratings: { headline: null, critics: null, total: null },
+      summary: "A game summary.",
+      reasoning: `It fits what you asked for; critics score it ${steamAppId % 100}.`,
+      content_source: "ai_generated",
+   };
+}
+
+function ranked(ids: number[]): AssistantRecommendationResponse {
+   return {
+      status: "ranked",
+      eligible_count: 120,
+      candidate_limit: 2000,
+      items: ids.map(aiItem),
+      message: null,
+      guided_fallback_available: true,
+   };
+}
+
+async function askLudex(text: string): Promise<void> {
+   fireEvent.change(screen.getByLabelText("Ask Ludex"), {
+      target: { value: text },
+   });
+   fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+}
 
 const PREPARING: AutomaticRecommendationResponse = {
    status: "preparing",
@@ -46,15 +88,13 @@ const PREPARING: AutomaticRecommendationResponse = {
 function renderAutomatic() {
    const onCustomize = vi.fn();
    const onUnavailable = vi.fn();
-   const onSuggestedChange = vi.fn();
    render(
       <AutomaticRecommendations
          onCustomize={onCustomize}
          onUnavailable={onUnavailable}
-         onSuggestedChange={onSuggestedChange}
       />
    );
-   return { onCustomize, onUnavailable, onSuggestedChange };
+   return { onCustomize, onUnavailable };
 }
 
 function rowRegion(name: string | RegExp): HTMLElement {
@@ -81,6 +121,8 @@ describe("AutomaticRecommendations", () => {
    beforeEach(() => {
       mockedAutomatic.mockReset();
       mockedMoreLike.mockReset();
+      mockedAsk.mockReset();
+      mockedGenres.mockReset();
    });
 
    afterEach(() => {
@@ -91,9 +133,9 @@ describe("AutomaticRecommendations", () => {
       mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
       renderAutomatic();
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "Finding recommendations in your library…"
-      );
+      expect(
+         screen.getByText("Finding recommendations in your library…")
+      ).toBeInTheDocument();
       const first = await screen.findByRole("region", {
          name: "Because you played Source 101 · 42 h",
       });
@@ -123,9 +165,8 @@ describe("AutomaticRecommendations", () => {
       renderAutomatic();
       await act(async () => {});
 
-      expect(screen.getByRole("status")).toHaveTextContent(
-         "Preparing your recommendations…"
-      );
+      expect(screen.getByText(/^Preparing your recommendations…/))
+         .toBeInTheDocument();
       for (let retry = 1; retry <= MAX_PREPARING_RETRIES; retry += 1) {
          await act(async () => {
             await vi.advanceTimersByTimeAsync(PREPARING_RETRY_DELAY_MS);
@@ -380,28 +421,145 @@ describe("AutomaticRecommendations", () => {
       }
    });
 
-   it("reports the games its rows suggest so Ask Ludex can skip them", async () => {
+   it("asks Ludex with the shared filters and skips games already suggested", async () => {
       mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
-      const { onSuggestedChange } = renderAutomatic();
-      const first = await screen.findByRole("region", {
+      mockedAsk.mockResolvedValue(ranked([701, 702, 703, 704]));
+      renderAutomatic();
+      await screen.findByRole("region", {
+         name: "Because you played Source 101 · 42 h",
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Up to 10 hours" }));
+      await waitFor(() => {
+         expect(screen.getByRole("button", { name: "Up to 10 hours" }))
+            .toBeEnabled();
+      });
+
+      expect(
+         screen.getByText("Skipping 12 games already suggested below.")
+      ).toBeInTheDocument();
+      await askLudex("Something cozy");
+
+      expect(mockedAsk).toHaveBeenCalledWith({
+         prompt: "Something cozy",
+         filters: {
+            play_status: "unplayed",
+            maximum_completion_minutes: 600,
+            theme_ids: [],
+            game_mode_ids: [],
+         },
+         rejected_steam_app_ids: [],
+         excluded_steam_app_ids: [
+            201, 202, 203, 207, 208, 209, 213, 214, 215, 101, 102, 103,
+         ],
+      });
+      expect(
+         await screen.findByRole("region", {
+            name: "Ludex AI picks for “Something cozy”",
+         })
+      ).toBeInTheDocument();
+      expect(rowHeadings()[0]).toBe("Ludex AI picks for “Something cozy”");
+      expect(screen.getByLabelText("Ask Ludex")).toHaveValue("");
+      expect(screen.getByText(/critics score it 1\./)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Include them" }));
+      await askLudex("Something else");
+      expect(mockedAsk).toHaveBeenLastCalledWith(
+         expect.objectContaining({ excluded_steam_app_ids: [] })
+      );
+   });
+
+   it("asks for a genre only when the library is too large, then retries with it", async () => {
+      mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
+      mockedAsk.mockResolvedValueOnce({
+         status: "needs_genre",
+         eligible_count: 2_400,
+         candidate_limit: 2000,
+         items: [],
+         message: "Your library is large, so pick a genre to focus on.",
+         guided_fallback_available: true,
+      });
+      mockedAsk.mockResolvedValueOnce(ranked([801, 802, 803]));
+      mockedGenres.mockResolvedValue({
+         items: [{ igdb_id: 12, name: "Role-playing (RPG)", eligible_count: 900 }],
+      });
+      renderAutomatic();
+      await screen.findByRole("region", {
          name: "Because you played Source 101 · 42 h",
       });
 
-      await waitFor(() => {
-         expect(onSuggestedChange).toHaveBeenLastCalledWith([
-            201, 202, 203, 207, 208, 209, 213, 214, 215, 101, 102, 103,
-         ]);
+      await askLudex("A long RPG");
+      fireEvent.click(
+         await screen.findByRole("button", { name: "Role-playing (RPG), 900 games" })
+      );
+
+      expect(mockedAsk).toHaveBeenLastCalledWith(
+         expect.objectContaining({ prompt: "A long RPG", selected_genre_id: 12 })
+      );
+      expect(
+         await screen.findByRole("region", { name: "Ludex AI picks for “A long RPG”" })
+      ).toBeInTheDocument();
+      expect(screen.getByText("Focused on one genre.")).toBeInTheDocument();
+   });
+
+   it("keeps three Ask Ludex rows, collapses older ones, and remembers dismissals", async () => {
+      mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
+      renderAutomatic();
+      await screen.findByRole("region", {
+         name: "Because you played Source 101 · 42 h",
       });
 
+      for (const [index, text] of ["one", "two", "three", "four"].entries()) {
+         mockedAsk.mockResolvedValueOnce(
+            ranked([900 + index * 10, 901 + index * 10, 902 + index * 10, 903 + index * 10])
+         );
+         await askLudex(text);
+         await screen.findByText(`Ludex AI picks for “${text}”`);
+      }
+
+      const aiHeadings = rowHeadings().filter((title) => title.startsWith("Ludex AI"));
+      expect(aiHeadings).toEqual([
+         "Ludex AI picks for “four”",
+         "Ludex AI picks for “three”",
+         "Ludex AI picks for “two”",
+      ]);
+      expect(
+         rowRegion("Ludex AI picks for “three”").querySelector(
+            ".automatic-recommendations__collapsed"
+         )
+      ).not.toBeNull();
+
       fireEvent.click(
-         within(first).getByRole("button", {
-            name: /Show another instead of Game 202/,
+         within(rowRegion("Ludex AI picks for “four”")).getByRole("button", {
+            name: "Show another instead of AI Game 930",
          })
       );
-      await waitFor(() => {
-         expect(onSuggestedChange).toHaveBeenLastCalledWith([
-            201, 204, 203, 207, 208, 209, 213, 214, 215, 101, 102, 103, 202,
-         ]);
+      mockedAsk.mockResolvedValueOnce(ranked([990]));
+      await askLudex("five");
+      expect(mockedAsk).toHaveBeenLastCalledWith(
+         expect.objectContaining({ rejected_steam_app_ids: [930] })
+      );
+   });
+
+   it("shows Ludex's message when it cannot answer", async () => {
+      mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
+      mockedAsk.mockResolvedValue({
+         status: "unavailable",
+         eligible_count: 10,
+         candidate_limit: 2000,
+         items: [],
+         message: "AI recommendations are unavailable right now.",
+         guided_fallback_available: true,
       });
+      renderAutomatic();
+      await screen.findByRole("region", {
+         name: "Because you played Source 101 · 42 h",
+      });
+
+      await askLudex("Anything");
+
+      expect(
+         await screen.findByText("AI recommendations are unavailable right now.")
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText("Ask Ludex")).toHaveValue("Anything");
    });
 });

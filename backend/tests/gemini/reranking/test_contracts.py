@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from app.gemini.reranking.contracts import (
     MAX_RERANK_CANDIDATES,
+    MAX_RERANK_DETAILED_CANDIDATES,
     MAX_RERANK_OUTPUT_SUMMARY_CHARACTERS,
     MAX_RERANK_REASONING_CHARACTERS,
     RerankCandidate,
@@ -38,12 +39,33 @@ def request(count: int = 6) -> RerankRequest:
     )
 
 
-def test_request_accepts_at_most_four_hundred_unique_candidates() -> None:
-    assert MAX_RERANK_CANDIDATES == 400
-    assert len(request(MAX_RERANK_CANDIDATES).candidates) == 400
-
+def test_detailed_requests_carry_400_and_names_genres_requests_2000() -> None:
+    assert MAX_RERANK_DETAILED_CANDIDATES == 400
+    assert MAX_RERANK_CANDIDATES == 2_000
+    assert len(request(MAX_RERANK_DETAILED_CANDIDATES).candidates) == 400
     with pytest.raises(ValidationError):
-        request(MAX_RERANK_CANDIDATES + 1)
+        request(MAX_RERANK_DETAILED_CANDIDATES + 1)
+
+    def names_genres(count: int) -> RerankRequest:
+        return RerankRequest(
+            prompt="Something relaxing after work",
+            filters=RerankFilters(),
+            candidates=tuple(candidate(index) for index in range(1, count + 1)),
+            candidate_format="names_genres",
+        )
+
+    large = names_genres(MAX_RERANK_CANDIDATES)
+    assert len(large.candidates) == 2_000
+    assert large.selected_genre_id is None
+    with pytest.raises(ValidationError):
+        names_genres(MAX_RERANK_CANDIDATES + 1)
+    with pytest.raises(ValidationError):
+        RerankRequest(
+            prompt="x",
+            selected_genre_id=31,
+            filters=RerankFilters(),
+            candidates=(candidate(1),),
+        )
 
     duplicated = request()
     with pytest.raises(ValidationError):

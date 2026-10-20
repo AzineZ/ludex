@@ -53,7 +53,8 @@ class RerankSubmission(FrozenContract):
     """Carry one browser submission into the guarded runtime path."""
 
     prompt: str = Field(min_length=1, max_length=500)
-    selected_genre_id: int = Field(strict=True, gt=0)
+    # Optional: whole-library pools up to 2,000 games need no genre.
+    selected_genre_id: int | None = Field(default=None, strict=True, gt=0)
     filters: RerankFilters
     rejected_steam_app_ids: tuple[PositiveIdentifier, ...] = ()
     # Games already suggested elsewhere on the page (Guided rows).
@@ -88,6 +89,7 @@ class RerankAssistantStatus(StrEnum):
     RANKED = "ranked"
     NO_MATCH = "no_match"
     EMPTY = "empty"
+    NEEDS_GENRE = "needs_genre"
     NEEDS_REFINEMENT = "needs_refinement"
     UNAVAILABLE = "unavailable"
 
@@ -205,12 +207,12 @@ def _failed_result(
         retry_after_seconds=retry_after_seconds,
     )
     message = (
-        "Ludex AI has reached Gemini's current usage limit. "
-        "Please try again tomorrow, or use guided recommendations now."
+        "Ludex AI has reached Gemini's current usage limit. Please try "
+        "again tomorrow; the recommendations below still work."
         if rate_limited
         else (
-            "AI recommendations are temporarily unavailable. "
-            "Try guided recommendations instead."
+            "AI recommendations are temporarily unavailable. Try again "
+            "shortly, or browse the recommendations below."
         )
     )
     return RerankAssistantResult(
@@ -218,6 +220,50 @@ def _failed_result(
         eligible_count=eligible_count,
         message=message,
         diagnostic_reference=reference,
+    )
+
+
+def _narrow_large_pool_result(
+    pool: RerankCandidatePool,
+    *,
+    model_id: str,
+    request_bytes: int,
+    started_at: float,
+    reason_code: str | None,
+) -> RerankAssistantResult:
+    """Turn an unusable answer for a large pool into a narrowing step.
+
+    A smaller pool gets descriptions and is more reliable, so the visitor is
+    asked for a genre (or, inside a genre, a theme or game mode) instead of
+    seeing an error.
+    """
+    log_rerank_failure(
+        reference=create_diagnostic_reference(),
+        failure_category="invalid_response",
+        model_id=model_id,
+        candidate_count=pool.eligible_count,
+        request_bytes=request_bytes,
+        duration_ms=_duration_ms(started_at),
+        provider_status=None,
+        reason_code=reason_code,
+        retry_after_seconds=None,
+    )
+    if pool.request is not None and pool.request.selected_genre_id is not None:
+        return RerankAssistantResult(
+            status=RerankAssistantStatus.NEEDS_REFINEMENT,
+            eligible_count=pool.eligible_count,
+            message=(
+                "Ludex couldn't sort through this many games this time. Pick "
+                "a theme or game mode to narrow it down."
+            ),
+        )
+    return RerankAssistantResult(
+        status=RerankAssistantStatus.NEEDS_GENRE,
+        eligible_count=pool.eligible_count,
+        message=(
+            "Ludex couldn't sort through your whole library this time. Pick "
+            "a genre to focus on and try again."
+        ),
     )
 
 
@@ -230,8 +276,17 @@ def _unrankable_pool_result(
             status=RerankAssistantStatus.EMPTY,
             eligible_count=0,
             message=(
-                "No games match those filters. Adjust a filter or try guided "
-                "recommendations."
+                "No games match those filters. Change the Played or Length "
+                "filter, or browse the recommendations below."
+            ),
+        )
+    if pool.state is RerankCandidatePoolState.NEEDS_GENRE:
+        return RerankAssistantResult(
+            status=RerankAssistantStatus.NEEDS_GENRE,
+            eligible_count=pool.eligible_count,
+            message=(
+                "Your library is large, so pick a genre to focus on and Ludex "
+                "will consider every game in it."
             ),
         )
     if pool.state is RerankCandidatePoolState.NEEDS_REFINEMENT:
@@ -343,6 +398,17 @@ def recommend_with_gemini(
         RerankResponseError,
     ) as error:
         diagnostic = _classify_failure(error)
+        if (
+            pool.request.candidate_format == "names_genres"
+            and diagnostic.category == "invalid_response"
+        ):
+            return _narrow_large_pool_result(
+                pool,
+                model_id=runtime.model_id,
+                request_bytes=request_bytes,
+                started_at=started_at,
+                reason_code=diagnostic.reason_code,
+            )
         return _failed_result(
             eligible_count=pool.eligible_count,
             failure_category=diagnostic.category,

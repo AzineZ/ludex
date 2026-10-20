@@ -1,14 +1,17 @@
 from enum import StrEnum
 from hashlib import sha256
 from json import dumps
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.recommendations.contracts import CompletionMinutes, PlayStatus
 
 
-MAX_RERANK_CANDIDATES = 400
+# Pools up to 400 games send descriptions and facts; 401–2,000 send names,
+# genres, and one headline score; above 2,000 a genre must narrow the pool.
+MAX_RERANK_DETAILED_CANDIDATES = 400
+MAX_RERANK_CANDIDATES = 2_000
 MAX_RERANK_RESULTS = 6
 MAX_RERANK_PROMPT_CHARACTERS = 500
 MAX_RERANK_SUMMARY_CHARACTERS = 1200
@@ -71,6 +74,10 @@ class RerankCandidate(FrozenContract):
     game_modes: tuple[str, ...] = Field(max_length=8)
     profile_playtime_minutes: NonnegativeMinutes
     normal_completion_minutes: NonnegativeMinutes | None = None
+    # At most one of these is set: the card's headline score (5+ critic
+    # reviews, else 20+ IGDB ratings), so reasoning can cite it as a fact.
+    critic_score: int | None = Field(default=None, ge=0, le=100)
+    igdb_rating: int | None = Field(default=None, ge=0, le=100)
 
     @field_validator("title")
     @classmethod
@@ -106,17 +113,24 @@ class RerankRequest(FrozenContract):
         min_length=1,
         max_length=MAX_RERANK_PROMPT_CHARACTERS,
     )
-    selected_genre_id: PositiveID
-    selected_genre_name: str = Field(min_length=1, max_length=100)
+    selected_genre_id: PositiveID | None = None
+    selected_genre_name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=100,
+    )
     filters: RerankFilters
     candidates: tuple[RerankCandidate, ...] = Field(
         min_length=1,
         max_length=MAX_RERANK_CANDIDATES,
     )
+    candidate_format: Literal["detailed", "names_genres"] = "detailed"
 
     @field_validator("prompt", "selected_genre_name")
     @classmethod
-    def normalize_request_text(cls, value: str) -> str:
+    def normalize_request_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         normalized = _single_line(value)
         if not normalized:
             raise ValueError("Reranking request text must not be blank.")
@@ -135,7 +149,13 @@ class RerankRequest(FrozenContract):
 
     @model_validator(mode="after")
     def require_selected_genre_on_every_candidate(self) -> "RerankRequest":
-        if any(
+        if (self.selected_genre_id is None) != (self.selected_genre_name is None):
+            raise ValueError("A selected genre needs both its ID and name.")
+        if self.candidate_format == "detailed" and (
+            len(self.candidates) > MAX_RERANK_DETAILED_CANDIDATES
+        ):
+            raise ValueError("Detailed requests carry at most 400 candidates.")
+        if self.selected_genre_name is not None and any(
             self.selected_genre_name not in candidate.genres
             for candidate in self.candidates
         ):

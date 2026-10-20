@@ -140,10 +140,12 @@ describe("App session experience", () => {
       expect(profileActions).toContainElement(
          screen.getByRole("button", { name: "Pause background" })
       );
-      // A library without qualifying played games falls back to the form.
+      // A library without qualifying played games keeps Ask Ludex and
+      // Customize available and explains why there are no rows.
       expect(
-         await screen.findByRole("heading", { name: "Choose reference games" })
+         await screen.findByText(/Ludex needs at least one game you’ve played/)
       ).toBeInTheDocument();
+      expect(screen.getByLabelText("Ask Ludex")).toBeInTheDocument();
       expect(screen.queryByText(/saved profiles/i)).not.toBeInTheDocument();
    });
 

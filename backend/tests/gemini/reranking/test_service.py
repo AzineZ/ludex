@@ -1,3 +1,5 @@
+from app.gemini.reranking.reranker import RerankResponseError
+from app.gemini.reranking.reranker import MAX_RERANK_REQUEST_BYTES
 import logging
 import re
 from io import StringIO
@@ -227,7 +229,7 @@ def test_oversized_payload_falls_back_before_provider_call(
     _add_game(session, profile_id=profile_id, steam_app_id=1)
     monkeypatch.setattr(
         "app.gemini.reranking.service.rerank_user_prompt_size_bytes",
-        lambda _request: 240_001,
+        lambda _request: MAX_RERANK_REQUEST_BYTES + 1,
     )
     rerank = Mock()
 
@@ -248,14 +250,22 @@ def test_oversized_payload_falls_back_before_provider_call(
     ("game_count", "expected_status"),
     [
         (0, RerankAssistantStatus.EMPTY),
-        (401, RerankAssistantStatus.NEEDS_REFINEMENT),
+        (4, RerankAssistantStatus.NEEDS_REFINEMENT),
+        (-4, RerankAssistantStatus.NEEDS_GENRE),
     ],
 )
 def test_stopped_pool_states_make_no_provider_call(
     session_and_profile: tuple[Session, int],
     game_count: int,
     expected_status: RerankAssistantStatus,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import app.gemini.reranking.candidate_pool as candidate_pool
+
+    monkeypatch.setattr(candidate_pool, "MAX_RERANK_DETAILED_CANDIDATES", 2)
+    monkeypatch.setattr(candidate_pool, "MAX_RERANK_CANDIDATES", 3)
+    without_genre = game_count < 0
+    game_count = abs(game_count)
     session, profile_id = session_and_profile
     if game_count == 0:
         _add_game(
@@ -271,6 +281,8 @@ def test_stopped_pool_states_make_no_provider_call(
         for steam_app_id in range(1, game_count + 1):
             _add_game(session, profile_id=profile_id, steam_app_id=steam_app_id)
         submission = _submission()
+        if without_genre:
+            submission = submission.model_copy(update={"selected_genre_id": None})
     rerank = Mock()
 
     result = recommend_with_gemini(
@@ -321,8 +333,8 @@ def test_provider_failure_returns_safe_fallback(
 
     assert result.status is RerankAssistantStatus.UNAVAILABLE
     assert result.message == (
-        "AI recommendations are temporarily unavailable. "
-        "Try guided recommendations instead."
+        "AI recommendations are temporarily unavailable. Try again "
+        "shortly, or browse the recommendations below."
     )
     assert "private" not in result.message
     assert result.diagnostic_reference is not None
@@ -432,11 +444,50 @@ def test_provider_rate_limit_tells_user_to_try_again_tomorrow(
 
     assert result.status is RerankAssistantStatus.UNAVAILABLE
     assert result.message == (
-        "Ludex AI has reached Gemini's current usage limit. "
-        "Please try again tomorrow, or use guided recommendations now."
+        "Ludex AI has reached Gemini's current usage limit. Please try "
+        "again tomorrow; the recommendations below still work."
     )
     assert result.diagnostic_reference is not None
     assert rerank.call_count == 1
     record = caplog.records[-1]
     assert record.failure_category == "rate_limited"
     assert record.retry_after_seconds == 120
+
+
+
+@pytest.mark.parametrize(
+    ("with_genre", "expected_status"),
+    [
+        (False, RerankAssistantStatus.NEEDS_GENRE),
+        (True, RerankAssistantStatus.NEEDS_REFINEMENT),
+    ],
+)
+def test_an_unusable_large_pool_answer_asks_for_narrowing(
+    session_and_profile: tuple[Session, int],
+    monkeypatch: pytest.MonkeyPatch,
+    with_genre: bool,
+    expected_status: RerankAssistantStatus,
+) -> None:
+    import app.gemini.reranking.candidate_pool as candidate_pool
+
+    monkeypatch.setattr(candidate_pool, "MAX_RERANK_DETAILED_CANDIDATES", 2)
+    session, profile_id = session_and_profile
+    for steam_app_id in range(1, 4):
+        _add_game(session, profile_id=profile_id, steam_app_id=steam_app_id)
+    submission = _submission()
+    if not with_genre:
+        submission = submission.model_copy(update={"selected_genre_id": None})
+    rerank = Mock(side_effect=RerankResponseError("No usable picks."))
+
+    result = recommend_with_gemini(
+        session,
+        profile_id=profile_id,
+        submission=submission,
+        runtime=_runtime(),
+        rerank=rerank,
+    )
+
+    rerank.assert_called_once()
+    assert result.status is expected_status
+    assert result.eligible_count == 3
+    assert "couldn't sort through" in (result.message or "")

@@ -6,19 +6,26 @@ from sqlalchemy.orm import Session
 
 from app.gemini.reranking.contracts import (
     MAX_RERANK_CANDIDATES,
+    MAX_RERANK_DETAILED_CANDIDATES,
     MAX_RERANK_SUMMARY_CHARACTERS,
     RerankCandidate,
     RerankFilters,
     RerankRequest,
 )
 from app.gemini.reranking.projection import (
+    NAMES_GENRES_PROJECTION,
     project_rerank_candidates,
     select_product_projection,
+)
+from app.gemini.reranking.reranker import (
+    MAX_RERANK_REQUEST_BYTES,
+    rerank_user_prompt_size_bytes,
 )
 from app.integrations.igdb.images import igdb_cover_url
 from app.recommendations.ratings import (
     RATING_COLUMNS,
     GameRatings,
+    RatingSource,
     game_ratings,
 )
 from app.models import (
@@ -37,6 +44,7 @@ from app.recommendations.factual_scoring import FacetKind
 class RerankCandidatePoolState(StrEnum):
     READY = "ready"
     EMPTY = "empty"
+    NEEDS_GENRE = "needs_genre"
     NEEDS_REFINEMENT = "needs_refinement"
 
 
@@ -266,13 +274,16 @@ def list_rerank_filter_options(
 def _eligible_facts(
     facts: tuple[CandidateFacts, ...],
     *,
-    selected_genre_id: int,
+    selected_genre_id: int | None,
     filters: RerankFilters,
     session_excluded_steam_app_ids: frozenset[int],
 ) -> tuple[CandidateFacts, ...]:
     eligible: list[CandidateFacts] = []
     for candidate in facts:
-        if selected_genre_id not in (candidate.genre_ids or ()):
+        if (
+            selected_genre_id is not None
+            and selected_genre_id not in (candidate.genre_ids or ())
+        ):
             continue
         if not _matches_any(candidate.theme_ids, filters.theme_ids):
             continue
@@ -293,13 +304,14 @@ def _eligible_facts(
 def _validate_filter_ids(
     facts: tuple[CandidateFacts, ...],
     *,
-    selected_genre_id: int,
+    selected_genre_id: int | None,
     filters: RerankFilters,
 ) -> None:
     genre_facts = tuple(
         item
         for item in facts
-        if selected_genre_id in (item.genre_ids or ())
+        if selected_genre_id is None
+        or selected_genre_id in (item.genre_ids or ())
     )
     checks = (
         ("filters.theme_ids", filters.theme_ids, "theme_ids"),
@@ -345,7 +357,7 @@ def load_rerank_snapshot_data(
     session: Session,
     *,
     profile_id: int,
-    selected_genre_id: int,
+    selected_genre_id: int | None,
     eligible: tuple[CandidateFacts, ...],
 ) -> tuple[
     tuple[RerankCandidate, ...],
@@ -421,6 +433,7 @@ def load_rerank_snapshot_data(
                 if row.time_to_beat_normally_seconds is None
                 else (row.time_to_beat_normally_seconds + 59) // 60
             ),
+            **_supplied_scores(game_ratings(row)),
         )
         for row in rows
     )
@@ -438,13 +451,27 @@ def load_rerank_snapshot_data(
     return candidates, presentations
 
 
+def _supplied_scores(ratings: GameRatings) -> dict[str, int | None]:
+    """Supply the card's headline score, so reasoning can cite it as fact.
+
+    Only one score per game is sent (critics first, as on the card) to keep
+    large pools inside the request guard.
+    """
+    headline = ratings.headline
+    if headline is None:
+        return {}
+    if headline.source is RatingSource.CRITICS:
+        return {"critic_score": headline.score}
+    return {"igdb_rating": headline.score}
+
+
 def _load_snapshot(
     session: Session,
     *,
     profile_id: int,
     prompt: str,
-    selected_genre_id: int,
-    selected_genre_name: str,
+    selected_genre_id: int | None,
+    selected_genre_name: str | None,
     filters: RerankFilters,
     eligible: tuple[CandidateFacts, ...],
 ) -> tuple[RerankRequest, tuple[RerankCandidatePresentation, ...]]:
@@ -454,17 +481,26 @@ def _load_snapshot(
         selected_genre_id=selected_genre_id,
         eligible=eligible,
     )
-    candidates = project_rerank_candidates(
-        candidates,
-        select_product_projection(len(candidates)),
-    )
+    detailed = len(candidates) <= MAX_RERANK_DETAILED_CANDIDATES
+    if detailed:
+        candidates = project_rerank_candidates(
+            candidates,
+            select_product_projection(len(candidates)),
+        )
+    else:
+        candidates = project_rerank_candidates(candidates, NAMES_GENRES_PROJECTION)
     return (
         RerankRequest(
             prompt=prompt,
             selected_genre_id=selected_genre_id,
-            selected_genre_name=" ".join(selected_genre_name.split())[:100],
+            selected_genre_name=(
+                None
+                if selected_genre_name is None
+                else " ".join(selected_genre_name.split())[:100]
+            ),
             filters=filters,
             candidates=candidates,
+            candidate_format="detailed" if detailed else "names_genres",
         ),
         presentations,
     )
@@ -475,19 +511,28 @@ def build_rerank_candidate_pool(
     *,
     profile_id: int,
     prompt: str,
-    selected_genre_id: int,
+    selected_genre_id: int | None,
     filters: RerankFilters,
     session_excluded_steam_app_ids: frozenset[int] = frozenset(),
 ) -> RerankCandidatePool:
-    """Build the complete eligible pool before any provider interaction."""
-    genres = list_available_rerank_genres(session, profile_id=profile_id)
-    selected_genre = next(
-        (item for item in genres if item.igdb_id == selected_genre_id), None
-    )
-    if selected_genre is None:
-        raise RerankGenreUnavailableError(
-            "The selected genre is not available for this library."
+    """Build the complete eligible pool before any provider interaction.
+
+    Without a genre the whole library is considered: up to 400 games are
+    sent with descriptions, 401–2,000 as names and genres, and more than
+    2,000 ask for a genre first. With a genre the same sizes apply, and a
+    genre pool still above 2,000 asks for theme or game-mode filters.
+    """
+    selected_genre = None
+    if selected_genre_id is not None:
+        genres = list_available_rerank_genres(session, profile_id=profile_id)
+        selected_genre = next(
+            (item for item in genres if item.igdb_id == selected_genre_id),
+            None,
         )
+        if selected_genre is None:
+            raise RerankGenreUnavailableError(
+                "The selected genre is not available for this library."
+            )
 
     facts = load_candidate_facts(
         session,
@@ -515,7 +560,11 @@ def build_rerank_candidate_pool(
         )
     if eligible_count > MAX_RERANK_CANDIDATES:
         return RerankCandidatePool(
-            state=RerankCandidatePoolState.NEEDS_REFINEMENT,
+            state=(
+                RerankCandidatePoolState.NEEDS_GENRE
+                if selected_genre is None
+                else RerankCandidatePoolState.NEEDS_REFINEMENT
+            ),
             eligible_count=eligible_count,
         )
 
@@ -524,10 +573,25 @@ def build_rerank_candidate_pool(
         profile_id=profile_id,
         prompt=prompt,
         selected_genre_id=selected_genre_id,
-        selected_genre_name=selected_genre.name,
+        selected_genre_name=(
+            None if selected_genre is None else selected_genre.name
+        ),
         filters=filters,
         eligible=eligible,
     )
+    if (
+        request.candidate_format == "names_genres"
+        and rerank_user_prompt_size_bytes(request) > MAX_RERANK_REQUEST_BYTES
+    ):
+        # Unusually long titles or genres: ask for narrowing, never fail.
+        return RerankCandidatePool(
+            state=(
+                RerankCandidatePoolState.NEEDS_GENRE
+                if selected_genre is None
+                else RerankCandidatePoolState.NEEDS_REFINEMENT
+            ),
+            eligible_count=eligible_count,
+        )
     return RerankCandidatePool(
         state=RerankCandidatePoolState.READY,
         eligible_count=eligible_count,

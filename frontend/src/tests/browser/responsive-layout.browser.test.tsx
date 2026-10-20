@@ -2,12 +2,15 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { page, userEvent } from "vitest/browser";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SessionProfileResponse } from "../../api";
+import {
+   getAssistantRecommendations,
+   type SessionProfileResponse,
+} from "../../api";
 import Hero from "../../components/Hero";
 import PublicDataNotice from "../../components/PublicDataNotice";
 import ServerStatus from "../../components/ServerStatus";
-import AssistantWorkspace from "../../features/recommendations/assistant/AssistantWorkspace";
 import AutomaticRecommendations from "../../features/recommendations/automatic/AutomaticRecommendations";
+import RecommendationResultCard from "../../features/recommendations/results/RecommendationResultCard";
 import SessionGameLibrary from "../../features/session/SessionGameLibrary";
 import SteamSessionForm from "../../features/session/SteamSessionForm";
 import "../../index.css";
@@ -285,23 +288,6 @@ function AutomaticFixture() {
                <AutomaticRecommendations
                   onCustomize={vi.fn()}
                   onUnavailable={vi.fn()}
-               />
-            </section>
-         </main>
-      </div>
-   );
-}
-
-function AssistantFixture() {
-   return (
-      <div className="app">
-         <main className="app__content">
-            <section className="app__session">
-               <div className="app__current-profile" />
-               <AssistantWorkspace
-                  sessionEpoch={7}
-                  suggestedSteamAppIds={Array.from({ length: 12 }, (_, index) => 900 + index)}
-                  onUseGuided={vi.fn()}
                />
             </section>
          </main>
@@ -653,6 +639,60 @@ describe("responsive layout contracts", () => {
       expect(titleOf(longCard).dataset.marquee).toBeUndefined();
    });
 
+   it("lays out each preference comparison row as columns, stacking on phones", async () => {
+      const { container } = render(
+         <div style={{ width: "24rem" }}>
+            <RecommendationResultCard
+               item={{
+                  rank: 1,
+                  steam_app_id: 5,
+                  title: "Comparison Game",
+                  cover_url: null,
+                  profile_playtime_minutes: 0,
+                  normal_completion_seconds: null,
+                  ratings: { headline: null, critics: null, total: null },
+                  factual_evidence: {
+                     version: "factual-overlap-v1",
+                     score_basis_points: 5_000,
+                     active_budget: 100,
+                     contributions: [
+                        {
+                           reference_steam_app_id: 1,
+                           facet_kind: "genre",
+                           facet_igdb_id: 12,
+                           match_state: "matched",
+                           points_numerator: 1,
+                           points_denominator: 1,
+                        },
+                     ],
+                  },
+                  facet_labels: [
+                     { facet_kind: "genre", facet_igdb_id: 12, name: "Role-playing (RPG)" },
+                  ],
+                  match_summary: { reasons: [], additional_match_count: 0, text: "Matches." },
+                  tradeoff: null,
+               }}
+            />
+         </div>
+      );
+      fireEvent.click(screen.getByText("Game details"));
+      const row = container.querySelector<HTMLElement>(
+         ".recommendation-evidence__list li"
+      ) as HTMLElement;
+      const parts = Array.from(row.children) as HTMLElement[];
+
+      await setTestViewport({ width: 1280, height: 900 });
+      expect(getComputedStyle(row).listStyleType).toBe("none");
+      const tops = parts.map((part) => part.getBoundingClientRect().top);
+      expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(2);
+      expect(parts[1].getBoundingClientRect().left)
+         .toBeGreaterThan(parts[0].getBoundingClientRect().right);
+
+      await setTestViewport({ width: 320, height: 800 });
+      expect(parts[1].getBoundingClientRect().top)
+         .toBeGreaterThanOrEqual(parts[0].getBoundingClientRect().bottom - 1);
+   });
+
    it("brings a new More like row into view from the last row", async () => {
       for (const viewport of [
          { width: 390, height: 844 },
@@ -712,59 +752,42 @@ describe("responsive layout contracts", () => {
       }
    });
 
-   it("keeps the assistant form and result deck within every supported width", async () => {
-      render(<AssistantFixture />);
-      fireEvent.click(await screen.findByRole("button", {
-         name: "Adventure, 42 eligible games",
-      }));
-      await screen.findByRole("group", { name: "Theme filters" });
-
-      const note = screen.getByText(
-         "Skipping 12 games already suggested in Guided."
-      ).parentElement as HTMLElement;
-      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
-         await setTestViewport(viewport);
-         expect(
-            document.documentElement.scrollWidth,
-            `assistant form width at ${viewportName(viewport)}`
-         ).toBeLessThanOrEqual(viewport.width);
-         const noteBounds = note.getBoundingClientRect();
-         const toggle = within(note).getByRole("button", { name: "Include them" });
-         expect(
-            toggle.getBoundingClientRect().right,
-            `skip toggle inside its note at ${viewportName(viewport)}`
-         ).toBeLessThanOrEqual(noteBounds.right + 0.5);
-         expect(note.scrollWidth, `skip note fits at ${viewportName(viewport)}`)
-            .toBeLessThanOrEqual(note.clientWidth + 1);
-      }
-
-      await setTestViewport({ width: 1280, height: 720 });
-      fireEvent.change(screen.getByLabelText("What are you in the mood to play?"), {
+   it("keeps the Ask Ludex bar and its row within every supported width", async () => {
+      render(<AutomaticFixture />);
+      await screen.findByRole("region", {
+         name: /^Because you played An Extraordinarily Long/,
+      });
+      fireEvent.change(screen.getByLabelText("Ask Ludex"), {
          target: { value: "Something relaxed with a satisfying ending" },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
-      await screen.findByRole("heading", { name: "Your AI recommendations" });
-      const resultsRegion = screen.getByRole("region", {
-         name: "Your AI recommendations",
+      fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      const row = await screen.findByRole("region", {
+         name: "Ludex AI picks for “Something relaxed with a satisfying ending”",
       });
-      await waitFor(() => expect(resultsRegion).toHaveFocus());
-      await waitFor(() => {
-         const top = resultsRegion.getBoundingClientRect().top;
-         expect(top).toBeGreaterThanOrEqual(0);
-         expect(top).toBeLessThan(window.innerHeight / 3);
-      });
+      const form = document.querySelector<HTMLElement>(".ask-ludex") as HTMLElement;
 
       for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
          await setTestViewport(viewport);
+         const name = viewportName(viewport);
          expect(
             document.documentElement.scrollWidth,
-            `assistant results width at ${viewportName(viewport)}`
+            `Ask Ludex page width at ${name}`
          ).toBeLessThanOrEqual(viewport.width);
+         const formBounds = form.getBoundingClientRect();
+         for (const control of [
+            screen.getByLabelText("Ask Ludex"),
+            screen.getByRole("button", { name: "Ask" }),
+         ]) {
+            const bounds = control.getBoundingClientRect();
+            expect(bounds.left, `prompt control left at ${name}`)
+               .toBeGreaterThanOrEqual(formBounds.left - 0.5);
+            expect(bounds.right, `prompt control right at ${name}`)
+               .toBeLessThanOrEqual(formBounds.right + 0.5);
+         }
 
-         const firstCard = screen.getByRole("article", {
+         const firstCard = within(row).getByRole("article", {
             name: "Responsive Assistant Game 1",
          });
-         const name = viewportName(viewport);
          const cover = firstCard.querySelector<HTMLElement>(
             ".recommendation-result-card__cover-frame"
          ) as HTMLElement;
@@ -774,99 +797,72 @@ describe("responsive layout contracts", () => {
          const actions = firstCard.querySelector<HTMLElement>(
             ".recommendation-result-card__actions"
          ) as HTMLElement;
-         const reasoningRegion = screen.getByRole("region", {
+         const reasoningRegion = within(firstCard).getByRole("region", {
             name: "Responsive Assistant Game 1 reasoning",
          });
          const coverBounds = cover.getBoundingClientRect();
+         expect(coverBounds.height / coverBounds.width, `AI cover ratio at ${name}`)
+            .toBeCloseTo(374 / 264, 1);
+         expect(explanation.getBoundingClientRect().top, `reasoning below cover at ${name}`)
+            .toBeGreaterThanOrEqual(coverBounds.bottom - 0.5);
          expect(
-            coverBounds.height / coverBounds.width,
-            `assistant cover ratio at ${name}`
-         ).toBeCloseTo(374 / 264, 1);
-         expect(
-            explanation.getBoundingClientRect().top,
-            `assistant reasoning below cover at ${name}`
-         ).toBeGreaterThanOrEqual(coverBounds.bottom - 0.5);
-         expect(
-            actions.getBoundingClientRect().top,
-            `assistant actions after reasoning at ${name}`
-         ).toBeGreaterThanOrEqual(explanation.getBoundingClientRect().bottom - 1);
+            actions.getBoundingClientRect().top
+               - explanation.getBoundingClientRect().bottom,
+            `no gap between reasoning and actions at ${name}`
+         ).toBeLessThan(24);
          expect(getComputedStyle(reasoningRegion).overflowY).toBe("auto");
          expect(reasoningRegion.parentElement?.dataset.hasOverflow).toBe("true");
-         expect(reasoningRegion.parentElement?.dataset.atEnd).toBe("false");
-         expect(
-            reasoningRegion.getBoundingClientRect().height,
-            `reasoning scroll height at ${name}`
-         ).toBeGreaterThan(0);
-         expect(
-            firstCard.querySelector("details"),
-            `assistant summary in Game details at ${name}`
-         ).toContainElement(
+         expect(firstCard.querySelector("details")).toContainElement(
             within(firstCard).getByText(/A bounded AI-generated summary/)
          );
+         expect(firstCard.scrollWidth, `AI card width at ${name}`)
+            .toBeLessThanOrEqual(firstCard.clientWidth + 1);
       }
    });
 
-   it("signals bounded option overflow and aligns narrowing choices with genre pills", async () => {
-      const { container } = render(<AssistantFixture />);
-      await setTestViewport({ width: 1280, height: 720 });
+   it("keeps the inline genre step within every supported width", async () => {
+      vi.mocked(getAssistantRecommendations).mockResolvedValueOnce({
+         status: "needs_genre",
+         eligible_count: 2_400,
+         candidate_limit: 2000,
+         items: [],
+         message: "Your library is large, so pick a genre to focus on.",
+         guided_fallback_available: true,
+      });
+      render(<AutomaticFixture />);
+      await screen.findByRole("region", {
+         name: /^Because you played An Extraordinarily Long/,
+      });
+      fireEvent.change(screen.getByLabelText("Ask Ludex"), {
+         target: { value: "A long RPG" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      await screen.findByRole("button", { name: "Adventure, 42 games" });
+      const choices = document.querySelector<HTMLElement>(
+         ".ask-ludex__choices"
+      ) as HTMLElement;
 
-      const genreFrame = container.querySelector<HTMLElement>(
-         ".assistant-scroll-frame"
-      );
-      expect(genreFrame).not.toBeNull();
-      expect(genreFrame?.dataset.hasOverflow).toBe("true");
-      expect(genreFrame?.dataset.atEnd).toBe("false");
-
-      fireEvent.click(await screen.findByRole("button", {
-         name: "Adventure, 42 eligible games",
-      }));
-      await screen.findByRole("group", { name: "Theme filters" });
-
-      for (const viewport of [
-         { width: 320, height: 568 },
-         { width: 1280, height: 720 },
-         { width: 3840, height: 2160 },
-      ]) {
+      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
          await setTestViewport(viewport);
-         const themeButtons = Array.from(container.querySelectorAll<HTMLElement>(
-            '.assistant-filters__group[aria-label="Theme filters"] .recommendation-choice-pill'
-         ));
-         const genreButton = screen.getByRole("button", {
-            name: "Adventure, 42 eligible games",
-         });
-         const first = themeButtons[0].getBoundingClientRect();
-         const genreRectangle = genreButton.getBoundingClientRect();
+         const name = viewportName(viewport);
          expect(
-            first.height,
-            `standard filter and genre pill height at ${viewportName(viewport)}`
-         ).toBeCloseTo(genreRectangle.height, 1);
-         for (const button of themeButtons.slice(1)) {
-            const rectangle = button.getBoundingClientRect();
-            expect(
-               rectangle.width,
-               `theme pill width at ${viewportName(viewport)}`
-            ).toBeCloseTo(first.width, 1);
-            expect(
-               rectangle.height,
-               `wrapped theme pill height at ${viewportName(viewport)}`
-            ).toBeGreaterThanOrEqual(first.height);
-            expect(
-               button.scrollHeight,
-               `theme pill content at ${viewportName(viewport)}`
-            ).toBeLessThanOrEqual(button.clientHeight);
+            document.documentElement.scrollWidth,
+            `genre step page width at ${name}`
+         ).toBeLessThanOrEqual(viewport.width);
+         const bounds = choices.getBoundingClientRect();
+         for (const pill of Array.from(choices.querySelectorAll<HTMLElement>("button"))) {
+            const pillBounds = pill.getBoundingClientRect();
+            expect(pillBounds.right, `genre pill inside step at ${name}`)
+               .toBeLessThanOrEqual(bounds.right + 0.5);
          }
-
-         const longModeButton = screen.getByRole("button", {
-            name: "Split screen cooperative, 8 eligible games",
-         });
+         expect(bounds.height, `genre list bounded at ${name}`)
+            .toBeLessThanOrEqual(16 * 16 + 1);
+         const step = choices.closest("fieldset") as HTMLElement;
+         const legend = step.querySelector("legend") as HTMLElement;
          expect(
-            longModeButton.getBoundingClientRect().height,
-            `long filter pill height at ${viewportName(viewport)}`
-         ).toBeGreaterThanOrEqual(first.height);
-         expect(
-            longModeButton.scrollHeight,
-            `long filter pill content at ${viewportName(viewport)}`
-         ).toBeLessThanOrEqual(longModeButton.clientHeight);
+            legend.getBoundingClientRect().top,
+            `genre question below the divider at ${name}`
+         ).toBeGreaterThanOrEqual(step.getBoundingClientRect().top + 1);
       }
    });
 });
