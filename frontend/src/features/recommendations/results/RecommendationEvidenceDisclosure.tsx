@@ -8,7 +8,6 @@ import type {
 } from "../../../api";
 import { CardHeading, type CardHeadingLevel } from "./ResultCardParts";
 
-
 type RecommendationEvidenceDisclosureProps = {
    evidence: FactualScoreEvidenceResponse;
    facetLabels: readonly FacetLabelResponse[];
@@ -42,16 +41,14 @@ function RecommendationEvidenceDisclosure({
    );
 
    return (
-      <section
-         className="recommendation-evidence"
-         aria-labelledby={headingId}
-      >
+      <section className="recommendation-evidence" aria-labelledby={headingId}>
          <CardHeading level={headingLevel} id={headingId}>
             Preference comparison
          </CardHeading>
          <div className="recommendation-evidence__content">
             <p>
-               This comparison uses the factual preferences you selected.
+               This comparison uses the following categories from the referenced
+               game:
             </p>
             {evidence.contributions.length === 0 ? (
                <p>
@@ -61,16 +58,15 @@ function RecommendationEvidenceDisclosure({
             ) : (
                <ul className="recommendation-evidence__list">
                   {evidence.contributions.map((contribution, index) => {
-                     const identity =
-                        `${contribution.facet_kind}:${contribution.facet_igdb_id}`;
+                     const identity = `${contribution.facet_kind}:${contribution.facet_igdb_id}`;
                      return (
                         <li
                            key={`${identity}:${index}`}
                            data-match-state={contribution.match_state}
                         >
                            <strong>
-                              {labelsByIdentity.get(identity)
-                                 ?? "Label unavailable"}
+                              {labelsByIdentity.get(identity) ??
+                                 "Label unavailable"}
                            </strong>
                            <span>
                               {FACET_KIND_LABELS[contribution.facet_kind]}
