@@ -57,12 +57,11 @@ RERANK_SYSTEM_INSTRUCTION = dedent(
     - Reasoning must repeat at least one meaningful word or short phrase exactly
       as written in the visitor's request, then connect that wording to relevant
       game facts. Do not merely repeat the summary or say that a subjective
-      judgment was verified by IGDB. When the candidate supplies
-      critic_score, igdb_rating, or normal_completion_minutes, Reasoning should
-      also mention one of those supplied facts to make the pick concrete, for
-      example "critics score it 92" or "about 12 hours long". Never state a
-      score, review, award, sales figure, or length that is not in the
-      candidate data. Reasoning must contain at most
+      judgment was verified by IGDB. Keep Reasoning about why the game fits
+      what the visitor asked for. The card already shows each game's scores
+      and length, so do not restate critic_score, igdb_rating, or
+      normal_completion_minutes, and never state a score, review, award,
+      sales figure, or length. Reasoning must contain at most
       {MAX_RERANK_REASONING_CHARACTERS} characters, including spaces and
       punctuation, and must also end as a complete sentence without an
       ellipsis.

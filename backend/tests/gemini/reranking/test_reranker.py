@@ -288,7 +288,7 @@ def test_response_schema_uses_supported_shape_and_local_id_validation() -> None:
     assert "default" not in str(schema)
 
 
-def test_worst_case_scored_pool_fits_and_reasoning_may_cite_supplied_facts() -> None:
+def test_worst_case_scored_pool_fits_and_reasoning_leaves_scores_to_the_card() -> None:
     candidates = tuple(
         RerankCandidate(
             steam_app_id=index,
@@ -325,8 +325,9 @@ def test_worst_case_scored_pool_fits_and_reasoning_may_cite_supplied_facts() -> 
     assert '"critic_score":96' in prompt
     assert '"igdb_rating"' not in prompt
     instruction = " ".join(RERANK_SYSTEM_INSTRUCTION.split())
-    assert "mention one of those supplied facts" in instruction
-    assert "Never state a score, review, award" in instruction
+    assert "mention one of those supplied facts" not in instruction
+    assert "do not restate critic_score, igdb_rating" in instruction
+    assert "never state a score, review, award" in instruction
 
 
 def test_typical_names_genres_pool_of_2000_fits_with_short_keys() -> None:

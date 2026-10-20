@@ -1,7 +1,9 @@
 import { useId, type FormEvent } from "react";
 
 import type { PreferenceConstraints } from "../../../api";
+import { SlowAskHint } from "./AskLudexPendingRow";
 import {
+   describeLooking,
    describeNothingToSearch,
    describeScope,
    describeSearchedGames,
@@ -63,6 +65,7 @@ function AskLudexBar({
                maxLength={MAX_ASK_LUDEX_PROMPT_CHARACTERS}
                placeholder="Tell Ludex what you’re in the mood for…"
                aria-describedby={noteId}
+               readOnly={askLudex.isAsking}
                onChange={(event) => askLudex.setPrompt(event.target.value)}
             />
             <button
@@ -70,7 +73,14 @@ function AskLudexBar({
                type="submit"
                disabled={!canAsk}
             >
-               {askLudex.isAsking ? "Asking…" : "Ask"}
+               {askLudex.isAsking ? (
+                  <>
+                     <span className="ask-ludex__spinner" aria-hidden="true" />
+                     Asking…
+                  </>
+               ) : (
+                  "Ask"
+               )}
             </button>
          </div>
          <p className="ask-ludex__note ask-ludex__scope" id={noteId}>
@@ -194,11 +204,12 @@ function AskLudexBar({
 
          <p className="ask-ludex__status" role="status" aria-atomic="true">
             {askLudex.isAsking
-               ? "Asking Ludex…"
+               ? describeLooking(trimmed, constraints)
                : askLudex.step === "prompt"
                   ? askLudex.message ?? ""
                   : ""}
          </p>
+         {askLudex.isAsking && <SlowAskHint />}
          {askLudex.error !== null && (
             <p className="ask-ludex__error" role="alert">
                {askLudex.error}

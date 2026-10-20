@@ -364,3 +364,115 @@
    justify-self: start;
    margin: 0;
 }
+
+/* While Gemini answers, placeholder cards stand where the Ask Ludex row will
+   appear. They reuse the real card's classes, so the row keeps its final
+   size; a soft shimmer shows that work is under way. */
+.ask-ludex-placeholder {
+   --placeholder-fill: rgb(235 228 216 / 13%);
+
+   border-color: var(--color-ash-taupe);
+   pointer-events: none;
+}
+
+.ask-ludex-placeholder::after {
+   position: absolute;
+   z-index: 2;
+   inset: 0;
+   background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(235 228 216 / 7%),
+      transparent
+   );
+   content: "";
+   transform: translateX(-100%);
+   animation: ask-ludex-sweep 1.6s linear infinite;
+}
+
+.ask-ludex-placeholder .ask-ludex-placeholder__cover {
+   background: var(--placeholder-fill);
+}
+
+.ask-ludex-placeholder .ask-ludex-placeholder__bar {
+   color: transparent;
+   background: var(--placeholder-fill);
+   -webkit-box-decoration-break: clone;
+   box-decoration-break: clone;
+}
+
+/* Four bars fill the fixed five-line reasoning slot. */
+.ask-ludex-placeholder .ask-ludex-placeholder__lines {
+   overflow: hidden;
+   background: repeating-linear-gradient(
+      to bottom,
+      var(--placeholder-fill) 0 0.95em,
+      transparent 0.95em 1.45em
+   );
+   background-size: 100% calc(4 * 1.45em);
+   background-repeat: no-repeat;
+}
+
+.ask-ludex-placeholder .recommendation-result-card__actions .app__secondary-button {
+   border-color: var(--color-ash-taupe);
+   color: transparent;
+   opacity: 1;
+}
+
+.ask-ludex-placeholder .recommendation-result-card__rating {
+   border-color: var(--color-ash-taupe);
+}
+
+.ask-ludex-placeholder__summary {
+   box-sizing: border-box;
+   margin: 0;
+   padding: 0.85rem 0;
+   color: transparent;
+   font-weight: 900;
+}
+
+.ask-ludex__spinner {
+   display: inline-block;
+   width: 0.85em;
+   height: 0.85em;
+   margin-right: 0.5em;
+   border: 2px solid currentcolor;
+   border-right-color: transparent;
+   border-radius: 50%;
+   vertical-align: -0.1em;
+   animation: ask-ludex-spin 0.8s linear infinite;
+}
+
+@keyframes ask-ludex-sweep {
+   to {
+      transform: translateX(100%);
+   }
+}
+
+@keyframes ask-ludex-spin {
+   to {
+      transform: rotate(1turn);
+   }
+}
+
+@keyframes ask-ludex-pulse {
+   50% {
+      opacity: 0.45;
+   }
+}
+
+/* Without motion, nothing moves: the placeholders and spinner fade gently. */
+@media (prefers-reduced-motion: reduce) {
+   .ask-ludex-placeholder::after {
+      display: none;
+   }
+
+   .ask-ludex-placeholder {
+      animation: ask-ludex-pulse 2.4s ease-in-out infinite;
+   }
+
+   .ask-ludex__spinner {
+      border-right-color: currentcolor;
+      animation: ask-ludex-pulse 2.4s ease-in-out infinite;
+   }
+}

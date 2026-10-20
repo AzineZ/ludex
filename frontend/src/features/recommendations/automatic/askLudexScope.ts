@@ -54,3 +54,11 @@ export function describeNothingToSearch(
 ): string {
    return `No ${gamesNoun(constraints)}${lengthPhrase(constraints)} are left to search.`;
 }
+
+/** "Ludex is looking through games you haven't started for “relaxing”…" */
+export function describeLooking(
+   prompt: string,
+   constraints: PreferenceConstraints,
+): string {
+   return `Ludex is looking through ${gamesNoun(constraints)}${lengthPhrase(constraints)} for “${prompt}”…`;
+}

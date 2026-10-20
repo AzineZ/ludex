@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+   describeLooking,
    describeNothingToSearch,
    describeScope,
    describeSearchedGames,
@@ -56,5 +57,17 @@ describe("Ask Ludex scope wording", () => {
          "The games are all shooters."
       );
       expect(cleanMissReason("  ")).toBeNull();
+   });
+
+   it("describes what Ludex is searching while it waits", () => {
+      expect(describeLooking("something calm", notStarted)).toBe(
+         "Ludex is looking through games you haven’t started for “something calm”…"
+      );
+      expect(describeLooking("a short story", played10h)).toBe(
+         "Ludex is looking through games you’ve played up to 10 hours long for “a short story”…"
+      );
+      expect(describeLooking("anything", everything)).toBe(
+         "Ludex is looking through games in your library for “anything”…"
+      );
    });
 });

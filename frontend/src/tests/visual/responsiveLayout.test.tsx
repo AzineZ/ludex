@@ -90,7 +90,7 @@ describe("responsive layout contract", () => {
       expect(recommendationCss).toMatch(/\.recommendation-result-card__title\s*\{[^}]*overflow-wrap:\s*anywhere/);
       expect(recommendationCss).toMatch(/\.recommendation-result-card__meta\s*\{[^}]*overflow-wrap:\s*anywhere/);
       expect(recommendationCss).not.toMatch(/\.assistant-result-card__explanation\s*\{[^}]*(?:^|[\s;])height:/m);
-      expect(recommendationCss).toMatch(/\.assistant-result-card__scroll-region\s*\{[^}]*max-height:\s*clamp\(7\.5rem,\s*12vw,\s*9\.5rem\)[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/);
+      expect(recommendationCss).toMatch(/\.assistant-result-card__scroll-region\s*\{[^}]*height:\s*calc\(5 \* 1\.45em\)[^}]*overflow-y:\s*auto[^}]*scrollbar-gutter:\s*stable/);
       expect(recommendationCss).toMatch(/\.assistant-result-card__explanation \.assistant-scroll-frame\s*\{[^}]*--assistant-scroll-fade-height:\s*1\.5rem/);
       expect(recommendationCss).toMatch(/\.assistant-scroll-frame\[data-has-overflow="true"\]\[data-at-end="false"\]::after\s*\{[^}]*opacity:\s*1/);
    });
@@ -309,7 +309,13 @@ describe("responsive layout contract", () => {
       expect(recommendationCss).toMatch(
          /\.recommendation-result-card__match\s*\{[^}]*min-height:\s*calc\(2 \* 1\.4em\)/
       );
-      expect(recommendationCss).not.toMatch(/@keyframes/);
+      // Titles scroll from script; the only CSS animations are Ask Ludex's
+      // waiting placeholders and spinner.
+      expect(
+         [...recommendationCss.matchAll(/@keyframes\s+([\w-]+)/g)]
+            .map((match) => match[1])
+            .sort()
+      ).toEqual(["ask-ludex-pulse", "ask-ludex-spin", "ask-ludex-sweep"]);
    });
 
    it("keeps the whole portrait cover visible above the card text", () => {

@@ -20,6 +20,10 @@ import {
 } from "../../api";
 import AutomaticRecommendations from "../../features/recommendations/automatic/AutomaticRecommendations";
 import {
+   SLOW_ASK_HINT_DELAY_MS,
+   SlowAskHint,
+} from "../../features/recommendations/automatic/AskLudexPendingRow";
+import {
    MAX_PREPARING_RETRIES,
    PREPARING_RETRY_DELAY_MS,
 } from "../../features/recommendations/automatic/useAutomaticRecommendations";
@@ -645,5 +649,68 @@ describe("AutomaticRecommendations", () => {
       ).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Search all my games" }))
          .not.toBeInTheDocument();
+   });
+
+   it("shows placeholder cards and the search scope while Gemini answers", async () => {
+      mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
+      let answer: (response: AssistantRecommendationResponse) => void = () => {};
+      mockedAsk.mockReturnValueOnce(
+         new Promise((resolve) => {
+            answer = resolve;
+         })
+      );
+      renderAutomatic();
+      await screen.findByRole("region", {
+         name: "Because you played Source 101 · 42 h",
+      });
+
+      await askLudex("something calm");
+
+      expect(
+         await screen.findByText(
+            "Ludex is looking through games you haven’t started for “something calm”…"
+         )
+      ).toHaveAttribute("role", "status");
+      const pending = document.querySelector<HTMLElement>(
+         '[data-row-kind="ask-ludex-pending"]'
+      );
+      expect(pending).toHaveAttribute("aria-hidden", "true");
+      expect(pending?.querySelectorAll(".ask-ludex-placeholder")).toHaveLength(3);
+      expect(pending).toHaveTextContent("Ludex AI picks for “something calm”");
+      expect(screen.getByLabelText("Ask Ludex")).toHaveAttribute("readonly");
+      expect(screen.getByRole("button", { name: "Asking…" })).toBeDisabled();
+
+      await act(async () => {
+         answer(ranked([601, 602, 603]));
+      });
+
+      expect(
+         await screen.findByRole("heading", {
+            name: "Ludex AI picks for “something calm”",
+         })
+      ).toBeInTheDocument();
+      expect(
+         document.querySelector('[data-row-kind="ask-ludex-pending"]')
+      ).toBeNull();
+      expect(screen.getByLabelText("Ask Ludex")).not.toHaveAttribute("readonly");
+   });
+
+   it("adds a longer-wait note only after a slow answer", () => {
+      vi.useFakeTimers();
+      try {
+         render(<SlowAskHint />);
+         act(() => {
+            vi.advanceTimersByTime(SLOW_ASK_HINT_DELAY_MS - 1);
+         });
+         expect(screen.queryByText("Large libraries take a little longer."))
+            .not.toBeInTheDocument();
+         act(() => {
+            vi.advanceTimersByTime(1);
+         });
+         expect(screen.getByText("Large libraries take a little longer."))
+            .toBeInTheDocument();
+      } finally {
+         vi.useRealTimers();
+      }
    });
 });

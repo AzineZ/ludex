@@ -35,8 +35,8 @@
    opacity: 1;
 }
 
-/* Reasoning takes only the room it needs, up to a cap; longer reasoning
-   scrolls instead of growing the card. */
+/* Reasoning always takes the same five-line slot, so Ask Ludex cards in a
+   row line up however long Gemini's answer is; longer reasoning scrolls. */
 .assistant-result-card__explanation {
    display: grid;
    min-height: 0;
@@ -45,7 +45,7 @@
 }
 
 .assistant-result-card__scroll-region {
-   max-height: clamp(7.5rem, 12vw, 9.5rem);
+   height: calc(5 * 1.45em);
    min-height: 0;
    padding-right: 0.4rem;
    overflow-y: auto;

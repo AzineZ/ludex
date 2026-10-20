@@ -10,6 +10,7 @@ import {
    type AutomaticRow,
 } from "./automaticRows";
 import AskLudexBar from "./AskLudexBar";
+import { AskLudexPendingRow } from "./AskLudexPendingRow";
 import QuickToggles from "./QuickToggles";
 import { useAskLudex, type AskLudex, type AskLudexRow } from "./useAskLudex";
 import {
@@ -59,6 +60,10 @@ function quotedPrompt(prompt: string): string {
    return prompt.length > 80 ? `${prompt.slice(0, 79)}…` : prompt;
 }
 
+function askLudexHeading(prompt: string): string {
+   return `Ludex AI picks for “${quotedPrompt(prompt)}”`;
+}
+
 type AskLudexRowSectionProps = {
    row: AskLudexRow;
    collapsed: boolean;
@@ -79,7 +84,7 @@ function AskLudexRowSection({
 }: AskLudexRowSectionProps) {
    const headingId = useId();
    const headingRef = useFocusNewRow(focusOnMount);
-   const heading = `Ludex AI picks for “${quotedPrompt(row.prompt)}”`;
+   const heading = askLudexHeading(row.prompt);
    const cards = (
       <div className="automatic-recommendations__cards">
          {row.visible.map((item) => (
@@ -299,8 +304,13 @@ function AutomaticRecommendations({
             />
          )}
 
-         {askLudex.rows.length > 0 && (
+         {(askLudex.isAsking || askLudex.rows.length > 0) && (
             <div className="automatic-recommendations__rows">
+               {askLudex.isAsking && (
+                  <AskLudexPendingRow
+                     heading={askLudexHeading(askLudex.prompt.trim())}
+                  />
+               )}
                {askLudex.rows.map((row, index) => (
                   <AskLudexRowSection
                      key={row.key}

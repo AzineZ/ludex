@@ -141,9 +141,15 @@ vi.mock("../../api", async (importOriginal) => {
             cover_url: null,
             profile_playtime_minutes: index * 60,
             normal_completion_seconds: 7_200,
-            ratings: { headline: null, critics: null, total: null },
+            ratings: {
+               headline: { source: "critics" as const, score: 90 },
+               critics: null,
+               total: null,
+            },
             summary: "A bounded AI-generated summary describing the game's premise, setting, central activity, and moment-to-moment play for this responsive fixture. ".repeat(3),
-            reasoning: "Its relaxed pacing, low-pressure exploration, and gentle progression directly match your request for something relaxing after work. ".repeat(6),
+            reasoning: index === 1
+               ? "A relaxing short pick."
+               : "Its relaxed pacing, low-pressure exploration, and gentle progression directly match your request for something relaxing after work. ".repeat(6),
             content_source: "ai_generated",
          })),
       }),
@@ -817,6 +823,66 @@ describe("responsive layout contracts", () => {
          );
          expect(firstCard.scrollWidth, `AI card width at ${name}`)
             .toBeLessThanOrEqual(firstCard.clientWidth + 1);
+         const cardHeights = within(row).getAllByRole("article")
+            .map((card) => card.getBoundingClientRect().height);
+         expect(
+            Math.max(...cardHeights) - Math.min(...cardHeights),
+            `AI cards share one height with short and long reasoning at ${name}`
+         ).toBeLessThan(1);
+      }
+   });
+
+   it("keeps Ask Ludex placeholder cards the size of the real cards at every width", async () => {
+      const ranked = await vi.mocked(getAssistantRecommendations).getMockImplementation()?.(
+         {} as never
+      );
+      let answer: (value: NonNullable<typeof ranked>) => void = () => {};
+      vi.mocked(getAssistantRecommendations).mockReturnValueOnce(
+         new Promise((resolve) => {
+            answer = resolve;
+         })
+      );
+      render(<AutomaticFixture />);
+      await screen.findByRole("region", {
+         name: /^Because you played An Extraordinarily Long/,
+      });
+      fireEvent.change(screen.getByLabelText("Ask Ludex"), {
+         target: { value: "Something relaxed with a satisfying ending" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      await screen.findByRole("button", { name: "Asking…" });
+      const pending = document.querySelector<HTMLElement>(
+         '[data-row-kind="ask-ludex-pending"]'
+      ) as HTMLElement;
+
+      const placeholderHeights: number[] = [];
+      for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
+         await setTestViewport(viewport);
+         const name = viewportName(viewport);
+         expect(document.documentElement.scrollWidth, `pending page width at ${name}`)
+            .toBeLessThanOrEqual(viewport.width);
+         const placeholders = [
+            ...pending.querySelectorAll<HTMLElement>(".ask-ludex-placeholder"),
+         ];
+         expect(placeholders).toHaveLength(3);
+         for (const card of placeholders) {
+            expect(card.scrollWidth, `placeholder width at ${name}`)
+               .toBeLessThanOrEqual(card.clientWidth + 1);
+         }
+         placeholderHeights.push(placeholders[0].getBoundingClientRect().height);
+      }
+
+      answer(ranked as NonNullable<typeof ranked>);
+      const row = await screen.findByRole("region", {
+         name: "Ludex AI picks for “Something relaxed with a satisfying ending”",
+      });
+      for (const [index, viewport] of PUBLIC_PAGE_VIEWPORTS.entries()) {
+         await setTestViewport(viewport);
+         const card = within(row).getAllByRole("article")[0];
+         expect(
+            Math.abs(card.getBoundingClientRect().height - placeholderHeights[index]),
+            `placeholder matches the real card height at ${viewportName(viewport)}`
+         ).toBeLessThan(2);
       }
    });
 
