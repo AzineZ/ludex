@@ -44,6 +44,7 @@ export function automaticRowResponse(
          title: `Source ${sourceSteamAppId}`,
          cover_url: null,
          playtime_minutes: playtimeMinutes,
+         achievement_percent: null,
       },
       recommendations: {
          outcome: itemSteamAppIds.length === 0

@@ -1,5 +1,8 @@
 """Expose every ORM model so `Base.metadata` is complete on import."""
 
+from app.models.achievements import (
+    ProfileGameAchievement,
+)
 from app.models.access import (
     SteamAccessSession,
     SteamUsageEvent,
@@ -34,6 +37,7 @@ __all__ = [
     "IGDBMetadataTerm",
     "Profile",
     "ProfileGame",
+    "ProfileGameAchievement",
     "SteamAccessSession",
     "SteamUsageEvent",
 ]

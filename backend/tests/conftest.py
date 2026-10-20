@@ -13,6 +13,7 @@ os.environ.setdefault("IGDB_CLIENT_ID", "test-igdb-client-id")
 os.environ.setdefault("IGDB_CLIENT_SECRET", "test-igdb-client-secret")
 os.environ.setdefault("GEMINI_API_KEY", "test-gemini-api-key")
 os.environ.setdefault("IGDB_AUTO_ENRICHMENT_ENABLED", "false")
+os.environ.setdefault("STEAM_ACHIEVEMENTS_ENABLED", "false")
 
 import pytest
 from fastapi.testclient import TestClient

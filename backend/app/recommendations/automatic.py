@@ -13,6 +13,7 @@ from app.models import (
     GameIGDBMetadataTerm,
     IGDBMetadataTerm,
     ProfileGame,
+    ProfileGameAchievement,
 )
 from app.recommendations.contracts import (
     PreferenceConstraints,
@@ -31,6 +32,9 @@ from app.recommendations.service import recommend_cached_games
 AUTOMATIC_MINIMUM_PLAYTIME_MINUTES = 60
 RECENCY_HALF_LIFE_DAYS = 90
 FINISHED_GAME_BONUS = 1.5
+# Achievement share is engagement, not completion: some games award few
+# achievements for a whole campaign. 0% leaves a game unchanged, 100% ×1.5.
+ACHIEVEMENT_ENGAGEMENT_WEIGHT = 0.5
 AUTOMATIC_SOURCE_GAME_LIMIT = 3
 AUTOMATIC_SOURCE_SCAN_LIMIT = 10
 AUTOMATIC_KEYWORD_LIMIT = 3
@@ -74,6 +78,7 @@ class PlayedGame:
     playtime_minutes: int
     last_played_at: datetime | None
     normal_completion_seconds: int | None
+    achievement_share: float | None = None
 
     @property
     def looks_finished(self) -> bool:
@@ -103,7 +108,10 @@ class PlayedGame:
         recency = 0.5 ** (days_since_played / RECENCY_HALF_LIFE_DAYS)
         hours = self.playtime_minutes / 60
         finished_bonus = FINISHED_GAME_BONUS if self.looks_finished else 1.0
-        return math.log2(1 + hours) * recency * finished_bonus
+        engagement = 1 + ACHIEVEMENT_ENGAGEMENT_WEIGHT * (
+            self.achievement_share or 0.0
+        )
+        return math.log2(1 + hours) * recency * finished_bonus * engagement
 
 
 @dataclass(frozen=True)
@@ -115,6 +123,7 @@ class AutomaticSourceGame:
     cover_url: str | None
     playtime_minutes: int
     facets: SelectedFacets
+    achievement_percent: int | None = None
 
 
 @dataclass(frozen=True)
@@ -161,6 +170,15 @@ def rank_played_games(
     )
 
 
+def _achievement_share(row: object) -> float | None:
+    """Return the unlocked share only for a successful fetch with totals."""
+    total = getattr(row, "achievement_total", None)
+    unlocked = getattr(row, "achievement_unlocked", None)
+    if getattr(row, "achievement_status", None) != "ok" or not total:
+        return None
+    return (unlocked or 0) / total
+
+
 def _played_game(row: object) -> PlayedGame:
     return PlayedGame(
         steam_app_id=row.steam_app_id,
@@ -170,6 +188,7 @@ def _played_game(row: object) -> PlayedGame:
         playtime_minutes=row.playtime_minutes,
         last_played_at=row.last_played_at,
         normal_completion_seconds=row.time_to_beat_normally_seconds,
+        achievement_share=_achievement_share(row),
     )
 
 
@@ -184,16 +203,26 @@ _PLAYED_GAME_COLUMNS = (
 )
 
 
-def _load_played_games(
+def load_played_games(
     session: Session,
     profile_id: int,
 ) -> tuple[PlayedGame, ...]:
     """Project one profile's owned games with enough playtime."""
     rows = session.execute(
-        select(*_PLAYED_GAME_COLUMNS)
+        select(
+            *_PLAYED_GAME_COLUMNS,
+            ProfileGameAchievement.status.label("achievement_status"),
+            ProfileGameAchievement.unlocked_count.label("achievement_unlocked"),
+            ProfileGameAchievement.total_count.label("achievement_total"),
+        )
         .join(
             ProfileGame,
             ProfileGame.steam_app_id == Game.steam_app_id,
+        )
+        .outerjoin(
+            ProfileGameAchievement,
+            (ProfileGameAchievement.profile_id == ProfileGame.profile_id)
+            & (ProfileGameAchievement.steam_app_id == ProfileGame.steam_app_id),
         )
         .where(
             ProfileGame.profile_id == profile_id,
@@ -370,6 +399,11 @@ def _source_game(
         cover_url=game.cover_url,
         playtime_minutes=game.playtime_minutes,
         facets=facets,
+        achievement_percent=(
+            None
+            if game.achievement_share is None
+            else math.floor(game.achievement_share * 100 + 0.5)
+        ),
     )
 
 
@@ -401,7 +435,7 @@ def recommend_automatic_rows(
     # reference time, so measuring from now orders games exactly as
     # measuring from the library's last sync would.
     ranked_games = rank_played_games(
-        _load_played_games(session, profile_id),
+        load_played_games(session, profile_id),
         datetime.now(UTC),
     )
     scanned_ready_ids = tuple(

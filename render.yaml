@@ -30,6 +30,8 @@ services:
         sync: false
       - key: IGDB_AUTO_ENRICHMENT_ENABLED
         value: "true"
+      - key: STEAM_ACHIEVEMENTS_ENABLED
+        value: "true"
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_RERANK_ENABLED

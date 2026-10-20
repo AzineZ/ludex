@@ -20,6 +20,9 @@ SESSION_ATTEMPT_DAILY_LIMIT = 20
 IDENTIFIER_SESSION_DAILY_LIMIT = 3
 GLOBAL_SESSION_DAILY_LIMIT = 50
 GLOBAL_PROVIDER_CALL_DAILY_LIMIT = 300
+# Separate from the 300 calls sign-in and refresh rely on, so background
+# achievement fetches can never block a visitor from loading a library.
+ACHIEVEMENT_CALL_DAILY_LIMIT = 600
 REFRESH_COOLDOWN = timedelta(minutes=15)
 REFRESH_DAILY_LIMIT = 4
 USAGE_WINDOW = timedelta(hours=24)
@@ -253,6 +256,36 @@ def reserve_provider_call(
             SteamUsageEvent(
                 category="provider_call",
                 subject_digest=global_digest,
+                created_at=current_time,
+                expires_at=next_day,
+            )
+        )
+
+
+def reserve_achievement_call(
+    database_session: Session,
+    hmac_key: bytes,
+    *,
+    now: datetime,
+) -> None:
+    """Reserve one achievement call under its own UTC-day ceiling."""
+    current_time = _require_aware(now)
+    budget_digest = fingerprint_subject(hmac_key, "global", "achievements")
+    day_start = datetime.combine(current_time.date(), time.min, tzinfo=UTC)
+    next_day = _next_utc_day(current_time)
+
+    with _reservation_transaction(database_session, current_time):
+        _advisory_lock(database_session, budget_digest)
+        if _count_events(
+            database_session,
+            category="achievement_call",
+            created_after=day_start,
+        ) >= ACHIEVEMENT_CALL_DAILY_LIMIT:
+            raise RateLimitExceeded(_retry_seconds(next_day, current_time))
+        database_session.add(
+            SteamUsageEvent(
+                category="achievement_call",
+                subject_digest=budget_digest,
                 created_at=current_time,
                 expires_at=next_day,
             )

@@ -75,7 +75,9 @@ class SteamUsageEvent(Base):
     __tablename__ = "steam_usage_events"
     __table_args__ = (
         CheckConstraint(
-            "category IN ('session_create', 'provider_call', 'refresh')",
+            "category IN ("
+            "'session_create', 'provider_call', 'refresh', 'achievement_call'"
+            ")",
             name="ck_steam_usage_events_category",
         ),
         CheckConstraint(

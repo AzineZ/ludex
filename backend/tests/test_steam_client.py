@@ -6,6 +6,8 @@ import pytest
 from app.integrations.steam.client import (
     SteamAPIError,
     SteamAPIUnavailableError,
+    SteamAchievementStatus,
+    SteamAchievementSummary,
     SteamClient,
     SteamLibraryUnavailableError,
     SteamOwnedGame,
@@ -281,3 +283,106 @@ def test_rejects_malformed_profile_and_library_payloads(
                 client.get_profile("76561198000000000")
             else:
                 client.get_owned_games("76561198000000000")
+
+
+def _achievement_client(handler) -> SteamClient:
+    return SteamClient("test-key", transport=httpx.MockTransport(handler))
+
+
+def test_player_achievements_keep_only_counts() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/ISteamUserStats/GetPlayerAchievements/v1/"
+        assert request.url.params["steamid"] == "76561198000000000"
+        assert request.url.params["appid"] == "1245620"
+        return httpx.Response(
+            200,
+            json={
+                "playerstats": {
+                    "steamID": "76561198000000000",
+                    "gameName": "ELDEN RING",
+                    "success": True,
+                    "achievements": [
+                        {"apiname": "A", "achieved": 1, "unlocktime": 1},
+                        {"apiname": "B", "achieved": 1, "unlocktime": 2},
+                        {"apiname": "C", "achieved": 0, "unlocktime": 0},
+                    ],
+                }
+            },
+        )
+
+    with _achievement_client(handler) as client:
+        summary = client.get_player_achievements("76561198000000000", 1245620)
+
+    assert summary == SteamAchievementSummary(
+        SteamAchievementStatus.OK,
+        unlocked_count=2,
+        total_count=3,
+    )
+
+
+@pytest.mark.parametrize(
+    ("status_code", "playerstats", "expected"),
+    [
+        (
+            400,
+            {"error": "Requested app has no stats", "success": False},
+            SteamAchievementStatus.NO_ACHIEVEMENTS,
+        ),
+        (
+            403,
+            {"error": "Profile is not public", "success": False},
+            SteamAchievementStatus.PRIVATE,
+        ),
+        (
+            200,
+            {"success": True, "gameName": "No achievements"},
+            SteamAchievementStatus.NO_ACHIEVEMENTS,
+        ),
+    ],
+)
+def test_player_achievement_outcomes_that_are_not_failures(
+    status_code: int,
+    playerstats: dict[str, object],
+    expected: SteamAchievementStatus,
+) -> None:
+    with _achievement_client(
+        lambda request: httpx.Response(
+            status_code,
+            json={"playerstats": playerstats},
+        )
+    ) as client:
+        summary = client.get_player_achievements("76561198000000000", 10)
+
+    assert summary == SteamAchievementSummary(expected)
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(500, json={"playerstats": {"success": False, "error": "x"}}),
+        httpx.Response(200, json={"unexpected": True}),
+        httpx.Response(200, text="not json"),
+        httpx.Response(
+            200,
+            json={
+                "playerstats": {
+                    "success": True,
+                    "achievements": [{"apiname": "A", "achieved": 2}],
+                }
+            },
+        ),
+    ],
+)
+def test_player_achievement_failures_raise(response: httpx.Response) -> None:
+    with _achievement_client(lambda request: response) as client:
+        with pytest.raises(SteamAPIError):
+            client.get_player_achievements("76561198000000000", 10)
+
+
+def test_player_achievement_network_failure_is_unavailable() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("offline", request=request)
+
+    with _achievement_client(handler) as client:
+        with pytest.raises(SteamAPIUnavailableError):
+            client.get_player_achievements("76561198000000000", 10)

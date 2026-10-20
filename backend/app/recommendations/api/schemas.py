@@ -352,6 +352,7 @@ class AutomaticSourceGameResponse(RecommendationHTTPModel):
     title: str
     cover_url: str | None
     playtime_minutes: int
+    achievement_percent: int | None
 
 
 class AutomaticRecommendationRowResponse(RecommendationHTTPModel):
@@ -498,6 +499,7 @@ def to_automatic_row_response(
             title=source_game.title,
             cover_url=source_game.cover_url,
             playtime_minutes=source_game.playtime_minutes,
+            achievement_percent=source_game.achievement_percent,
         ),
         recommendations=to_final_recommendation_response(row.result),
     )

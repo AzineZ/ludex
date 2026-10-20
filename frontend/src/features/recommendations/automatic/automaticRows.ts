@@ -49,9 +49,13 @@ export function formatPlayedHours(playtimeMinutes: number): string {
 }
 
 export function rowHeading(row: AutomaticRow): string {
-   return row.kind === "played"
-      ? `Because you played ${row.sourceGame.title} · ${formatPlayedHours(row.sourceGame.playtime_minutes)}`
-      : `More like ${row.sourceGame.title}`;
+   if (row.kind === "more-like") {
+      return `More like ${row.sourceGame.title}`;
+   }
+   const achievements = row.sourceGame.achievement_percent === null
+      ? ""
+      : ` · ${row.sourceGame.achievement_percent}% achievements`;
+   return `Because you played ${row.sourceGame.title} · ${formatPlayedHours(row.sourceGame.playtime_minutes)}${achievements}`;
 }
 
 function visibleSteamAppIds(rows: readonly AutomaticRow[]): Set<number> {

@@ -191,6 +191,7 @@ export type AutomaticSourceGameResponse = {
    title: string;
    cover_url: string | null;
    playtime_minutes: number;
+   achievement_percent: number | null;
 };
 
 export type AutomaticRecommendationRowResponse = {

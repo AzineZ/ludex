@@ -55,6 +55,7 @@ vi.mock("../../api", async (importOriginal) => {
                   : `Responsive Source ${rowIndex + 1}`,
                cover_url: null,
                playtime_minutes: 2_520 * (rowIndex + 1),
+               achievement_percent: null,
             },
             recommendations: {
                outcome: "complete",
@@ -94,6 +95,7 @@ vi.mock("../../api", async (importOriginal) => {
             title: "Responsive More Like Source",
             cover_url: null,
             playtime_minutes: 0,
+            achievement_percent: null,
          },
          recommendations: {
             outcome: "sparse",

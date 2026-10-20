@@ -10,6 +10,8 @@ from app.abuse.steam import (
     RateLimitExceeded,
     SteamAbuseController,
     fingerprint_subject,
+    ACHIEVEMENT_CALL_DAILY_LIMIT,
+    reserve_achievement_call,
     reserve_provider_call,
     reserve_refresh,
     reserve_session_creation,
@@ -234,3 +236,49 @@ def test_budgeted_client_reserves_before_lazy_construction(
 
     client.close()
     inner_client.close.assert_called_once_with()
+
+
+def test_achievement_budget_is_separate_and_stops_at_600_per_utc_day(
+    database_session: Session,
+) -> None:
+    steam_subject = fingerprint_subject(HMAC_KEY, "global", "steam")
+    achievement_subject = fingerprint_subject(
+        HMAC_KEY,
+        "global",
+        "achievements",
+    )
+    next_day = datetime(2026, 9, 7, tzinfo=UTC)
+    database_session.add_all(
+        SteamUsageEvent(
+            category="provider_call",
+            subject_digest=steam_subject,
+            created_at=NOW,
+            expires_at=next_day,
+        )
+        for _ in range(300)
+    )
+    database_session.commit()
+
+    # A spent sign-in budget does not block achievement calls.
+    reserve_achievement_call(database_session, HMAC_KEY, now=NOW)
+    database_session.add_all(
+        SteamUsageEvent(
+            category="achievement_call",
+            subject_digest=achievement_subject,
+            created_at=NOW,
+            expires_at=next_day,
+        )
+        for _ in range(ACHIEVEMENT_CALL_DAILY_LIMIT - 1)
+    )
+    database_session.commit()
+
+    with pytest.raises(RateLimitExceeded) as error:
+        reserve_achievement_call(database_session, HMAC_KEY, now=NOW)
+
+    assert ACHIEVEMENT_CALL_DAILY_LIMIT == 600
+    assert error.value.retry_after == 4 * 60 * 60
+    assert database_session.scalar(
+        select(func.count()).select_from(SteamUsageEvent).where(
+            SteamUsageEvent.category == "achievement_call"
+        )
+    ) == 600

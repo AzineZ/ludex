@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session
 from app.abuse.steam import SteamAbuseController
 from app.database import get_database_session
 from app.dependencies import (
+    AchievementFetch,
     AutomaticEnrichment,
     BudgetedSteamClient,
+    get_achievement_fetch,
     get_automatic_enrichment,
     get_steam_client,
     get_steam_rate_limit_hmac_key,
@@ -82,6 +84,10 @@ def create_session(
         AutomaticEnrichment,
         Depends(get_automatic_enrichment),
     ],
+    achievement_fetch: Annotated[
+        AchievementFetch,
+        Depends(get_achievement_fetch),
+    ],
 ) -> SessionProfileResponse:
     """Acknowledge use, then authorize this browser for one profile."""
     profile_id = resolve_profile_for_session(
@@ -103,6 +109,7 @@ def create_session(
 
     set_access_session_cookie(response, issued_session)
     background_tasks.add_task(automatic_enrichment)
+    background_tasks.add_task(achievement_fetch, profile_id)
     return session_profile_response(profile)
 
 
@@ -161,6 +168,10 @@ def refresh_session_profile(
         AutomaticEnrichment,
         Depends(get_automatic_enrichment),
     ],
+    achievement_fetch: Annotated[
+        AchievementFetch,
+        Depends(get_achievement_fetch),
+    ],
 ) -> SessionProfileResponse:
     """Refresh only the profile authorized by the browser cookie."""
     profile = refresh_profile_or_raise(
@@ -173,6 +184,7 @@ def refresh_session_profile(
         now=get_steam_abuse_clock(),
     )
     background_tasks.add_task(automatic_enrichment)
+    background_tasks.add_task(achievement_fetch, access_session.profile_id)
     return session_profile_response(profile)
 
 

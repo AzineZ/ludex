@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import StrEnum
 from types import TracebackType
 from typing import Any, Self
 
@@ -59,6 +60,23 @@ class SteamOwnedGame:
     playtime_minutes: int
     recent_playtime_minutes: int | None
     last_played_at: datetime | None
+
+
+class SteamAchievementStatus(StrEnum):
+    """Describe the outcome of one player-achievement request."""
+
+    OK = "ok"
+    NO_ACHIEVEMENTS = "no_achievements"
+    PRIVATE = "private"
+
+
+@dataclass(frozen=True)
+class SteamAchievementSummary:
+    """Hold only the counts Ludex keeps from one achievement response."""
+
+    status: SteamAchievementStatus
+    unlocked_count: int | None = None
+    total_count: int | None = None
 
 
 class SteamClient:
@@ -245,6 +263,71 @@ class SteamClient:
             self._parse_owned_game(game)
             for game in games
         ]
+
+    def get_player_achievements(
+        self,
+        steam_id: str,
+        steam_app_id: int,
+    ) -> SteamAchievementSummary:
+        """Count one player's unlocked achievements for one game.
+
+        Steam answers games without stats with HTTP 400 and private game
+        details with HTTP 403, each with a JSON ``playerstats.error``; both
+        are normal outcomes, not failures. Only counts are returned.
+
+        Raises:
+            SteamAPIUnavailableError: If the network request fails.
+            SteamAPIError: If Steam returns an unexpected response.
+        """
+        try:
+            response = self._http_client.get(
+                "/ISteamUserStats/GetPlayerAchievements/v1/",
+                params={
+                    "key": self._api_key,
+                    "format": "json",
+                    "steamid": steam_id,
+                    "appid": steam_app_id,
+                },
+            )
+            payload = response.json()
+        except httpx.RequestError:
+            raise SteamAPIUnavailableError(
+                "Steam is currently unavailable."
+            ) from None
+        except ValueError:
+            raise SteamAPIError(
+                "Steam returned invalid response data."
+            ) from None
+
+        stats = payload.get("playerstats") if isinstance(payload, dict) else None
+        if not isinstance(stats, dict):
+            raise SteamAPIError("Steam returned an unexpected response.")
+
+        if stats.get("success") is not True:
+            error = str(stats.get("error", "")).lower()
+            if "not public" in error:
+                return SteamAchievementSummary(SteamAchievementStatus.PRIVATE)
+            if "no stats" in error:
+                return SteamAchievementSummary(
+                    SteamAchievementStatus.NO_ACHIEVEMENTS
+                )
+            raise SteamAPIError("Steam rejected the achievement request.")
+
+        achievements = stats.get("achievements", [])
+        if not isinstance(achievements, list) or any(
+            not isinstance(entry, dict) or entry.get("achieved") not in (0, 1)
+            for entry in achievements
+        ):
+            raise SteamAPIError("Steam returned invalid achievement data.")
+        if not achievements:
+            return SteamAchievementSummary(
+                SteamAchievementStatus.NO_ACHIEVEMENTS
+            )
+        return SteamAchievementSummary(
+            SteamAchievementStatus.OK,
+            unlocked_count=sum(entry["achieved"] for entry in achievements),
+            total_count=len(achievements),
+        )
 
     def _get(
         self,

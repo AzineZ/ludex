@@ -15,7 +15,11 @@ from app.sessions.rate_limits import get_steam_abuse_controller
 from app.sessions.service import IssuedAccessSession, issue_access_session
 from app.abuse.steam import SteamAbuseController
 from app.database import Base, get_database_session
-from app.dependencies import get_automatic_enrichment, get_steam_client
+from app.dependencies import (
+    get_achievement_fetch,
+    get_automatic_enrichment,
+    get_steam_client,
+)
 from app.main import app
 from app.models import (
     Game,
@@ -843,3 +847,62 @@ def test_failed_refresh_does_not_schedule_enrichment(
 
     assert response.status_code == 503
     automatic_enrichment.assert_not_called()
+
+
+@pytest.fixture
+def achievement_fetch() -> Generator[MagicMock, None, None]:
+    fetch = MagicMock(return_value=0)
+    app.dependency_overrides[get_achievement_fetch] = lambda: fetch
+    try:
+        yield fetch
+    finally:
+        app.dependency_overrides.pop(get_achievement_fetch, None)
+
+
+def test_sign_in_and_refresh_schedule_the_achievement_fetch(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    automatic_enrichment: MagicMock,
+    achievement_fetch: MagicMock,
+) -> None:
+    client, session_factory = session_api
+    _configure_import(steam_client)
+
+    created = client.post(
+        "/session",
+        json=_authorized_session_request(FIRST_STEAM_ID),
+    )
+    with session_factory() as database_session:
+        profile_id = database_session.scalar(
+            select(Profile.id).where(Profile.steam_id == FIRST_STEAM_ID)
+        )
+    refreshed = client.post("/session/profile/refresh")
+
+    assert created.status_code == 201
+    assert refreshed.status_code == 200
+    assert achievement_fetch.call_args_list == [
+        ((profile_id,), {}),
+        ((profile_id,), {}),
+    ]
+
+
+def test_failed_sign_in_does_not_schedule_the_achievement_fetch(
+    session_api: tuple[TestClient, sessionmaker[Session]],
+    steam_client: MagicMock,
+    automatic_enrichment: MagicMock,
+    achievement_fetch: MagicMock,
+) -> None:
+    client, _ = session_api
+    steam_client.resolve_steam_id.side_effect = SteamAPIUnavailableError(
+        "Steam is currently unavailable."
+    )
+
+    response = client.post(
+        "/session",
+        json=_authorized_session_request(
+            "https://steamcommunity.com/id/unavailable"
+        ),
+    )
+
+    assert response.status_code == 503
+    achievement_fetch.assert_not_called()

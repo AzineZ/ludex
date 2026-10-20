@@ -106,6 +106,10 @@ def test_render_blueprint_separates_public_values_and_runtime_secrets() -> None:
         "key": "IGDB_AUTO_ENRICHMENT_ENABLED",
         "value": "true",
     }
+    assert environment["STEAM_ACHIEVEMENTS_ENABLED"] == {
+        "key": "STEAM_ACHIEVEMENTS_ENABLED",
+        "value": "true",
+    }
 
 
 def test_staging_blueprint_is_free_isolated_and_manual() -> None:
@@ -146,6 +150,10 @@ def test_staging_blueprint_uses_staging_only_secrets_and_origin() -> None:
     }
     assert environment["IGDB_AUTO_ENRICHMENT_ENABLED"] == {
         "key": "IGDB_AUTO_ENRICHMENT_ENABLED",
+        "value": "true",
+    }
+    assert environment["STEAM_ACHIEVEMENTS_ENABLED"] == {
+        "key": "STEAM_ACHIEVEMENTS_ENABLED",
         "value": "true",
     }
     assert "MIGRATION_DATABASE_URL" not in environment

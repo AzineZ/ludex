@@ -41,6 +41,12 @@ describe("automatic rows", () => {
       );
 
       expect(rowHeading(played)).toBe("Because you played Source 101 · 42 h");
+      expect(
+         rowHeading({
+            ...played,
+            sourceGame: { ...played.sourceGame, achievement_percent: 87 },
+         })
+      ).toBe("Because you played Source 101 · 42 h · 87% achievements");
       expect(rowHeading(moreLike)).toBe("More like Source 201");
       expect(formatPlayedHours(60)).toBe("1 h");
       expect(formatPlayedHours(90_000)).toBe("1,500 h");

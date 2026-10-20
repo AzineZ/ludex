@@ -5,7 +5,12 @@ from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.orm import Session
 
 from app.clock import Clock, read_utc_time, stored_utc_time, utc_now
-from app.models import Profile, ProfileGame, SteamAccessSession
+from app.models import (
+    Profile,
+    ProfileGame,
+    ProfileGameAchievement,
+    SteamAccessSession,
+)
 
 
 PROFILE_RETENTION_PERIOD = timedelta(days=30)
@@ -153,6 +158,11 @@ def apply_profile_retention_cleanup(
         if not candidate_ids:
             return report
 
+        database_session.execute(
+            delete(ProfileGameAchievement).where(
+                ProfileGameAchievement.profile_id.in_(candidate_ids)
+            )
+        )
         database_session.execute(
             delete(ProfileGame).where(
                 ProfileGame.profile_id.in_(candidate_ids)

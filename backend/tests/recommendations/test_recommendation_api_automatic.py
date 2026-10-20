@@ -237,18 +237,21 @@ def test_automatic_rows_follow_top_played_games_without_repeats(
             "title": "Beta",
             "cover_url": None,
             "playtime_minutes": 300,
+            "achievement_percent": None,
         },
         {
             "steam_app_id": 101,
             "title": "Alpha",
             "cover_url": None,
             "playtime_minutes": 600,
+            "achievement_percent": None,
         },
         {
             "steam_app_id": 103,
             "title": "Gamma",
             "cover_url": None,
             "playtime_minutes": 500,
+            "achievement_percent": None,
         },
     ]
     row_ids = [_row_ids(row) for row in payload["rows"]]
@@ -626,6 +629,7 @@ def test_more_like_this_uses_one_game_and_skips_shown_games(
         "title": "Candidate 3",
         "cover_url": None,
         "playtime_minutes": 0,
+        "achievement_percent": None,
     }
     assert _row_ids(payload) == [205, 206, 207, 208, 209, 210]
 

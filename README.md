@@ -89,6 +89,13 @@ every pending owned game (not only the caller's) up to 2,000 per trigger, and
 never returns an IGDB failure to the browser. Set
 `IGDB_AUTO_ENRICHMENT_ENABLED=false` to turn this off.
 
+The same sign-in or refresh also fetches Steam achievement counts for up to
+20 of the visitor's top played games in the background. Ludex keeps only the
+number unlocked and the total, uses them as a gentle engagement signal when
+choosing automatic Guided rows, and deletes them with the profile. These calls
+have their own 600-per-day budget, separate from sign-in and refresh. Set
+`STEAM_ACHIEVEMENTS_ENABLED=false` to turn this off.
+
 The manual command remains the backstop for games that a skipped, failed, or
 interrupted run left pending. The default enrichment command is report-only:
 it shows aggregate readiness without provider calls or writes.

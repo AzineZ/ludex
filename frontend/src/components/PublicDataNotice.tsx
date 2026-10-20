@@ -23,7 +23,10 @@ function PublicDataNotice() {
                <p>
                   Ludex may request and cache the submitted Steam ID, public
                   display name, profile and avatar URLs, owned games, playtime,
-                  and last-played information. Shared game facts and artwork may
+                  and last-played information. For up to 20 of the most-played
+                  games it also requests achievement progress and keeps only
+                  the number unlocked and the total, never individual
+                  achievements; these counts are deleted with the profile. Shared game facts and artwork may
                   be cached from IGDB. The developer-authorized sample exposes the
                   same cached profile and library fields even while its source
                   Steam profile is private. Recommendation preferences are used

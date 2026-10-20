@@ -32,6 +32,9 @@ describe("PublicDataNotice", () => {
       expect(notice).toHaveTextContent("not persisted or application-logged");
       expect(notice).toHaveTextContent("not proof of account ownership");
       expect(notice).toHaveTextContent(
+         "keeps only the number unlocked and the total, never individual achievements"
+      );
+      expect(notice).toHaveTextContent(
          "Starting the cached sample does not contact Steam"
       );
       expect(notice).toHaveTextContent(

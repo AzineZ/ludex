@@ -10,6 +10,7 @@ from app.abuse.steam import reserve_provider_call
 from app.config import settings
 from app.database import get_database_session
 from app.integrations.igdb.automatic import run_automatic_enrichment
+from app.integrations.steam.achievements import run_achievement_fetch
 from app.integrations.steam.client import SteamClient
 
 
@@ -103,8 +104,22 @@ def get_steam_client(
 
 
 AutomaticEnrichment = Callable[[], object]
+AchievementFetch = Callable[[int], object]
 
 
 def get_automatic_enrichment() -> AutomaticEnrichment:
     """Provide the post-import IGDB enrichment task and a test seam."""
     return run_automatic_enrichment
+
+
+def get_achievement_fetch(
+    hmac_key: Annotated[
+        bytes,
+        Depends(get_steam_rate_limit_hmac_key),
+    ],
+) -> AchievementFetch:
+    """Provide the post-import achievement fetch and a test seam."""
+    return lambda profile_id: run_achievement_fetch(
+        profile_id,
+        hmac_key=hmac_key,
+    )
