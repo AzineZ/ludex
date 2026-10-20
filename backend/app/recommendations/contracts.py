@@ -15,6 +15,20 @@ CompletionMinutes = Annotated[
 ]
 
 
+MAX_SHOWN_EXCLUDED_GAMES = 60
+
+
+def validate_shown_exclusions(
+    steam_app_ids: tuple[int, ...],
+) -> tuple[int, ...]:
+    """Bound and deduplicate games already shown elsewhere on the page."""
+    if len(steam_app_ids) > MAX_SHOWN_EXCLUDED_GAMES:
+        raise ValueError("A request may exclude at most 60 shown games.")
+    if len(set(steam_app_ids)) != len(steam_app_ids):
+        raise ValueError("Excluded game IDs must be unique.")
+    return steam_app_ids
+
+
 class FrozenContract(BaseModel):
     """Provide strict immutable behavior shared by preference contracts."""
 

@@ -99,6 +99,7 @@ describe("AssistantWorkspace", () => {
          theme_ids: [],
          game_mode_ids: [],
          rejected_steam_app_ids: [],
+         excluded_steam_app_ids: [],
       });
       expect(screen.getByText("42")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fantasy, 16 eligible games" }))
@@ -123,6 +124,7 @@ describe("AssistantWorkspace", () => {
          theme_ids: [17],
          game_mode_ids: [],
          rejected_steam_app_ids: [],
+         excluded_steam_app_ids: [],
       });
       expect(mockedRecommendations).not.toHaveBeenCalled();
       fireEvent.change(screen.getByLabelText("What are you in the mood to play?"), {
@@ -154,6 +156,7 @@ describe("AssistantWorkspace", () => {
             game_mode_ids: [],
          },
          rejected_steam_app_ids: [],
+         excluded_steam_app_ids: [],
       });
       expect(within(firstCard).getByText("Game summary 1."))
          .toBeInTheDocument();
@@ -184,6 +187,61 @@ describe("AssistantWorkspace", () => {
       expect(screen.getByRole("heading", { name: "Your choice" }))
          .toBeInTheDocument();
       expect(screen.getAllByRole("article")).toHaveLength(1);
+   });
+
+   it("skips games Guided already suggested unless the visitor includes them", async () => {
+      render(
+         <AssistantWorkspace
+            sessionEpoch={7}
+            suggestedSteamAppIds={[501, 502]}
+            onUseGuided={vi.fn()}
+         />
+      );
+
+      expect(screen.getByText("Skipping 2 games already suggested in Guided."))
+         .toBeInTheDocument();
+      await chooseAdventure();
+      expect(mockedFilters).toHaveBeenLastCalledWith(
+         expect.objectContaining({ excluded_steam_app_ids: [501, 502] })
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Include them" }));
+
+      expect(screen.getByText("Including 2 games already suggested in Guided."))
+         .toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Skip them" }))
+         .toHaveAttribute("aria-pressed", "true");
+      await waitFor(() => {
+         expect(mockedFilters).toHaveBeenLastCalledWith(
+            expect.objectContaining({ excluded_steam_app_ids: [] })
+         );
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Skip them" }));
+      await waitFor(() => {
+         expect(mockedFilters).toHaveBeenLastCalledWith(
+            expect.objectContaining({ excluded_steam_app_ids: [501, 502] })
+         );
+      });
+      fireEvent.change(
+         screen.getByLabelText("What are you in the mood to play?"),
+         { target: { value: "Something calm" } }
+      );
+      await waitFor(() => {
+         expect(screen.getByRole("button", { name: "Ask Ludex" })).toBeEnabled();
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Ask Ludex" }));
+
+      expect(mockedRecommendations).toHaveBeenCalledWith(
+         expect.objectContaining({ excluded_steam_app_ids: [501, 502] })
+      );
+   });
+
+   it("shows no skipping note when Guided has suggested nothing", () => {
+      render(<AssistantWorkspace sessionEpoch={7} onUseGuided={vi.fn()} />);
+
+      expect(screen.queryByText(/already suggested in Guided/))
+         .not.toBeInTheDocument();
    });
 
    it("keeps an oversized pool provider-free and asks for factual refinement", async () => {

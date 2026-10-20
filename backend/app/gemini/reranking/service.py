@@ -39,7 +39,10 @@ from app.gemini.reranking.reranker import (
     rerank_user_prompt_size_bytes,
     rerank_with_metadata,
 )
-from app.recommendations.contracts import PositiveIdentifier
+from app.recommendations.contracts import (
+    PositiveIdentifier,
+    validate_shown_exclusions,
+)
 from app.recommendations.ratings import GameRatings
 
 
@@ -53,6 +56,8 @@ class RerankSubmission(FrozenContract):
     selected_genre_id: int = Field(strict=True, gt=0)
     filters: RerankFilters
     rejected_steam_app_ids: tuple[PositiveIdentifier, ...] = ()
+    # Games already suggested elsewhere on the page (Guided rows).
+    excluded_steam_app_ids: tuple[PositiveIdentifier, ...] = ()
 
     @field_validator("prompt")
     @classmethod
@@ -66,6 +71,11 @@ class RerankSubmission(FrozenContract):
     @classmethod
     def validate_rejections(cls, values: tuple[int, ...]) -> tuple[int, ...]:
         return validate_session_exclusions(values)
+
+    @field_validator("excluded_steam_app_ids")
+    @classmethod
+    def validate_exclusions(cls, values: tuple[int, ...]) -> tuple[int, ...]:
+        return validate_shown_exclusions(values)
 
 
 @dataclass(frozen=True)
@@ -295,7 +305,8 @@ def recommend_with_gemini(
         filters=submission.filters,
         session_excluded_steam_app_ids=frozenset(
             submission.rejected_steam_app_ids
-        ),
+        )
+        | frozenset(submission.excluded_steam_app_ids),
     )
     unrankable = _unrankable_pool_result(pool)
     if unrankable is not None:

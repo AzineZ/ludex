@@ -43,7 +43,10 @@ function retainAvailableIds(
    return retained.length === values.length ? values : retained;
 }
 
-function useAssistantWorkflow(sessionEpoch: number | null) {
+function useAssistantWorkflow(
+   sessionEpoch: number | null,
+   suggestedSteamAppIds: readonly number[] = []
+) {
    const [genreState, setGenreState] = useState<LoadState>("loading");
    const [genres, setGenres] = useState<AssistantGenreOptionsResponse>({
       items: [],
@@ -65,6 +68,16 @@ function useAssistantWorkflow(sessionEpoch: number | null) {
       useState<AssistantRecommendationResponse | null>(null);
    const [submissionError, setSubmissionError] = useState<string | null>(null);
    const [rejectedSteamAppIds, setRejectedSteamAppIds] = useState<number[]>([]);
+   const [includeSuggested, setIncludeSuggested] = useState(false);
+   const suggestedKey = suggestedSteamAppIds.join(",");
+   // Games Guided already suggested are skipped unless the visitor opts in.
+   const excludedSteamAppIds = useMemo(
+      () =>
+         includeSuggested || suggestedKey === ""
+            ? []
+            : suggestedKey.split(",").map(Number),
+      [includeSuggested, suggestedKey]
+   );
    const submissionGeneration = useRef(0);
    const submissionInFlight = useRef(false);
    const filterContextKey = useMemo(
@@ -77,10 +90,12 @@ function useAssistantWorkflow(sessionEpoch: number | null) {
             selectedThemeIds,
             selectedGameModeIds,
             rejectedSteamAppIds,
+            excludedSteamAppIds,
          }),
       [
          constraints.maximum_completion_minutes,
          constraints.play_status,
+         excludedSteamAppIds,
          rejectedSteamAppIds,
          selectedGameModeIds,
          selectedGenreId,
@@ -130,6 +145,7 @@ function useAssistantWorkflow(sessionEpoch: number | null) {
          theme_ids: [...selectedThemeIds],
          game_mode_ids: [...selectedGameModeIds],
          rejected_steam_app_ids: [...rejectedSteamAppIds],
+         excluded_steam_app_ids: [...excludedSteamAppIds],
       }).then(
          (result) => {
             if (!current) {
@@ -165,6 +181,7 @@ function useAssistantWorkflow(sessionEpoch: number | null) {
       };
    }, [
       constraints,
+      excludedSteamAppIds,
       filterContextKey,
       rejectedSteamAppIds,
       selectedGameModeIds,
@@ -200,6 +217,13 @@ function useAssistantWorkflow(sessionEpoch: number | null) {
    function toggleGameMode(id: number): void {
       setSelectedGameModeIds((values) => toggleId(values, id));
       markFiltersLoading();
+   }
+
+   function toggleIncludeSuggested(): void {
+      setIncludeSuggested((value) => !value);
+      if (selectedGenreId !== null) {
+         markFiltersLoading();
+      }
    }
 
    function changePrompt(value: string): void {
@@ -240,6 +264,7 @@ function useAssistantWorkflow(sessionEpoch: number | null) {
             ),
          },
          rejected_steam_app_ids: [...rejectedSteamAppIds],
+         excluded_steam_app_ids: [...excludedSteamAppIds],
       }).then(
          (result) => {
             if (submissionGeneration.current === generation) {
@@ -297,6 +322,7 @@ function useAssistantWorkflow(sessionEpoch: number | null) {
       genreError,
       genres,
       genreState,
+      includeSuggested,
       prompt,
       reject,
       resetResults,
@@ -309,7 +335,9 @@ function useAssistantWorkflow(sessionEpoch: number | null) {
       submissionError,
       submissionState,
       submit,
+      suggestedCount: suggestedKey === "" ? 0 : suggestedSteamAppIds.length,
       toggleGameMode,
+      toggleIncludeSuggested,
       toggleTheme,
    };
 }

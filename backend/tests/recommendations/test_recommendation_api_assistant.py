@@ -214,3 +214,100 @@ def test_assistant_routes_require_access_session(
         ] = recommendation_api.access_session_override
 
     assert response.status_code == 401
+
+
+def _filters_body(**overrides: object) -> dict[str, object]:
+    return {
+        "selected_genre_id": 31,
+        "play_status": "either",
+        "maximum_completion_minutes": None,
+        "theme_ids": [],
+        "game_mode_ids": [],
+        "rejected_steam_app_ids": [],
+        **overrides,
+    }
+
+
+def test_assistant_counts_skip_games_already_suggested_in_guided(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    for steam_app_id in (1, 2, 3, 4):
+        _add_game(
+            recommendation_api.database_session,
+            profile_id=1,
+            steam_app_id=steam_app_id,
+        )
+
+    counts = [
+        recommendation_api.client.post(
+            "/recommendations/assistant/filters",
+            json=_filters_body(**overrides),
+        ).json()["eligible_count"]
+        for overrides in (
+            {},
+            {"excluded_steam_app_ids": [1, 2]},
+            {"rejected_steam_app_ids": [2], "excluded_steam_app_ids": [1, 3]},
+        )
+    ]
+
+    assert counts == [4, 2, 1]
+
+
+def test_assistant_submission_pool_skips_games_already_suggested(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    for steam_app_id in (1, 2, 3):
+        _add_game(
+            recommendation_api.database_session,
+            profile_id=1,
+            steam_app_id=steam_app_id,
+        )
+
+    response = recommendation_api.client.post(
+        "/recommendations/assistant",
+        json={
+            "prompt": "Something calm",
+            "selected_genre_id": 31,
+            "filters": {
+                "play_status": "either",
+                "maximum_completion_minutes": None,
+                "theme_ids": [],
+                "game_mode_ids": [],
+            },
+            "rejected_steam_app_ids": [3],
+            "excluded_steam_app_ids": [1],
+        },
+    )
+
+    # Without a configured runtime the request still reports the pool it
+    # would have sent: only game 2 remains.
+    assert response.status_code == 200
+    assert response.json()["eligible_count"] == 1
+
+
+def test_assistant_bounds_games_already_suggested(
+    recommendation_api: RecommendationAPI,
+) -> None:
+    too_many = recommendation_api.client.post(
+        "/recommendations/assistant/filters",
+        json=_filters_body(excluded_steam_app_ids=list(range(1, 62))),
+    )
+    duplicated = recommendation_api.client.post(
+        "/recommendations/assistant/filters",
+        json=_filters_body(excluded_steam_app_ids=[4, 5, 4]),
+    )
+
+    _assert_error(
+        too_many,
+        status_code=422,
+        code="too_many_excluded_games",
+        field="excluded_steam_app_ids",
+        message="A request may exclude at most 60 shown games.",
+    )
+    _assert_error(
+        duplicated,
+        status_code=422,
+        code="duplicate_excluded_game",
+        field="excluded_steam_app_ids[2]",
+        message="Excluded game IDs must be unique.",
+    )

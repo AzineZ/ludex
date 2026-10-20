@@ -42,6 +42,7 @@ from app.recommendations.contracts import (
     CompletionMinutes,
     PlayStatus,
     PositiveIdentifier,
+    validate_shown_exclusions,
 )
 from app.sessions.http import require_access_session
 from app.sessions.service import ActiveAccessSession
@@ -69,6 +70,7 @@ class RerankFilterContextRequest(RecommendationHTTPModel):
         default=(), max_length=8
     )
     rejected_steam_app_ids: tuple[PositiveIdentifier, ...] = ()
+    excluded_steam_app_ids: tuple[PositiveIdentifier, ...] = ()
 
     @field_validator("theme_ids", "game_mode_ids")
     @classmethod
@@ -81,6 +83,11 @@ class RerankFilterContextRequest(RecommendationHTTPModel):
     @classmethod
     def validate_rejections(cls, values: tuple[int, ...]) -> tuple[int, ...]:
         return validate_session_exclusions(values)
+
+    @field_validator("excluded_steam_app_ids")
+    @classmethod
+    def validate_exclusions(cls, values: tuple[int, ...]) -> tuple[int, ...]:
+        return validate_shown_exclusions(values)
 
 
 class RerankFilterOptionsResponse(RecommendationHTTPModel):
@@ -209,7 +216,8 @@ def get_assistant_filter_options(
             game_mode_ids=request.game_mode_ids,
             session_excluded_steam_app_ids=frozenset(
                 request.rejected_steam_app_ids
-            ),
+            )
+            | frozenset(request.excluded_steam_app_ids),
         )
     except (RerankGenreUnavailableError, RerankFilterUnavailableError) as error:
         _raise_unavailable_option(error)

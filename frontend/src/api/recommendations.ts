@@ -221,6 +221,7 @@ export type AssistantFilterContextRequest = {
    theme_ids: number[];
    game_mode_ids: number[];
    rejected_steam_app_ids: number[];
+   excluded_steam_app_ids?: number[];
 };
 
 export type AssistantFilterOptionsResponse = {
@@ -242,6 +243,7 @@ export type AssistantRecommendationSubmission = {
    selected_genre_id: number;
    filters: AssistantFilters;
    rejected_steam_app_ids: number[];
+   excluded_steam_app_ids?: number[];
 };
 
 export type AssistantRecommendationStatus =

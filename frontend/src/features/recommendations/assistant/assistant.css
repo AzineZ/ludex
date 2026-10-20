@@ -308,6 +308,42 @@
    font-size: 0.75rem;
 }
 
+.assistant-suggested-note {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: center;
+   gap: 0.35rem 0.75rem;
+   margin: 0.75rem 0 0;
+   padding-left: 0.85rem;
+   border-left: 3px solid var(--color-alarm-red);
+   color: var(--color-ash-taupe);
+   font-size: 0.85rem;
+   line-height: 1.45;
+   text-align: left;
+}
+
+.assistant-suggested-note span {
+   min-width: 0;
+   overflow-wrap: anywhere;
+}
+
+.assistant-suggested-note__toggle {
+   padding: 0;
+   border: 0;
+   color: var(--color-bone-cream);
+   background: transparent;
+   font: inherit;
+   font-weight: 800;
+   text-decoration: underline;
+   text-underline-offset: 0.2em;
+   cursor: pointer;
+}
+
+.assistant-suggested-note__toggle:focus-visible {
+   outline: 2px solid var(--color-alarm-red);
+   outline-offset: 3px;
+}
+
 .assistant-data-use {
    margin-top: 1rem;
    padding-left: 0.85rem;

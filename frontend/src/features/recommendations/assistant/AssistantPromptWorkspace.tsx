@@ -68,6 +68,7 @@ function AssistantPromptWorkspace({
       genreError,
       genres,
       genreState,
+      includeSuggested,
       prompt,
       response,
       selectGenre,
@@ -78,7 +79,9 @@ function AssistantPromptWorkspace({
       submissionError,
       submissionState,
       submit,
+      suggestedCount,
       toggleGameMode,
+      toggleIncludeSuggested,
       toggleTheme,
    } = workflow;
 
@@ -97,6 +100,23 @@ function AssistantPromptWorkspace({
                Gemini can rank only the eligible owned games Ludex sends it.
                Your Steam ID and profile name are not included.
             </p>
+            {suggestedCount > 0 && (
+               <p className="assistant-suggested-note" role="status">
+                  <span>
+                     {includeSuggested
+                        ? `Including ${suggestedCount} ${suggestedCount === 1 ? "game" : "games"} already suggested in Guided.`
+                        : `Skipping ${suggestedCount} ${suggestedCount === 1 ? "game" : "games"} already suggested in Guided.`}
+                  </span>
+                  <button
+                     className="assistant-suggested-note__toggle"
+                     type="button"
+                     aria-pressed={includeSuggested}
+                     onClick={toggleIncludeSuggested}
+                  >
+                     {includeSuggested ? "Skip them" : "Include them"}
+                  </button>
+               </p>
+            )}
          </header>
 
          <div className="assistant-step" data-step="1">

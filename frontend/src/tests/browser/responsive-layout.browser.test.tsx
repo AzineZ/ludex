@@ -296,7 +296,11 @@ function AssistantFixture() {
          <main className="app__content">
             <section className="app__session">
                <div className="app__current-profile" />
-               <AssistantWorkspace sessionEpoch={7} onUseGuided={vi.fn()} />
+               <AssistantWorkspace
+                  sessionEpoch={7}
+                  suggestedSteamAppIds={Array.from({ length: 12 }, (_, index) => 900 + index)}
+                  onUseGuided={vi.fn()}
+               />
             </section>
          </main>
       </div>
@@ -713,12 +717,23 @@ describe("responsive layout contracts", () => {
       }));
       await screen.findByRole("group", { name: "Theme filters" });
 
+      const note = screen.getByText(
+         "Skipping 12 games already suggested in Guided."
+      ).parentElement as HTMLElement;
       for (const viewport of PUBLIC_PAGE_VIEWPORTS) {
          await setTestViewport(viewport);
          expect(
             document.documentElement.scrollWidth,
             `assistant form width at ${viewportName(viewport)}`
          ).toBeLessThanOrEqual(viewport.width);
+         const noteBounds = note.getBoundingClientRect();
+         const toggle = within(note).getByRole("button", { name: "Include them" });
+         expect(
+            toggle.getBoundingClientRect().right,
+            `skip toggle inside its note at ${viewportName(viewport)}`
+         ).toBeLessThanOrEqual(noteBounds.right + 0.5);
+         expect(note.scrollWidth, `skip note fits at ${viewportName(viewport)}`)
+            .toBeLessThanOrEqual(note.clientWidth + 1);
       }
 
       await setTestViewport({ width: 1280, height: 720 });

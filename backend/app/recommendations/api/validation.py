@@ -298,15 +298,13 @@ def _translate_contract_validator(
         )
 
     if (
-        "More like this may exclude at most 60 shown games."
+        "A request may exclude at most 60 shown games."
         in message
     ):
         return RecommendationErrorDetail(
             code=RecommendationErrorCode.TOO_MANY_EXCLUDED_GAMES,
             field=field,
-            message=(
-                "More like this may exclude at most 60 shown games."
-            ),
+            message="A request may exclude at most 60 shown games.",
         )
 
     return None

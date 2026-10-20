@@ -8,6 +8,7 @@ import {
    rowHeading,
    shownSteamAppIds,
    showAnotherInRow,
+   suggestedSteamAppIds,
 } from "../../features/recommendations/automatic/automaticRows";
 import { automaticRowResponse } from "./automaticFixtures";
 
@@ -101,5 +102,19 @@ describe("automatic rows", () => {
 
       const rejected = Array.from({ length: 70 }, (_, index) => 5000 + index);
       expect(shownSteamAppIds([row], rejected)).toHaveLength(60);
+   });
+
+   it("lists suggested games for Ask Ludex without queued alternatives", () => {
+      const row = createAutomaticRow(
+         automaticRowResponse(101, [201, 202, 203, 204]),
+         "played",
+         "played-101"
+      );
+
+      expect(suggestedSteamAppIds([row], [999, 201])).toEqual([
+         201, 202, 203, 101, 999,
+      ]);
+      const rejected = Array.from({ length: 70 }, (_, index) => 5000 + index);
+      expect(suggestedSteamAppIds([row], rejected)).toHaveLength(60);
    });
 });

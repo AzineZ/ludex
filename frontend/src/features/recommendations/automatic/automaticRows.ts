@@ -118,6 +118,22 @@ export function addMoreLikeRow(
 }
 
 /**
+ * Lists games the Guided rows have suggested so Ask Ludex can skip them:
+ * visible cards, row source games, then dismissed games (no queued ones).
+ */
+export function suggestedSteamAppIds(
+   rows: readonly AutomaticRow[],
+   rejectedSteamAppIds: readonly number[]
+): number[] {
+   const ordered = [
+      ...rows.flatMap((row) => row.visible.map((item) => item.steam_app_id)),
+      ...rows.map((row) => row.sourceGame.steam_app_id),
+      ...rejectedSteamAppIds,
+   ];
+   return [...new Set(ordered)].slice(0, MAX_MORE_LIKE_EXCLUDED_GAMES);
+}
+
+/**
  * Lists every game already shown on the page, most important first:
  * visible cards, row source games, dismissed games, then waiting games.
  */

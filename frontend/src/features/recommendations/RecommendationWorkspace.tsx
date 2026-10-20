@@ -64,6 +64,9 @@ function RecommendationWorkspaceSession({
    const [prefill, setPrefill] = useState<RecommendationPreference | null>(
       null
    );
+   const [suggestedSteamAppIds, setSuggestedSteamAppIds] = useState<number[]>(
+      []
+   );
    const [activeView, setActiveView] =
       useState<RecommendationWorkspaceView>("preferences");
    const [recommendationsAvailable, setRecommendationsAvailable] =
@@ -118,6 +121,7 @@ function RecommendationWorkspaceSession({
             <AutomaticRecommendations
                onCustomize={openCustomize}
                onUnavailable={handleSuggestionsUnavailable}
+               onSuggestedChange={setSuggestedSteamAppIds}
             />
          </div>
          <div hidden={mode !== "guided" || guidedView !== "customize"}>
@@ -152,6 +156,7 @@ function RecommendationWorkspaceSession({
          {mode === "assistant" && (
             <AssistantWorkspace
                sessionEpoch={sessionEpoch}
+               suggestedSteamAppIds={suggestedSteamAppIds}
                onUseGuided={() => {
                   setActiveView("preferences");
                   setGuidedView("customize");

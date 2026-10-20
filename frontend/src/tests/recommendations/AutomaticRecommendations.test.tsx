@@ -46,13 +46,15 @@ const PREPARING: AutomaticRecommendationResponse = {
 function renderAutomatic() {
    const onCustomize = vi.fn();
    const onUnavailable = vi.fn();
+   const onSuggestedChange = vi.fn();
    render(
       <AutomaticRecommendations
          onCustomize={onCustomize}
          onUnavailable={onUnavailable}
+         onSuggestedChange={onSuggestedChange}
       />
    );
-   return { onCustomize, onUnavailable };
+   return { onCustomize, onUnavailable, onSuggestedChange };
 }
 
 function rowRegion(name: string | RegExp): HTMLElement {
@@ -376,5 +378,30 @@ describe("AutomaticRecommendations", () => {
       } finally {
          Element.prototype.scrollIntoView = original;
       }
+   });
+
+   it("reports the games its rows suggest so Ask Ludex can skip them", async () => {
+      mockedAutomatic.mockResolvedValue(readyAutomaticResponse());
+      const { onSuggestedChange } = renderAutomatic();
+      const first = await screen.findByRole("region", {
+         name: "Because you played Source 101 · 42 h",
+      });
+
+      await waitFor(() => {
+         expect(onSuggestedChange).toHaveBeenLastCalledWith([
+            201, 202, 203, 207, 208, 209, 213, 214, 215, 101, 102, 103,
+         ]);
+      });
+
+      fireEvent.click(
+         within(first).getByRole("button", {
+            name: /Show another instead of Game 202/,
+         })
+      );
+      await waitFor(() => {
+         expect(onSuggestedChange).toHaveBeenLastCalledWith([
+            201, 204, 203, 207, 208, 209, 213, 214, 215, 101, 102, 103, 202,
+         ]);
+      });
    });
 });

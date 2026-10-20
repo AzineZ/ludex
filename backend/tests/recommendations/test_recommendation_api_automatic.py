@@ -698,7 +698,7 @@ def test_automatic_requests_validate_bounded_exclusions(
         status_code=422,
         code="too_many_excluded_games",
         field="excluded_steam_app_ids",
-        message="More like this may exclude at most 60 shown games.",
+        message="A request may exclude at most 60 shown games.",
     )
     _assert_error(
         duplicate_excluded,

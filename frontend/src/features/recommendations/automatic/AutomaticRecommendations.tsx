@@ -5,6 +5,7 @@ import RecommendationResultCard from "../results/RecommendationResultCard";
 import {
    remainingAlternatives,
    rowHeading,
+   suggestedSteamAppIds,
    type AutomaticRow,
 } from "./automaticRows";
 import QuickToggles from "./QuickToggles";
@@ -17,6 +18,7 @@ import "./automatic.css";
 type AutomaticRecommendationsProps = {
    onCustomize: (preference: RecommendationPreference | null) => void;
    onUnavailable: () => void;
+   onSuggestedChange?: (steamAppIds: number[]) => void;
 };
 
 type AutomaticRowSectionProps = {
@@ -132,10 +134,22 @@ function AutomaticRowSection({
 function AutomaticRecommendations({
    onCustomize,
    onUnavailable,
+   onSuggestedChange,
 }: AutomaticRecommendationsProps) {
    const headingId = useId();
    const automatic = useAutomaticRecommendations(onUnavailable);
    const allRows = [...automatic.moreLikeRows, ...automatic.rows];
+   const suggestedKey = suggestedSteamAppIds(
+      allRows,
+      automatic.rejectedSteamAppIds
+   ).join(",");
+
+   // Ask Ludex skips what these rows already suggested.
+   useEffect(() => {
+      onSuggestedChange?.(
+         suggestedKey === "" ? [] : suggestedKey.split(",").map(Number)
+      );
+   }, [onSuggestedChange, suggestedKey]);
    const visibleRows = allRows.filter((row) => row.visible.length > 0);
    const newestMoreLikeKey = automatic.moreLikeRows[0]?.key ?? null;
 

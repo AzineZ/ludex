@@ -4,6 +4,7 @@ import useAssistantWorkflow from "./useAssistantWorkflow";
 
 type AssistantWorkspaceProps = {
    sessionEpoch: number | null;
+   suggestedSteamAppIds?: readonly number[];
    onUseGuided: () => void;
 };
 
@@ -39,9 +40,10 @@ function AssistantNavigation({
 
 function AssistantWorkspaceSession({
    sessionEpoch,
+   suggestedSteamAppIds = [],
    onUseGuided,
 }: AssistantWorkspaceProps) {
-   const workflow = useAssistantWorkflow(sessionEpoch);
+   const workflow = useAssistantWorkflow(sessionEpoch, suggestedSteamAppIds);
    const { reject, resetResults, response } = workflow;
 
    if (response?.status === "ranked" && response.items.length > 0) {

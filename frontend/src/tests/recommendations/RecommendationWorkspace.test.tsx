@@ -12,12 +12,15 @@ vi.mock("../../features/recommendations/assistant/AssistantWorkspace", () => ({
    default: ({
       onUseGuided,
       sessionEpoch,
+      suggestedSteamAppIds,
    }: {
       onUseGuided: () => void;
       sessionEpoch: number | null;
+      suggestedSteamAppIds?: readonly number[];
    }) => (
       <div>
          <p>Assistant epoch: {sessionEpoch ?? "none"}</p>
+         <p>Assistant skips: {suggestedSteamAppIds?.join(",") || "none"}</p>
          <button type="button" onClick={onUseGuided}>
             Mock guided fallback
          </button>
@@ -44,12 +47,17 @@ vi.mock("../../features/recommendations/automatic/AutomaticRecommendations", () 
    default: ({
       onCustomize,
       onUnavailable,
+      onSuggestedChange,
    }: {
       onCustomize: (preference: RecommendationPreference | null) => void;
       onUnavailable: () => void;
+      onSuggestedChange?: (steamAppIds: number[]) => void;
    }) => (
       <div>
          <p>Mock automatic suggestions</p>
+         <button type="button" onClick={() => onSuggestedChange?.([501, 502])}>
+            Mock suggest games
+         </button>
          <button type="button" onClick={() => onCustomize(suggestedPreference)}>
             Customize
          </button>
@@ -145,6 +153,15 @@ describe("RecommendationWorkspace", () => {
          .toBeDisabled();
       expect(screen.getByRole("button", { name: "Guided recommendations" }))
          .toHaveAttribute("aria-current", "page");
+   });
+
+   it("hands games Guided suggested to Ask Ludex", () => {
+      render(<RecommendationWorkspace sessionEpoch={4} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Mock suggest games" }));
+      fireEvent.click(screen.getByRole("button", { name: "Ask Ludex AI" }));
+
+      expect(screen.getByText("Assistant skips: 501,502")).toBeInTheDocument();
    });
 
    it("opens the optional assistant and returns through its guided fallback", () => {

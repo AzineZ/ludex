@@ -12,6 +12,7 @@ from app.recommendations.contracts import (
     PositiveIdentifier,
     PreferenceConstraints,
     RecommendationPreference,
+    validate_shown_exclusions,
 )
 from app.recommendations.factual_scoring import (
     FacetKind,
@@ -310,9 +311,6 @@ class RecommendationRefinementRequest(RecommendationHTTPModel):
         return _validate_rejected_ids(steam_app_ids)
 
 
-MAX_MORE_LIKE_THIS_EXCLUDED_GAMES = 60
-
-
 class AutomaticRecommendationRequest(RecommendationHTTPModel):
     """Carry quick constraints and dismissed games for automatic rows."""
 
@@ -344,13 +342,7 @@ class MoreLikeThisRequest(RecommendationHTTPModel):
         steam_app_ids: tuple[int, ...],
     ) -> tuple[int, ...]:
         """Reject duplicate or unbounded shown-game exclusions."""
-        if len(steam_app_ids) > MAX_MORE_LIKE_THIS_EXCLUDED_GAMES:
-            raise ValueError(
-                "More like this may exclude at most 60 shown games."
-            )
-        if len(set(steam_app_ids)) != len(steam_app_ids):
-            raise ValueError("Excluded game IDs must be unique.")
-        return steam_app_ids
+        return validate_shown_exclusions(steam_app_ids)
 
 
 class AutomaticSourceGameResponse(RecommendationHTTPModel):
